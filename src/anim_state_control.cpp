@@ -1846,8 +1846,13 @@ int State_Control_Lara(struct entity_s *ent, struct ss_animation_s *ss_anim)
 
             if((resp->kill == 0) && clean_action)                               // we have to update climb point every time so entity can move
             {
-                t = LARA_TRY_HANG_WALL_OFFSET;
+                //t = LARA_TRY_HANG_WALL_OFFSET;
+                t = LARA_TRY_HANG_WALL_OFFSET + LARA_HANG_WALL_DISTANCE;
                 Character_GetMiddleHandsPos(ent, climb_from);
+                if(climb->edge_hit && (climb->edge_point[2] > climb_from[2]))
+                {
+                    climb_from[2] = climb->edge_point[2];
+                }
                 climb_from[0] -= ent->character->climb_r * ent->transform[4 + 0];
                 climb_from[1] -= ent->character->climb_r * ent->transform[4 + 1];
                 climb_to[0] = climb_from[0] + t * ent->transform[4 + 0];
@@ -1860,6 +1865,10 @@ int State_Control_Lara(struct entity_s *ent, struct ss_animation_s *ss_anim)
                     ent->angles[0] = climb->edge_z_ang;
                     Entity_UpdateTransform(ent);
                     ent->move_type = MOVE_CLIMBING;                             // hang on
+                }
+                else
+                {
+                    Character_CheckClimbability(ent, climb, climb_from, climb_to);
                 }
             }
             else
@@ -2082,7 +2091,7 @@ int State_Control_Lara(struct entity_s *ent, struct ss_animation_s *ss_anim)
             break;
 
         case TR_STATE_LARA_SHIMMY_LEFT:
-            ent->no_fix_skeletal_parts = BODY_PART_LEGS_1 | BODY_PART_LEGS_2 | BODY_PART_LEGS_3;
+            ent->no_fix_skeletal_parts = BODY_PART_LEGS_1 | BODY_PART_LEGS_2 | BODY_PART_LEGS_3 | BODY_PART_HANDS_3;
 
             cmd->rot[0] = 0;
             ent->dir_flag = ENT_MOVE_LEFT;
@@ -2106,6 +2115,10 @@ int State_Control_Lara(struct entity_s *ent, struct ss_animation_s *ss_anim)
             {
                 t = LARA_TRY_HANG_WALL_OFFSET + LARA_HANG_WALL_DISTANCE;
                 Character_GetMiddleHandsPos(ent, climb_from);
+                if(climb->edge_hit && (climb->edge_point[2] > climb_from[2]))
+                {
+                    climb_from[2] = climb->edge_point[2];
+                }
                 climb_from[0] -= ent->character->climb_r * ent->transform[4 + 0];
                 climb_from[1] -= ent->character->climb_r * ent->transform[4 + 1];
                 climb_to[0] = climb_from[0] + t * ent->transform[4 + 0];
@@ -2125,6 +2138,7 @@ int State_Control_Lara(struct entity_s *ent, struct ss_animation_s *ss_anim)
                 }
                 else
                 {
+                    Character_CheckClimbability(ent, climb, climb_from, climb_to);
                     ent->move_type = MOVE_FREE_FALLING;
                     Entity_SetAnimation(ent, TR_ANIMATION_LARA_STOP_HANG_VERTICAL, 0); // fall down
                     break;
@@ -2146,7 +2160,7 @@ int State_Control_Lara(struct entity_s *ent, struct ss_animation_s *ss_anim)
             break;
 
         case TR_STATE_LARA_SHIMMY_RIGHT:
-            ent->no_fix_skeletal_parts = BODY_PART_LEGS_1 | BODY_PART_LEGS_2 | BODY_PART_LEGS_3;
+            ent->no_fix_skeletal_parts = BODY_PART_LEGS_1 | BODY_PART_LEGS_2 | BODY_PART_LEGS_3 | BODY_PART_HANDS_3;
 
             cmd->rot[0] = 0;
             ent->dir_flag = ENT_MOVE_RIGHT;
@@ -2170,6 +2184,10 @@ int State_Control_Lara(struct entity_s *ent, struct ss_animation_s *ss_anim)
             {
                 t = LARA_TRY_HANG_WALL_OFFSET + LARA_HANG_WALL_DISTANCE;
                 Character_GetMiddleHandsPos(ent, climb_from);
+                if(climb->edge_hit && (climb->edge_point[2] > climb_from[2]))
+                {
+                    climb_from[2] = climb->edge_point[2];
+                }
                 climb_from[0] -= ent->character->climb_r * ent->transform[4 + 0];
                 climb_from[1] -= ent->character->climb_r * ent->transform[4 + 1];
                 climb_to[0] = climb_from[0] + t * ent->transform[4 + 0];
