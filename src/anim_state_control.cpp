@@ -1866,10 +1866,6 @@ int State_Control_Lara(struct entity_s *ent, struct ss_animation_s *ss_anim)
                     Entity_UpdateTransform(ent);
                     ent->move_type = MOVE_CLIMBING;                             // hang on
                 }
-                else
-                {
-                    Character_CheckClimbability(ent, climb, climb_from, climb_to);
-                }
             }
             else
             {
@@ -2138,7 +2134,6 @@ int State_Control_Lara(struct entity_s *ent, struct ss_animation_s *ss_anim)
                 }
                 else
                 {
-                    Character_CheckClimbability(ent, climb, climb_from, climb_to);
                     ent->move_type = MOVE_FREE_FALLING;
                     Entity_SetAnimation(ent, TR_ANIMATION_LARA_STOP_HANG_VERTICAL, 0); // fall down
                     break;
