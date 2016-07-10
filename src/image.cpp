@@ -86,7 +86,6 @@ static int Image_LoadPNG(const char *file_name, uint8_t **buffer, uint32_t *w, u
     /* For images with a single "transparent colour", set colour key;
        if more than one index has transparency, or if partially transparent
        entries exist, use full alpha channel */
-#if 1
     if(png_get_valid(png_ptr, read_info_ptr, PNG_INFO_tRNS))
     {
         png_color_16 *transv = NULL;
@@ -119,7 +118,6 @@ static int Image_LoadPNG(const char *file_name, uint8_t **buffer, uint32_t *w, u
             }
         }
     }
-#endif
 
     if(color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
     {
@@ -331,15 +329,16 @@ static int Image_LoadPCX(const char *file_name, uint8_t **buffer, uint32_t *w, u
             int plane;
             for(plane = 0; plane < pcxh.NPlanes; plane++)
             {
-                uint32_t j, k, x = 0;
+                uint32_t j, x = 0;
                 for(j = 0; j < pcxh.BytesPerLine; j++)
                 {
                     uint8_t byte = *innerSrc++;
-                    for(k = 7; k >= 0; k--)
+                    int sk = 7;
+                    for(; sk >= 0; sk--)
                     {
-                        unsigned bit = (byte >> k) & 1;
+                        unsigned bit = (byte >> sk) & 1;
                         /* skip padding bits */
-                        if(j * 8 + k >= (*w))
+                        if(j * 8 + sk >= (*w))
                         {
                             continue;
                         }
@@ -414,9 +413,18 @@ static int Image_LoadPCX(const char *file_name, uint8_t **buffer, uint32_t *w, u
         {
             for(uint32_t x = 0; x < *w; x++)
             {
-                dst_row[x * 3 + 0] = colors[src_row[x]].r;
-                dst_row[x * 3 + 1] = colors[src_row[x]].g;
-                dst_row[x * 3 + 2] = colors[src_row[x]].b;
+                if(src_row[x] < nc)
+                {
+                    dst_row[x * 3 + 0] = colors[src_row[x]].r;
+                    dst_row[x * 3 + 1] = colors[src_row[x]].g;
+                    dst_row[x * 3 + 2] = colors[src_row[x]].b;
+                }
+                else
+                {
+                    dst_row[x * 3 + 0] = 0;
+                    dst_row[x * 3 + 1] = 0;
+                    dst_row[x * 3 + 2] = 0;
+                }
             }
             src_row += bpl;
             dst_row += (*w) * 3;
@@ -450,13 +458,6 @@ int Image_Load(const char *file_name, int format, uint8_t **buffer, uint32_t *w,
 }
 
 //------------------------------------------------------------------------------
-//int IMG_SavePNG_RW(SDL_Surface *surface, SDL_RWops *dst, int freedst)
-
-/*PNG_EXPORT(77, void, png_set_write_fn, (png_structrp png_ptr, png_voidp io_ptr,
-    png_rw_ptr write_data_fn, png_flush_ptr output_flush_fn));*/
-
-/*typedef PNG_CALLBACK(void, *png_rw_ptr, (png_structp, png_bytep, png_size_t));
-typedef PNG_CALLBACK(void, *png_flush_ptr, (png_structp));*/
 
 static void png_write_data(png_structp ctx, png_bytep area, png_size_t size)
 {

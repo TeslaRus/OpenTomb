@@ -383,9 +383,9 @@ void SSBoneFrame_Clear(ss_bone_frame_p bf)
 }
 
 
-void SSBoneFrame_Update(struct ss_bone_frame_s *bf)
+void SSBoneFrame_Update(struct ss_bone_frame_s *bf, float time)
 {
-    float cmd_tr[3], tr[3], t;
+    float cmd_local_move[3], t;
     ss_bone_tag_p btag = bf->bone_tags;
     bone_tag_p src_btag, next_btag;
     skeletal_model_p model = bf->animations.model;
@@ -394,34 +394,32 @@ void SSBoneFrame_Update(struct ss_bone_frame_s *bf)
     next_bf = model->animations[bf->animations.next_animation].frames + bf->animations.next_frame;
     curr_bf = model->animations[bf->animations.current_animation].frames + bf->animations.current_frame;
 
-    t = 1.0 - bf->animations.lerp;
-    if(bf->transform && (curr_bf->command & ANIM_CMD_MOVE))
+    t = 1.0f - bf->animations.lerp;
+    if(curr_bf->command & ANIM_CMD_MOVE)
     {
-        Mat4_vec3_rot_macro(tr, bf->transform, curr_bf->move);
-        vec3_mul_scalar(cmd_tr, tr, bf->animations.lerp);
+        vec3_mul_scalar(cmd_local_move, curr_bf->move, bf->animations.lerp);
     }
     else
     {
-        vec3_set_zero(tr);
-        vec3_set_zero(cmd_tr);
+        vec3_set_zero(cmd_local_move);
     }
 
     vec3_interpolate_macro(bf->bb_max, curr_bf->bb_max, next_bf->bb_max, bf->animations.lerp, t);
-    vec3_add(bf->bb_max, bf->bb_max, cmd_tr);
+    vec3_add(bf->bb_max, bf->bb_max, cmd_local_move);
     vec3_interpolate_macro(bf->bb_min, curr_bf->bb_min, next_bf->bb_min, bf->animations.lerp, t);
-    vec3_add(bf->bb_min, bf->bb_min, cmd_tr);
+    vec3_add(bf->bb_min, bf->bb_min, cmd_local_move);
     vec3_interpolate_macro(bf->centre, curr_bf->centre, next_bf->centre, bf->animations.lerp, t);
-    vec3_add(bf->centre, bf->centre, cmd_tr);
+    vec3_add(bf->centre, bf->centre, cmd_local_move);
 
     vec3_interpolate_macro(bf->pos, curr_bf->pos, next_bf->pos, bf->animations.lerp, t);
-    vec3_add(bf->pos, bf->pos, cmd_tr);
+    vec3_add(bf->pos, bf->pos, cmd_local_move);
     next_btag = next_bf->bone_tags;
     src_btag = curr_bf->bone_tags;
     for(uint16_t k = 0; k < curr_bf->bone_tag_count; k++, btag++, src_btag++, next_btag++)
     {
         vec3_interpolate_macro(btag->offset, src_btag->offset, next_btag->offset, bf->animations.lerp, t);
         vec3_copy(btag->transform+12, btag->offset);
-        btag->transform[15] = 1.0;
+        btag->transform[15] = 1.0f;
         if(k == 0)
         {
             vec3_add(btag->transform+12, btag->transform+12, bf->pos);
@@ -458,7 +456,7 @@ void SSBoneFrame_Update(struct ss_bone_frame_s *bf)
 
     for(ss_animation_p ss_anim = &bf->animations; ss_anim; ss_anim = ss_anim->next)
     {
-        SSBoneFrame_TargetBoneToSlerp(bf, ss_anim);
+        SSBoneFrame_TargetBoneToSlerp(bf, ss_anim, time);
     }
 }
 
@@ -513,9 +511,8 @@ int  SSBoneFrame_CheckTargetBoneLimit(struct ss_bone_frame_s *bf, struct ss_anim
 }
 
 
-void SSBoneFrame_TargetBoneToSlerp(struct ss_bone_frame_s *bf, struct ss_animation_s *ss_anim)
+void SSBoneFrame_TargetBoneToSlerp(struct ss_bone_frame_s *bf, struct ss_animation_s *ss_anim, float time)
 {
-    extern float engine_frame_time;
     if(ss_anim->anim_ext_flags & ANIM_EXT_TARGET_TO)
     {
         ss_bone_tag_p b_tag = bf->bone_tags + ss_anim->targeting_bone;
@@ -549,7 +546,7 @@ void SSBoneFrame_TargetBoneToSlerp(struct ss_bone_frame_s *bf, struct ss_animati
         {
             vec4_clampw(q, ss_anim->targeting_limit[3]);
         }
-        vec4_slerp_to(clamped_q, ss_anim->current_mod, q, engine_frame_time * M_PI / 1.3f);
+        vec4_slerp_to(clamped_q, ss_anim->current_mod, q, time * M_PI / 1.3f);
         vec4_copy(ss_anim->current_mod, clamped_q);
         SSBoneFrame_RotateBone(bf, ss_anim->current_mod, ss_anim->targeting_bone);
     }
@@ -559,7 +556,7 @@ void SSBoneFrame_TargetBoneToSlerp(struct ss_bone_frame_s *bf, struct ss_animati
         {
             float zero_ang[4] = {0.0f, 0.0f, 0.0f, 1.0f};
             float clamped_q[4];
-            vec4_slerp_to(clamped_q, ss_anim->current_mod, zero_ang, engine_frame_time * M_PI / 1.3f);
+            vec4_slerp_to(clamped_q, ss_anim->current_mod, zero_ang, time * M_PI / 1.3f);
             vec4_copy(ss_anim->current_mod, clamped_q);
             SSBoneFrame_RotateBone(bf, ss_anim->current_mod, ss_anim->targeting_bone);
         }
@@ -607,26 +604,39 @@ void SSBoneFrame_SetTargetingLimit(struct ss_animation_s *ss_anim, const float l
 }
 
 
-void SSBoneFrame_SetAnimation(struct ss_bone_frame_s *bf, int animation, int frame)
+void SSBoneFrame_SetAnimation(struct ss_bone_frame_s *bf, int anim_type, int animation, int frame)
 {
-    animation_frame_p anim = &bf->animations.model->animations[animation];
-    bf->animations.lerp = 0.0;
-    frame %= anim->frames_count;
-    frame = (frame >= 0)?(frame):(anim->frames_count - 1 + frame);
-    bf->animations.period = 1.0 / 30.0;
+    ss_animation_p ss_anim = NULL;
+    for(ss_animation_p  ss_anim_it = &bf->animations; ss_anim_it; ss_anim_it = ss_anim_it->next)
+    {
+        if(ss_anim_it->type == anim_type)
+        {
+            ss_anim = ss_anim_it;
+            break;
+        }
+    }
+    
+    if(ss_anim && ss_anim->model && (animation < ss_anim->model->animation_count))
+    {
+        animation_frame_p anim = &ss_anim->model->animations[animation];
+        ss_anim->lerp = 0.0;
+        frame %= anim->frames_count;
+        frame = (frame >= 0) ? (frame) : (anim->frames_count - 1 + frame);
+        ss_anim->period = 1.0 / 30.0;
 
-    bf->animations.last_state = anim->state_id;
-    bf->animations.next_state = anim->state_id;
+        ss_anim->last_state = anim->state_id;
+        ss_anim->next_state = anim->state_id;
 
-    bf->animations.current_animation = animation;
-    bf->animations.current_frame = frame;
-    bf->animations.next_animation = animation;
-    bf->animations.next_frame = frame;
+        ss_anim->current_animation = animation;
+        ss_anim->current_frame = frame;
+        ss_anim->next_animation = animation;
+        ss_anim->next_frame = frame;
 
-    bf->animations.frame_time = (float)frame * bf->animations.period;
-    //long int t = (bf->animations.frame_time) / bf->animations.period;
-    //float dt = bf->animations.frame_time - (float)t * bf->animations.period;
-    bf->animations.frame_time = (float)frame * bf->animations.period;// + dt;
+        ss_anim->frame_time = (float)frame * ss_anim->period;
+        //long int t = (ss_anim->frame_time) / ss_anim->period;
+        //float dt = ss_anim->frame_time - (float)t * ss_anim->period;
+        ss_anim->frame_time = (float)frame * ss_anim->period;// + dt;
+    }
 }
 
 

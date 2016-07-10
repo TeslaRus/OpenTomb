@@ -310,7 +310,7 @@ void Engine_InitSDLVideo()
     Uint32 video_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_MOUSE_FOCUS | SDL_WINDOW_INPUT_FOCUS;
     PFNGLGETSTRINGPROC lglGetString = NULL;
 
-    if(screen_info.FS_flag)
+    if(screen_info.fullscreen)
     {
         video_flags |= SDL_WINDOW_FULLSCREEN;
     }
@@ -507,8 +507,8 @@ void Engine_Display()
         Cam_RecalcClipPlanes(&engine_camera);
         // GL_VERTEX_ARRAY | GL_COLOR_ARRAY
 
-        screen_info.show_debuginfo %= 4;
-        if(screen_info.show_debuginfo)
+        screen_info.debug_view_state %= 4;
+        if(screen_info.debug_view_state)
         {
             ShowDebugInfo();
         }
@@ -525,7 +525,6 @@ void Engine_Display()
         Gui_SwitchGLMode(1);
         qglEnable(GL_ALPHA_TEST);
 
-        Gui_DrawNotifier();
         qglPopClientAttrib();        ///@POP -> GL_VERTEX_ARRAY | GL_COLOR_ARRAY
         Gui_Render();
         Gui_SwitchGLMode(0);
@@ -845,7 +844,7 @@ void ShowDebugInfo()
         }
     }
 
-    switch(screen_info.show_debuginfo)
+    switch(screen_info.debug_view_state)
     {
         case 1:
             {
@@ -1121,6 +1120,7 @@ int Engine_ExecCmd(char *ch)
             Con_AddLine("showing_lines - read and write number of showing lines\0", FONTSTYLE_CONSOLE_NOTIFY);
             Con_AddLine("cvars - lua's table of cvar's, to see them type: show_table(cvars)\0", FONTSTYLE_CONSOLE_NOTIFY);
             Con_AddLine("free_look - switch camera mode\0", FONTSTYLE_CONSOLE_NOTIFY);
+            Con_AddLine("r_crosshair - switch crosshair visibility\0", FONTSTYLE_CONSOLE_NOTIFY);
             Con_AddLine("cam_distance - camera distance to actor\0", FONTSTYLE_CONSOLE_NOTIFY);
             Con_AddLine("r_wireframe, r_portals, r_frustums, r_room_boxes, r_boxes, r_normals, r_skip_room, r_flyby, r_triggers - render modes\0", FONTSTYLE_CONSOLE_NOTIFY);
             Con_AddLine("playsound(id) - play specified sound\0", FONTSTYLE_CONSOLE_NOTIFY);
@@ -1256,6 +1256,11 @@ int Engine_ExecCmd(char *ch)
         else if(!strcmp(token, "r_triggers"))
         {
             renderer.r_flags ^= R_DRAW_TRIGGERS;
+            return 1;
+        }
+        else if(!strcmp(token, "r_crosshair"))
+        {
+            screen_info.crosshair = !screen_info.crosshair;
             return 1;
         }
         else if(!strcmp(token, "room_info"))

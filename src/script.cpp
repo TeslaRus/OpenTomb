@@ -611,17 +611,20 @@ int Script_ParseScreen(lua_State *lua, struct screen_info_s *sc)
         sc->w_unit = (GLfloat)sc->w / SYS_SCREEN_METERING_RESOLUTION;
         sc->h_unit = (GLfloat)sc->h / SYS_SCREEN_METERING_RESOLUTION;
         lua_getfield(lua, -1, "fullscreen");
-        sc->FS_flag = (int8_t)lua_tonumber(lua, -1);
+        sc->fullscreen = (int8_t)lua_tonumber(lua, -1);
         lua_pop(lua, 1);
 
-        lua_getfield(lua, -1, "debug_info");
-        sc->show_debuginfo = (int8_t)lua_tonumber(lua, -1);
+        lua_getfield(lua, -1, "debug_view_state");
+        sc->debug_view_state = (int8_t)lua_tonumber(lua, -1);
+        lua_pop(lua, 1);
+
+        lua_getfield(lua, -1, "crosshair");
+        sc->crosshair = (int8_t)lua_tonumber(lua, -1);
         lua_pop(lua, 1);
 
         lua_getfield(lua, -1, "fov");
         sc->fov = (float)lua_tonumber(lua, -1);
         lua_pop(lua, 1);
-
 
         lua_settop(lua, top);
         return 1;
@@ -922,7 +925,7 @@ int lua_BindKey(lua_State *lua)
     }
     else
     {
-        Con_Warning("expecting arguments (action_id, key_id1, (key_id2))");
+        Con_Warning("bindKey: expecting arguments (action_id, key_id1, (key_id2))");
     }
 
     return 0;
@@ -1066,7 +1069,7 @@ int lua_ActivateEntity(lua_State *lua)
 
     if(top < 6)
     {
-        Con_Warning("expecting arguments (object_id, activator_id, trigger_mask, trigger_op, trigger_lock, trigger_timer)");
+        Con_Warning("activateEntity: expecting arguments (object_id, activator_id, trigger_mask, trigger_op, trigger_lock, trigger_timer)");
         return 0;
     }
 
@@ -1092,7 +1095,7 @@ int lua_DeactivateEntity(lua_State *lua)
 
     if(top < 2)
     {
-        Con_Warning("expecting arguments (object_id, activator_id)");
+        Con_Warning("deactivateEntity: expecting arguments (object_id, activator_id)");
         return 0;
     }
 
@@ -1114,7 +1117,7 @@ int lua_NoFixEntityCollision(lua_State *lua)
 
     if(top < 1)
     {
-        Con_Warning("Expecting arguments (entity_id)");
+        Con_Warning("noFixEntityCollision: Expecting arguments (entity_id)");
         return 0;
     }
 
@@ -1133,7 +1136,7 @@ int lua_EnableEntity(lua_State * lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("missed argument entity_id");
+        Con_Warning("enableEntity: Expecting arguments (entity_id)");
         return 0;
     }
 
@@ -1151,7 +1154,7 @@ int lua_DisableEntity(lua_State * lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("missed argument entity_id");
+        Con_Warning("disableEntity: Expecting arguments (entity_id)");
         return 0;
     }
 
@@ -1171,7 +1174,7 @@ int lua_SetEntityCollision(lua_State * lua)
 
     if(top < 1)
     {
-        Con_Warning("missed argument entity_id");
+        Con_Warning("setEntityCollision: Expecting arguments (entity_id)");
         return 0;
     }
 
@@ -1196,7 +1199,7 @@ int lua_SetEntityCollisionFlags(lua_State * lua)
 {
     if(lua_gettop(lua) < 3)
     {
-        Con_Warning("expecting arguments (entity_id, collision_type, collision_shape)");
+        Con_Warning("setEntityCollisionFlags: expecting arguments (entity_id, collision_type, collision_shape)");
         return 0;
     }
 
@@ -1275,7 +1278,7 @@ int lua_SameRoom(lua_State *lua)
 {
     if(lua_gettop(lua) != 2)
     {
-        Con_Warning("expecting arguments (ent_id1, ent_id2)");
+        Con_Warning("sameRoom: expecting arguments (ent_id1, ent_id2)");
         return 0;
     }
 
@@ -1349,7 +1352,7 @@ int lua_SetGravity(lua_State * lua)                                             
             break;
 
         default:
-            Con_Warning("expecting arguments none or (oz), or (ox, oy, oz)");
+            Con_Warning("setGravity: expecting arguments none or (oz), or (ox, oy, oz)");
             break;
     };
 
@@ -1363,7 +1366,7 @@ int lua_DropEntity(lua_State * lua)
 
     if(top < 2)
     {
-        Con_Warning("expecting arguments (entity_id, time, (only_room))");
+        Con_Warning("dropEntity: expecting arguments (entity_id, time, (only_room))");
         return 0;
     }
 
@@ -1455,7 +1458,7 @@ int lua_SetEntityActivationOffset(lua_State * lua)
 
     if(top < 1)
     {
-        Con_AddLine("not set entity id", FONTSTYLE_GENERIC);
+        Con_Warning("setEntityActivationOffset: Expecting arguments (entity_id)");
         return 0;
     }
 
@@ -1488,7 +1491,7 @@ int lua_SetCharacterTarget(lua_State * lua)
 
     if(top == 0)
     {
-        Con_Warning("expecting arguments (entity_id, (target_id))");
+        Con_Warning("setCharacterTarget: expecting arguments (entity_id, (target_id))");
         return 0;
     }
 
@@ -1511,7 +1514,7 @@ int lua_GetCharacterParam(lua_State * lua)
 {
     if(lua_gettop(lua) < 2)
     {
-        Con_Warning("expecting arguments (entity_id, param)");
+        Con_Warning("getCharacterParam: expecting arguments (entity_id, param)");
         return 0;
     }
 
@@ -1544,7 +1547,7 @@ int lua_SetCharacterParam(lua_State * lua)
 
     if(top < 3)
     {
-        Con_Warning("expecting arguments (entity_id, param, value, (max_value))");
+        Con_Warning("setCharacterParam: expecting arguments (entity_id, param, value, (max_value))");
         return 0;
     }
 
@@ -1596,7 +1599,7 @@ int lua_ChangeCharacterParam(lua_State * lua)
 {
     if(lua_gettop(lua) < 3)
     {
-        Con_Warning("expecting arguments (entity_id, param, value)");
+        Con_Warning("changeCharacterParam: expecting arguments (entity_id, param, value)");
         return 0;
     }
 
@@ -1628,7 +1631,7 @@ int lua_AddCharacterHair(lua_State *lua)
 {
     if(lua_gettop(lua) != 2)
     {
-        Con_Warning("expecting arguments (entity_id, hair_setup_index)");
+        Con_Warning("addCharacterHair: expecting arguments (entity_id, hair_setup_index)");
     }
     else
     {
@@ -1670,7 +1673,7 @@ int lua_ResetCharacterHair(lua_State *lua)
 {
     if(lua_gettop(lua) != 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("resetCharacterHair: expecting arguments (entity_id)");
         return 0;
     }
     else
@@ -1709,7 +1712,7 @@ int lua_AddEntityRagdoll(lua_State *lua)
 {
     if(lua_gettop(lua) != 2)
     {
-        Con_Warning("expecting arguments (entity_id, ragdoll_setup_index)");
+        Con_Warning("addEntityRagdoll: expecting arguments (entity_id, ragdoll_setup_index)");
     }
     else
     {
@@ -1748,7 +1751,7 @@ int lua_RemoveEntityRagdoll(lua_State *lua)
 {
     if(lua_gettop(lua) != 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("removeEntityRagdoll: expecting arguments (entity_id)");
         return 0;
     }
     else
@@ -1813,7 +1816,7 @@ int lua_GetActionState(lua_State *lua)
         return 0;
     }
 
-    Con_Warning("expecting arguments (action_id)");
+    Con_Warning("getActionState: expecting arguments (action_id)");
     return 0;
 }
 
@@ -1834,7 +1837,7 @@ int lua_GetActionChange(lua_State *lua)
         return 0;
     }
 
-    Con_Warning("expecting arguments (action_id)");
+    Con_Warning("getActionChange: expecting arguments (action_id)");
     return 0;
 }
 
@@ -1850,7 +1853,7 @@ int lua_AddFont(lua_State *lua)
 {
     if(lua_gettop(lua) != 3)
     {
-        Con_Warning("expecting arguments (font index, font path, font size)");
+        Con_Warning("addFont: expecting arguments (font index, font path, font size)");
         return 0;
     }
 
@@ -1867,7 +1870,7 @@ int lua_AddFontStyle(lua_State *lua)
 {
     if(lua_gettop(lua) < 12)
     {
-        Con_Warning("expecting arguments (index, R, G, B, A, shadow, fade, rect, border, bR, bG, bB, bA, hide)");
+        Con_Warning("addFontStyle: expecting arguments (index, R, G, B, A, shadow, fade, rect, border, bR, bG, bB, bA, hide)");
         return 0;
     }
 
@@ -1900,7 +1903,7 @@ int lua_RemoveFont(lua_State *lua)
 {
     if(lua_gettop(lua) != 1)
     {
-        Con_Warning("expecting arguments (font index)");
+        Con_Warning("removeFont: expecting arguments (font index)");
         return 0;
     }
 
@@ -1917,7 +1920,7 @@ int lua_RemoveFontStyle(lua_State *lua)
 {
     if(lua_gettop(lua) != 1)
     {
-        Con_Warning("expecting arguments (style index)");
+        Con_Warning("removeFontStyle: expecting arguments (style index)");
         return 0;
     }
 
@@ -1937,7 +1940,7 @@ int lua_AddItem(lua_State * lua)
 
     if(top < 2)
     {
-        Con_Warning("expecting arguments (entity_id, item_id, items_count)");
+        Con_Warning("addItem: expecting arguments (entity_id, item_id, items_count)");
         return 0;
     }
 
@@ -1975,7 +1978,7 @@ int lua_RemoveItem(lua_State * lua)
 {
     if(lua_gettop(lua) < 3)
     {
-        Con_Warning("expecting arguments (entity_id, item_id, items_count)");
+        Con_Warning("removeItem: expecting arguments (entity_id, item_id, items_count)");
         return 0;
     }
 
@@ -2000,7 +2003,7 @@ int lua_RemoveAllItems(lua_State * lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("removeAllItems: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -2024,7 +2027,7 @@ int lua_GetItemsCount(lua_State * lua)
 {
     if(lua_gettop(lua) < 2)
     {
-        Con_Warning("expecting arguments (entity_id, item_id)");
+        Con_Warning("getItemsCount: expecting arguments (entity_id, item_id)");
         return 0;
     }
     int entity_id = lua_tointeger(lua, 1);
@@ -2050,7 +2053,7 @@ int lua_CreateBaseItem(lua_State * lua)
 {
     if(lua_gettop(lua) < 5)
     {
-        Con_Warning("expecting arguments (item_id, model_id, world_model_id, type, count, (name))");
+        Con_Warning("createBaseItem: expecting arguments (item_id, model_id, world_model_id, type, count, (name))");
         return 0;
     }
 
@@ -2070,7 +2073,7 @@ int lua_DeleteBaseItem(lua_State * lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("expecting arguments (item_id)");
+        Con_Warning("deleteBaseItem: expecting arguments (item_id)");
     }
     else
     {
@@ -2084,7 +2087,7 @@ int lua_PrintItems(lua_State * lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("printItems: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -2114,7 +2117,7 @@ int lua_SetStateChangeRange(lua_State * lua)
 
     if(top < 6)
     {
-        Con_Warning("expecting arguments (model_id, anim_num, state_id, dispatch_num, start_frame, end_frame, (next_anim), (next_frame))");
+        Con_Warning("setStateChangeRange: expecting arguments (model_id, anim_num, state_id, dispatch_num, start_frame, end_frame, (next_anim), (next_frame))");
         return 0;
     }
 
@@ -2170,7 +2173,7 @@ int lua_GetAnimCommandTransform(lua_State * lua)
 {
     if(lua_gettop(lua) < 3)
     {
-        Con_Warning("expecting arguments (model_id, anim_num, frame_num)");
+        Con_Warning("getAnimCommandTransform: expecting arguments (model_id, anim_num, frame_num)");
         return 0;
     }
 
@@ -2216,7 +2219,7 @@ int lua_SetAnimCommandTransform(lua_State * lua)
 
     if(top < 4)
     {
-        Con_Warning("expecting arguments (model_id, anim_num, frame_num, flag, (dx, dy, dz))");
+        Con_Warning("setAnimCommandTransform: expecting arguments (model_id, anim_num, frame_num, flag, (dx, dy, dz))");
         return 0;
     }
 
@@ -2263,7 +2266,7 @@ int lua_SpawnEntity(lua_State * lua)
 {
     if(lua_gettop(lua) < 5)
     {
-        Con_Warning("expecting arguments (model_id1, room_id, x, y, z, (ax, ay, az))");
+        Con_Warning("spawnEntity: expecting arguments (model_id1, room_id, x, y, z, (ax, ay, az))");
         return 0;
     }
 
@@ -2284,7 +2287,7 @@ int lua_SpawnEntity(lua_State * lua)
     }
 
     uint32_t id = World_SpawnEntity(model_id, room_id, pos, ang, ov_id);
-    if(id == 0xFFFFFFFF)
+    if(id == ENTITY_ID_NONE)
     {
         lua_pushnil(lua);
     }
@@ -2303,7 +2306,7 @@ int lua_GetEntityVector(lua_State * lua)
 {
     if(lua_gettop(lua) < 2)
     {
-        Con_Warning("expecting arguments (entity_id1, entity_id2)");
+        Con_Warning("getEntityVector: expecting arguments (entity_id1, entity_id2)");
         return 0;
     }
 
@@ -2333,7 +2336,7 @@ int lua_GetEntityDistance(lua_State * lua)
 {
     if(lua_gettop(lua) < 2)
     {
-        Con_Warning("expecting arguments (entity_id1, entity_id2)");
+        Con_Warning("getEntityDistance: expecting arguments (entity_id1, entity_id2)");
         return 0;
     }
 
@@ -2361,7 +2364,7 @@ int lua_GetEntityDirDot(lua_State * lua)
 {
     if(lua_gettop(lua) < 2)
     {
-        Con_Warning("expecting arguments (id1, id2)");
+        Con_Warning("getEntityDirDot: expecting arguments (id1, id2)");
         return 0;
     }
 
@@ -2389,7 +2392,7 @@ int lua_GetEntityPosition(lua_State * lua)
 {
     if(lua_gettop(lua) != 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("getEntityPosition: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -2416,7 +2419,7 @@ int lua_GetEntityAngles(lua_State * lua)
 {
     if(lua_gettop(lua) != 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("getEntityAngles: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -2441,7 +2444,7 @@ int lua_GetEntityScaling(lua_State * lua)
 {
     if(lua_gettop(lua) != 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("getEntityScaling: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -2468,7 +2471,7 @@ int lua_SetEntityScaling(lua_State * lua)
 
     if(top < 4)
     {
-        Con_Warning("expecting arguments (entity_id, x_scaling, y_scaling, z_scaling)");
+        Con_Warning("setEntityScaling: expecting arguments (entity_id, x_scaling, y_scaling, z_scaling)");
         return 0;
     }
 
@@ -2499,7 +2502,7 @@ int lua_SimilarSector(lua_State * lua)
 
     if(top < 5)
     {
-        Con_Warning("expecting arguments (entity_id, dx, dy, dz, ignore_doors, (ceiling))");
+        Con_Warning("similarSector: expecting arguments (entity_id, dx, dy, dz, ignore_doors, (ceiling))");
         return 0;
     }
 
@@ -2549,7 +2552,7 @@ int lua_GetSectorHeight(lua_State * lua)
 
     if(top < 1)
     {
-        Con_Warning("expecting arguments (entity_id, (ceiling), (dx, dy, dz))");
+        Con_Warning("getSectorHeight: expecting arguments (entity_id, (ceiling), (dx, dy, dz))");
         return 0;
     }
 
@@ -2597,7 +2600,7 @@ int lua_SectorTriggerClear(lua_State * lua)
 
     if(top < 3)
     {
-        Con_AddLine("wrong arguments number, must be (room_id, index_x, index_y)", FONTSTYLE_CONSOLE_WARNING);
+        Con_AddLine("sectorTriggerClear: wrong arguments number, must be (room_id, index_x, index_y)", FONTSTYLE_CONSOLE_WARNING);
         return 0;
     }
 
@@ -2636,7 +2639,7 @@ int lua_SectorAddTrigger(lua_State * lua)
 
     if(top < 8)
     {
-        Con_AddLine("wrong arguments number, must be (room_id, index_x, index_y, function, sub_function, mask, once, timer)", FONTSTYLE_CONSOLE_WARNING);
+        Con_AddLine("sectorAddTrigger: wrong arguments number, must be (room_id, index_x, index_y, function, sub_function, mask, once, timer)", FONTSTYLE_CONSOLE_WARNING);
         return 0;
     }
 
@@ -2675,7 +2678,7 @@ int lua_SectorAddTriggerCommand(lua_State * lua)
 
     if(top < 6)
     {
-        Con_AddLine("wrong arguments number, must be (room_id, index_x, index_y, function, operands, once, (cam_index, cam_move, cam_timer))", FONTSTYLE_CONSOLE_WARNING);
+        Con_AddLine("sectorAddTriggerCommand: wrong arguments number, must be (room_id, index_x, index_y, function, operands, once, (cam_index, cam_move, cam_timer))", FONTSTYLE_CONSOLE_WARNING);
         return 0;
     }
 
@@ -2766,7 +2769,7 @@ int lua_SetEntityPosition(lua_State * lua)
             return 0;
 
         default:
-            Con_Warning("expecting arguments (entity_id, x, y, z, (fi_x, fi_y, fi_z))");
+            Con_Warning("setEntityPosition: expecting arguments (entity_id, x, y, z, (fi_x, fi_y, fi_z))");
             return 0;
     }
 
@@ -2780,7 +2783,7 @@ int lua_SetEntityAngles(lua_State * lua)
 
     if(top < 2)
     {
-        Con_Warning("expecting arguments (entity_id, fi_x, (fi_y, fi_z))");
+        Con_Warning("setEntityAngles: expecting arguments (entity_id, fi_x, (fi_y, fi_z))");
         return 0;
     }
 
@@ -2829,7 +2832,7 @@ int lua_MoveEntityGlobal(lua_State * lua)
             return 0;
 
         default:
-            Con_Warning("expecting arguments (entity_id, x, y, z)");
+            Con_Warning("moveEntityGlobal: expecting arguments (entity_id, x, y, z)");
             return 0;
     }
 
@@ -2841,7 +2844,7 @@ int lua_MoveEntityLocal(lua_State * lua)
 {
     if(lua_gettop(lua) < 4)
     {
-        Con_Warning("expecting arguments (entity_id, dx, dy, dz)");
+        Con_Warning("moveEntityLocal: expecting arguments (entity_id, dx, dy, dz)");
         return 0;
     }
 
@@ -2872,7 +2875,7 @@ int lua_MoveEntityToSink(lua_State * lua)
 {
     if(lua_gettop(lua) < 2)
     {
-        Con_Warning("expecting arguments (entity_id, sink_id)");
+        Con_Warning("moveEntityToSink: expecting arguments (entity_id, sink_id)");
         return 0;
     }
 
@@ -2893,7 +2896,7 @@ int lua_MoveEntityToEntity(lua_State * lua)
 
     if(top < 3)
     {
-        Con_Warning("expecting arguments (entity_to_move_id, entity_id, speed, (ignore_z))");
+        Con_Warning("moveEntityToEntity: expecting arguments (entity_to_move_id, entity_id, speed, (ignore_z))");
         return 0;
     }
 
@@ -2929,7 +2932,7 @@ int lua_RotateEntity(lua_State *lua)
 
     if((top > 4) || (top < 2))
     {
-        Con_Warning("expecting arguments (ent_id, rot_x, (rot_y, rot_z))");
+        Con_Warning("rotateEntity: expecting arguments (ent_id, rot_x, (rot_y, rot_z))");
         return 0;
     }
 
@@ -2962,7 +2965,7 @@ int lua_GetEntitySpeed(lua_State * lua)
 {
     if(lua_gettop(lua) != 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("getEntitySpeed: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -2986,7 +2989,7 @@ int lua_GetEntitySpeedLinear(lua_State * lua)
 {
     if(lua_gettop(lua) != 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("getEntitySpeedLinear: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -3008,9 +3011,9 @@ int lua_SetEntitySpeed(lua_State * lua)
 {
     int top = lua_gettop(lua);
 
-    if(top < 2)
+    if(top < 4)
     {
-        Con_Warning("expecting arguments (id, speed_x, (speed_y, speed_z))");
+        Con_Warning("setEntitySpeed: expecting arguments (id, speed_x, speed_y, speed_z)");
         return 0;
     }
 
@@ -3024,14 +3027,34 @@ int lua_SetEntitySpeed(lua_State * lua)
     else
     {
         ent->speed[0] = lua_tonumber(lua, 2);
+        ent->speed[1] = lua_tonumber(lua, 3);
+        ent->speed[2] = lua_tonumber(lua, 4);
+    }
 
-        if(top > 2)
-        {
-            ent->speed[1] = lua_tonumber(lua, 3);
-            ent->speed[2] = lua_tonumber(lua, 4);
-        }
+    return 0;
+}
 
-        Character_UpdateCurrentSpeed(ent);
+
+int lua_SetEntityLinearSpeed(lua_State * lua)
+{
+    int top = lua_gettop(lua);
+
+    if(top < 2)
+    {
+        Con_Warning("setEntityLinearSpeed: expecting arguments (id, speed");
+        return 0;
+    }
+
+    int id = lua_tointeger(lua, 1);
+    entity_p ent = World_GetEntityByID(id);
+
+    if(ent)
+    {
+        ent->linear_speed = lua_tonumber(lua, 2);
+    }
+    else
+    {
+        Con_Warning("no entity with id = %d", id);
     }
 
     return 0;
@@ -3042,9 +3065,9 @@ int lua_SetEntityAnim(lua_State * lua)
 {
     int top = lua_gettop(lua);
 
-    if(top < 2)
+    if(top < 4)
     {
-        Con_Warning("expecting arguments (entity_id, anim_id, (frame_number, another_model))");
+        Con_Warning("setEntityAnim: expecting arguments (entity_id, anim_type_id, anim_num, frame_number, (next_anim_num, next_frame_num))");
         return 0;
     }
 
@@ -3057,13 +3080,16 @@ int lua_SetEntityAnim(lua_State * lua)
         return 0;
     }
 
-    if(top >= 3)
+    uint16_t anim_type_id = lua_tointeger(lua, 2);
+    ss_animation_p ss_anim = SSBoneFrame_GetOverrideAnim(ent->bf, anim_type_id);
+    if(ss_anim)
     {
-        Entity_SetAnimation(ent, lua_tointeger(lua, 2), lua_tointeger(lua, 3));
-    }
-    else if(top == 2)
-    {
-        Entity_SetAnimation(ent, lua_tointeger(lua, 2), 0);
+        SSBoneFrame_SetAnimation(ent->bf, anim_type_id, lua_tointeger(lua, 3), lua_tointeger(lua, 4));
+        if(top >= 6)
+        {
+            ss_anim->next_animation = lua_tointeger(lua, 5);
+            ss_anim->next_frame = lua_tointeger(lua, 6);
+        }
     }
 
     return 0;
@@ -3074,9 +3100,9 @@ int lua_SetEntityAnimFlag(lua_State * lua)
 {
     int top = lua_gettop(lua);
 
-    if(top != 2)
+    if(top < 3)
     {
-        Con_Warning("expecting arguments (entity_id, anim_flag)");
+        Con_Warning("setEntityAnimFlag: expecting arguments (entity_id, anim_type_id, anim_flag)");
         return 0;
     }
 
@@ -3089,7 +3115,15 @@ int lua_SetEntityAnimFlag(lua_State * lua)
         return 0;
     }
 
-    ent->bf->animations.anim_frame_flags = lua_tointeger(lua,2);
+    int anim_type_id = lua_tointeger(lua, 2);
+    for(ss_animation_p  ss_anim_it = &ent->bf->animations; ss_anim_it; ss_anim_it = ss_anim_it->next)
+    {
+        if(ss_anim_it->type == anim_type_id)
+        {
+            ss_anim_it->anim_frame_flags = lua_tointeger(lua, 3);
+            break;
+        }
+    }
 
     return 0;
 }
@@ -3101,7 +3135,7 @@ int lua_SetEntityBodyPartFlag(lua_State * lua)
 
     if(top < 3)
     {
-        Con_Warning("expecting arguments (entity_id, bone_id, body_part_flag)");
+        Con_Warning("setEntityBodyPartFlag: expecting arguments (entity_id, bone_id, body_part_flag)");
         return 0;
     }
 
@@ -3133,7 +3167,7 @@ int lua_SetModelBodyPartFlag(lua_State * lua)
 
     if(top < 3)
     {
-        Con_Warning("expecting arguments (model_id, bone_id, body_part_flag)");
+        Con_Warning("setModelBodyPartFlag: expecting arguments (model_id, bone_id, body_part_flag)");
         return 0;
     }
 
@@ -3163,7 +3197,7 @@ int lua_GetEntityAnim(lua_State * lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("getEntityAnim: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -3181,6 +3215,235 @@ int lua_GetEntityAnim(lua_State * lua)
     lua_pushinteger(lua, ent->bf->animations.model->animations[ent->bf->animations.current_animation].frames_count);
 
     return 3;
+}
+
+
+int lua_EntitySSAnimEnsureExists(lua_State * lua)
+{
+    if(lua_gettop(lua) < 1)
+    {
+        Con_Warning("entitySSAnimEnsureExists: expecting arguments (entity_id, anim_type_id, model_id)");
+        return 0;
+    }
+
+    int id = lua_tointeger(lua, 1);
+    entity_p ent = World_GetEntityByID(id);
+
+    if(ent == NULL)
+    {
+        Con_Warning("no entity with id = %d", id);
+        return 0;
+    }
+
+    int anim_type_id = lua_tointeger(lua, 2);
+    if(!SSBoneFrame_GetOverrideAnim(ent->bf, anim_type_id))
+    {
+        if(!lua_isnil(lua, 3))
+        {
+            SSBoneFrame_AddOverrideAnim(ent->bf, World_GetModelByID(lua_tointeger(lua, 3)), anim_type_id);
+        }
+        else
+        {
+            SSBoneFrame_AddOverrideAnim(ent->bf, NULL, anim_type_id);
+        }
+    }
+
+    return 0;
+}
+
+
+int lua_EntitySSAnimSetTarget(lua_State * lua)
+{
+    if(lua_gettop(lua) < 9)
+    {
+        Con_Warning("entitySSAnimSetTarget: expecting arguments (entity_id, anim_type_id, targeted_bone, target_x, target_y, target_z, bone_dir_x, bone_dir_y, bone_dir_z)");
+        return 0;
+    }
+
+    int id = lua_tointeger(lua, 1);
+    entity_p ent = World_GetEntityByID(id);
+
+    if(ent == NULL)
+    {
+        Con_Warning("no entity with id = %d", id);
+        return 0;
+    }
+
+    int anim_type_id = lua_tointeger(lua, 2);
+    ss_animation_p ss_anim = SSBoneFrame_GetOverrideAnim(ent->bf, anim_type_id);
+    if(ss_anim)
+    {
+        float pos[3], dir[3];
+        uint16_t targeted_bone = lua_tointeger(lua, 3);
+        pos[0] = lua_tonumber(lua, 4);
+        pos[1] = lua_tonumber(lua, 5);
+        pos[2] = lua_tonumber(lua, 6);
+        dir[0] = lua_tonumber(lua, 7);
+        dir[1] = lua_tonumber(lua, 8);
+        dir[2] = lua_tonumber(lua, 9);
+
+        SSBoneFrame_SetTrget(ss_anim, targeted_bone, pos, dir);
+    }
+
+    return 0;
+}
+
+
+int lua_EntitySSAnimSetAxisMod(lua_State * lua)
+{
+    if(lua_gettop(lua) < 5)
+    {
+        Con_Warning("entitySSAnimSetAxisMod: expecting arguments (entity_id, anim_type_id, mod_x, mod_y, mod_z)");
+        return 0;
+    }
+
+    int id = lua_tointeger(lua, 1);
+    entity_p ent = World_GetEntityByID(id);
+
+    if(ent == NULL)
+    {
+        Con_Warning("no entity with id = %d", id);
+        return 0;
+    }
+
+    int anim_type_id = lua_tointeger(lua, 2);
+    ss_animation_p ss_anim = SSBoneFrame_GetOverrideAnim(ent->bf, anim_type_id);
+    if(ss_anim)
+    {
+        float mod[3];
+        mod[0] = lua_tonumber(lua, 3);
+        mod[1] = lua_tonumber(lua, 4);
+        mod[2] = lua_tonumber(lua, 5);
+        SSBoneFrame_SetTargetingAxisMod(ss_anim, mod);
+    }
+
+    return 0;
+}
+
+
+int lua_EntitySSAnimSetTargetingLimit(lua_State * lua)
+{
+    if(lua_gettop(lua) < 6)
+    {
+        Con_Warning("entitySSAnimSetTargetingLimit: expecting arguments (entity_id, anim_type_id, q_x, q_y, q_z, q_w)");
+        return 0;
+    }
+
+    int id = lua_tointeger(lua, 1);
+    entity_p ent = World_GetEntityByID(id);
+
+    if(ent == NULL)
+    {
+        Con_Warning("no entity with id = %d", id);
+        return 0;
+    }
+
+    int anim_type_id = lua_tointeger(lua, 2);
+    ss_animation_p ss_anim = SSBoneFrame_GetOverrideAnim(ent->bf, anim_type_id);
+    if(ss_anim)
+    {
+        float q[4];
+        q[0] = lua_tonumber(lua, 3);
+        q[1] = lua_tonumber(lua, 4);
+        q[2] = lua_tonumber(lua, 5);
+        q[3] = lua_tonumber(lua, 6);
+        SSBoneFrame_SetTargetingLimit(ss_anim, q);
+    }
+
+    return 0;
+}
+
+
+int lua_EntitySSAnimSetCurrentRotation(lua_State * lua)
+{
+    if(lua_gettop(lua) < 6)
+    {
+        Con_Warning("entitySSAnimSetCurrentRotation: expecting arguments (entity_id, anim_type_id, q_x, q_y, q_z, q_w)");
+        return 0;
+    }
+
+    int id = lua_tointeger(lua, 1);
+    entity_p ent = World_GetEntityByID(id);
+
+    if(ent == NULL)
+    {
+        Con_Warning("no entity with id = %d", id);
+        return 0;
+    }
+
+    int anim_type_id = lua_tointeger(lua, 2);
+    ss_animation_p ss_anim = SSBoneFrame_GetOverrideAnim(ent->bf, anim_type_id);
+    if(ss_anim)
+    {
+        float q[4];
+        q[0] = lua_tonumber(lua, 3);
+        q[1] = lua_tonumber(lua, 4);
+        q[2] = lua_tonumber(lua, 5);
+        q[3] = lua_tonumber(lua, 6);
+        vec4_copy(ss_anim->current_mod, q);
+    }
+
+    return 0;
+}
+
+
+int lua_EntitySSAnimSetExtFlags(lua_State * lua)
+{
+    if(lua_gettop(lua) < 5)
+    {
+        Con_Warning("entitySSAnimSetCurrentRotation: expecting arguments (entity_id, anim_type_id, enabled, anim_ext_flags, anim_targeting_flags)");
+        return 0;
+    }
+
+    int id = lua_tointeger(lua, 1);
+    entity_p ent = World_GetEntityByID(id);
+
+    if(ent == NULL)
+    {
+        Con_Warning("no entity with id = %d", id);
+        return 0;
+    }
+
+    int anim_type_id = lua_tointeger(lua, 2);
+    ss_animation_p ss_anim = SSBoneFrame_GetOverrideAnim(ent->bf, anim_type_id);
+    if(ss_anim)
+    {
+        ss_anim->enabled = 0x01 & (lua_tointeger(lua, 3));
+        ss_anim->anim_ext_flags = lua_tointeger(lua, 4);
+        ss_anim->targeting_flags = lua_tointeger(lua, 5);
+    }
+
+    return 0;
+}
+
+
+int lua_EntitySSAnimSetEnable(lua_State * lua)
+{
+    if(lua_gettop(lua) < 3)
+    {
+        Con_Warning("entitySSAnimEnable: expecting arguments (entity_id, anim_type_id, enabled)");
+        return 0;
+    }
+
+    int id = lua_tointeger(lua, 1);
+    entity_p ent = World_GetEntityByID(id);
+
+    if(ent == NULL)
+    {
+        Con_Warning("no entity with id = %d", id);
+        return 0;
+    }
+
+    int anim_type_id = lua_tointeger(lua, 2);
+    if(lua_tointeger(lua, 3))
+    {
+        SSBoneFrame_EnableOverrideAnimByType(ent->bf, anim_type_id);
+    }
+    else
+    {
+        SSBoneFrame_DisableOverrideAnim(ent->bf, anim_type_id);
+    }
+    return 0;
 }
 
 
@@ -3243,7 +3506,7 @@ int lua_GetEntityVisibility(lua_State * lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("getEntityVisibility: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -3266,7 +3529,7 @@ int lua_SetEntityVisibility(lua_State * lua)
 {
     if(lua_gettop(lua) < 2)
     {
-        Con_Warning("expecting arguments (entity_id, value)");
+        Con_Warning("setEntityVisibility: expecting arguments (entity_id, value)");
         return 0;
     }
 
@@ -3296,7 +3559,7 @@ int lua_GetEntityEnability(lua_State * lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("getEntityEnability: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -3319,7 +3582,7 @@ int lua_GetEntityActivity(lua_State * lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("getEntityActivity: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -3342,7 +3605,7 @@ int lua_SetEntityActivity(lua_State * lua)
 {
     if(lua_gettop(lua) < 2)
     {
-        Con_Warning("expecting arguments (entity_id, value)");
+        Con_Warning("setEntityActivity: expecting arguments (entity_id, value)");
         return 0;
     }
 
@@ -3389,7 +3652,7 @@ int lua_SetEntityTriggerLayout(lua_State *lua)
 
     if(top < 2)
     {
-        Con_Warning("expecting arguments (entity_id, layout) or (entity_id, mask, event, once)");
+        Con_Warning("setEntityTriggerLayout: expecting arguments (entity_id, layout) or (entity_id, mask, event, once)");
         return 0;
     }
 
@@ -3570,7 +3833,7 @@ int lua_GetEntityFlags(lua_State * lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("getEntityFlags: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -3595,7 +3858,7 @@ int lua_SetEntityFlags(lua_State * lua)
 {
     if(lua_gettop(lua) < 3)
     {
-        Con_Warning("expecting arguments (entity_id, state_flags, type_flags, (callback_flags))");
+        Con_Warning("setEntityFlags: expecting arguments (entity_id, state_flags, type_flags, (callback_flags))");
         return 0;
     }
 
@@ -3631,7 +3894,7 @@ int lua_GetEntityTypeFlag(lua_State *lua)
 
     if(top < 1)
     {
-        Con_Warning("expecting arguments (entity_id, (type_flag))");
+        Con_Warning("getEntityTypeFlag: expecting arguments (entity_id, (type_flag))");
         return 0;
     }
 
@@ -3663,7 +3926,7 @@ int lua_SetEntityTypeFlag(lua_State *lua)
 
     if(top < 2)
     {
-        Con_Warning("expecting arguments (entity_id, type_flag, (value))");
+        Con_Warning("setEntityTypeFlag: expecting arguments (entity_id, type_flag, (value))");
         return 0;
     }
 
@@ -3702,7 +3965,7 @@ int lua_GetEntityStateFlag(lua_State *lua)
 
     if(top < 1)
     {
-        Con_Warning("expecting arguments (entity_id, (state_flag))");
+        Con_Warning("getEntityStateFlag: expecting arguments (entity_id, (state_flag))");
         return 0;
     }
 
@@ -3734,7 +3997,7 @@ int lua_SetEntityStateFlag(lua_State *lua)
 
     if(top < 2)
     {
-        Con_Warning("expecting arguments (entity_id, state_flag, (value))");
+        Con_Warning("setEntityStateFlag: expecting arguments (entity_id, state_flag, (value))");
         return 0;
     }
 
@@ -3773,7 +4036,7 @@ int lua_GetEntityCallbackFlag(lua_State *lua)
 
     if(top < 1)
     {
-        Con_Warning("expecting arguments (entity_id, (callback_flag))");
+        Con_Warning("getEntityCallbackFlag: expecting arguments (entity_id, (callback_flag))");
         return 0;
     }
 
@@ -3805,7 +4068,7 @@ int lua_SetEntityCallbackFlag(lua_State *lua)
 
     if(top < 2)
     {
-        Con_Warning("expecting arguments (entity_id, callback_flag, (value))");
+        Con_Warning("setEntityCallbackFlag: expecting arguments (entity_id, callback_flag, (value))");
         return 0;
     }
 
@@ -3872,7 +4135,7 @@ int lua_GetEntityMoveType(lua_State * lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("getEntityMoveType: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -3895,7 +4158,7 @@ int lua_SetEntityMoveType(lua_State * lua)
 {
     if(lua_gettop(lua) < 2)
     {
-        Con_Warning("expecting arguments (entity_id, move_type)");
+        Con_Warning("setEntityMoveType: expecting arguments (entity_id, move_type)");
         return 0;
     }
 
@@ -3915,7 +4178,7 @@ int lua_GetEntityResponse(lua_State * lua)
 {
     if(lua_gettop(lua) < 2)
     {
-        Con_Warning("expecting arguments (entity_id, response_id)");
+        Con_Warning("getEntityResponse: expecting arguments (entity_id, response_id)");
         return 0;
     }
 
@@ -3956,7 +4219,7 @@ int lua_SetEntityResponse(lua_State * lua)
 {
     if(lua_gettop(lua) < 3)
     {
-        Con_Warning("expecting arguments (entity_id, response_id, value)");
+        Con_Warning("setEntityResponse: expecting arguments (entity_id, response_id, value)");
         return 0;
     }
 
@@ -3998,11 +4261,11 @@ int lua_SetEntityResponse(lua_State * lua)
 }
 
 
-int lua_GetEntityState(lua_State * lua)
+int lua_GetEntityAnimState(lua_State * lua)
 {
-    if(lua_gettop(lua) < 1)
+    if(lua_gettop(lua) < 2)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("getEntityAnimState: expecting arguments (entity_id, anim_type_id)");
         return 0;
     }
 
@@ -4015,9 +4278,17 @@ int lua_GetEntityState(lua_State * lua)
         return 0;
     }
 
-    lua_pushinteger(lua, ent->bf->animations.last_state);
+    int anim_type_id = lua_tointeger(lua, 2);
+    for(ss_animation_p ss_anim = &ent->bf->animations; ss_anim; ss_anim = ss_anim->next)
+    {
+        if(ss_anim->type == anim_type_id)
+        {
+            lua_pushinteger(lua, ent->bf->animations.last_state);
+            return 1;
+        }
+    }
 
-    return 1;
+    return 0;
 }
 
 
@@ -4025,7 +4296,7 @@ int lua_GetEntityModel(lua_State * lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("getEntityModel: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -4044,12 +4315,12 @@ int lua_GetEntityModel(lua_State * lua)
 }
 
 
-int lua_SetEntityState(lua_State * lua)
+int lua_SetEntityAnimState(lua_State * lua)
 {
     int top = lua_gettop(lua);
-    if(top < 2)
+    if(top < 3)
     {
-        Con_Warning("expecting arguments (entity_id, value)");
+        Con_Warning("setEntityAnimState: expecting arguments (entity_id, anim_type_id, next_state, (last_state))");
         return 0;
     }
 
@@ -4062,10 +4333,18 @@ int lua_SetEntityState(lua_State * lua)
         return 0;
     }
 
-    ent->bf->animations.next_state = lua_tointeger(lua, 2);
-    if(top >= 3)
+    int anim_type_id = lua_tointeger(lua, 2);
+    for(ss_animation_p ss_anim = &ent->bf->animations; ss_anim; ss_anim = ss_anim->next)
     {
-        ent->bf->animations.last_state = lua_tointeger(lua, 3);
+        if(ss_anim->type == anim_type_id)
+        {
+            ss_anim->next_state = lua_tointeger(lua, 3);
+            if(top >= 4)
+            {
+                ss_anim->last_state = lua_tointeger(lua, 4);
+            }
+            break;
+        }
     }
 
     return 0;
@@ -4076,7 +4355,7 @@ int lua_SetEntityRoomMove(lua_State * lua)
 {
     if(lua_gettop(lua) < 4)
     {
-        Con_Warning("expecting arguments (entity_id, room_id, move_type, dir_flag)");
+        Con_Warning("setEntityRoomMove: expecting arguments (entity_id, room_id, move_type, dir_flag)");
         return 0;
     }
 
@@ -4123,7 +4402,7 @@ int lua_GetEntityMeshCount(lua_State *lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("getEntityMeshCount: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -4145,7 +4424,7 @@ int lua_SetEntityMeshswap(lua_State * lua)
 {
     if(lua_gettop(lua) < 2)
     {
-        Con_Warning("expecting arguments (id_dest, id_src)");
+        Con_Warning("setEntityMeshswap: expecting arguments (id_dest, id_src)");
         return 0;
     }
 
@@ -4174,7 +4453,7 @@ int lua_SetModelMeshReplaceFlag(lua_State *lua)
 {
     if(lua_gettop(lua) < 3)
     {
-        Con_Printf("Wrong arguments count. Must be (id_model, bone_num, flag)");
+        Con_Printf("setModelMeshReplaceFlag: Wrong arguments count. Must be (id_model, bone_num, flag)");
         return 0;
     }
 
@@ -4205,7 +4484,7 @@ int lua_SetModelAnimReplaceFlag(lua_State *lua)
 {
     if(lua_gettop(lua) < 3)
     {
-        Con_Printf("Wrong arguments count. Must be (id_model, bone_num, flag)");
+        Con_Printf("setModelAnimReplaceFlag: Wrong arguments count. Must be (id_model, bone_num, flag)");
         return 0;
     }
 
@@ -4236,7 +4515,7 @@ int lua_CopyMeshFromModelToModel(lua_State *lua)
 {
     if(lua_gettop(lua) < 4)
     {
-        Con_Printf("Wrong arguments count. Must be (id_model1, id_model2, bone_num1, bone_num2)");
+        Con_Printf("copyMeshFromModelToModel: expecting arguments (id_model1, id_model2, bone_num1, bone_num2)");
         return 0;
     }
 
@@ -4276,7 +4555,7 @@ int lua_PushEntityBody(lua_State *lua)
 {
     if(lua_gettop(lua) != 5)
     {
-        Con_Printf("Wrong arguments count. Must be (entity_id, body_number, h_force, v_force, reset_flag)");
+        Con_Printf("pushEntityBody: expecting arguments (entity_id, body_number, h_force, v_force, reset_flag)");
         return 0;
     }
 
@@ -4294,11 +4573,7 @@ int lua_PushEntityBody(lua_State *lua)
         speed[1] =  cosf(t) * h_force;
         speed[2] =  lua_tonumber(lua, 4);
 
-        /*if(lua_toboolean(lua, 5))
-            ent->physics->bt_body[body_number]->clearForces();*/
         Physics_PushBody(ent->physics, speed, body_number);
-        //ent->physics->bt_body[body_number]->setLinearVelocity(angle);
-        //ent->physics->bt_body[body_number]->setAngularVelocity(angle / 1024.0);
     }
     else
     {
@@ -4315,7 +4590,7 @@ int lua_SetEntityBodyMass(lua_State *lua)
 
     if(lua_gettop(lua) < 3)
     {
-        Con_Printf("Wrong arguments count. Must be (entity_id, body_number, (mass / each body mass))");
+        Con_Printf("setEntityBodyMass: expecting arguments (entity_id, body_number, (mass / each body mass))");
         return 0;
     }
 
@@ -4363,7 +4638,7 @@ int lua_LockEntityBodyLinearFactor(lua_State *lua)
 
     if(top < 2)
     {
-        Con_Printf("Wrong arguments count. Must be [entity_id, body_number, (vertical_factor)]");
+        Con_Printf("lockEntityBodyLinearFactor: expecting arguments (entity_id, body_number, (vertical_factor))");
         return 0;
     }
 
@@ -4398,7 +4673,7 @@ int lua_SetCharacterWeaponModel(lua_State *lua)
 {
     if(lua_gettop(lua) < 3)
     {
-        Con_Printf("Wrong arguments count. Must be (id_entity, id_weapon_model, armed_state)");
+        Con_Printf("setCharacterWeaponModel: expecting arguments (id_entity, id_weapon_model, armed_state)");
         return 0;
     }
 
@@ -4422,7 +4697,7 @@ int lua_GetCharacterCurrentWeapon(lua_State *lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("expecting arguments (entity_id)");
+        Con_Warning("getCharacterCurrentWeapon: expecting arguments (entity_id)");
         return 0;
     }
 
@@ -4446,7 +4721,7 @@ int lua_SetCharacterCurrentWeapon(lua_State *lua)
 {
     if(lua_gettop(lua) < 2)
     {
-        Con_Printf("Wrong arguments count. Must be (id_entity, id_weapon)");
+        Con_Printf("setCharacterCurrentWeapon: expecting arguments (id_entity, id_weapon)");
         return 0;
     }
 
@@ -4521,7 +4796,7 @@ int lua_PlayStream(lua_State *lua)
 
     if(top < 1)
     {
-        Con_Warning("expecting arguments (stream_id, (mask))");
+        Con_Warning("playStream: expecting arguments (stream_id, (mask))");
         return 0;
     }
 
@@ -4554,7 +4829,7 @@ int lua_PlaySound(lua_State *lua)
 
     if(top < 1)
     {
-        Con_Warning("expecting arguments (sound_id, (entity_id))");
+        Con_Warning("playSound: expecting arguments (sound_id, (entity_id))");
         return 0;
     }
 
@@ -4601,7 +4876,7 @@ int lua_StopSound(lua_State *lua)
 
     if(top < 1)
     {
-        Con_Warning("expecting arguments (sound_id, (entity_id))");
+        Con_Warning("stopSound: expecting arguments (sound_id, (entity_id))");
         return 0;
     }
 
@@ -4640,7 +4915,7 @@ int lua_SetLevel(lua_State *lua)
 {
     if(lua_gettop(lua) != 1)
     {
-        Con_Warning("expecting arguments (level_id)");
+        Con_Warning("setLevel: expecting arguments (level_id)");
         return 0;
     }
 
@@ -4659,7 +4934,7 @@ int lua_SetGame(lua_State *lua)
     int top = lua_gettop(lua);
     if(top < 1)
     {
-        Con_Warning("expecting arguments (gameversion, (level_id))");
+        Con_Warning("setGame: expecting arguments (gameversion, (level_id))");
         return 0;
     }
 
@@ -4693,7 +4968,7 @@ int lua_LoadMap(lua_State *lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("expecting arguments (map_name, (game_id, map_id))");
+        Con_Warning("loadMap: expecting arguments (map_name, (game_id, map_id))");
         return 0;
     }
 
@@ -4731,7 +5006,7 @@ int lua_SetFlipState(lua_State *lua)
 {
     if(lua_gettop(lua) != 2)
     {
-        Con_Warning("expecting arguments (flip_index, flip_state)");
+        Con_Warning("setFlipState: expecting arguments (flip_index, flip_state)");
         return 0;
     }
 
@@ -4745,7 +5020,7 @@ int lua_SetFlipMap(lua_State *lua)
 {
     if(lua_gettop(lua) != 3)
     {
-        Con_Warning("expecting arguments (flip_index, flip_mask, flip_operation)");
+        Con_Warning("setFlipMap: expecting arguments (flip_index, flip_mask, flip_operation)");
         return 0;
     }
 
@@ -4775,7 +5050,7 @@ int lua_GetFlipMap(lua_State *lua)
     }
     else
     {
-        Con_Warning("expecting arguments (flip_index)");
+        Con_Warning("getFlipState: expecting arguments (flip_index)");
         return 0;
     }
 }
@@ -4799,7 +5074,7 @@ int lua_GetFlipState(lua_State *lua)
     }
     else
     {
-        Con_Warning("expecting arguments (flip_index)");
+        Con_Warning("getFlipState: expecting arguments (flip_index)");
         return 0;
     }
 }
@@ -4811,7 +5086,7 @@ int lua_genUVRotateAnimation(lua_State *lua)
 {
     if(lua_gettop(lua) < 1)
     {
-        Con_Warning("expecting arguments (model_id)");
+        Con_Warning("genUVRotateAnimation: expecting arguments (model_id)");
         return 0;
     }
 
@@ -5006,6 +5281,25 @@ void Script_LoadConstants(lua_State *lua)
         lua_setglobal(lua, "ANIM_LOOP_LAST_FRAME");
         lua_pushinteger(lua, ANIM_FRAME_LOCK);
         lua_setglobal(lua, "ANIM_FRAME_LOCK");
+
+        lua_pushinteger(lua, ANIM_TYPE_BASE);
+        lua_setglobal(lua, "ANIM_TYPE_BASE");
+        lua_pushinteger(lua, ANIM_TYPE_HEAD_TRACK);
+        lua_setglobal(lua, "ANIM_TYPE_HEAD_TRACK");
+        lua_pushinteger(lua, ANIM_TYPE_WEAPON_LH);
+        lua_setglobal(lua, "ANIM_TYPE_WEAPON_LH");
+        lua_pushinteger(lua, ANIM_TYPE_WEAPON_RH);
+        lua_setglobal(lua, "ANIM_TYPE_WEAPON_RH");
+        lua_pushinteger(lua, ANIM_TYPE_WEAPON_TH);
+        lua_setglobal(lua, "ANIM_TYPE_WEAPON_TH");
+        lua_pushinteger(lua, ANIM_TYPE_MISK_1);
+        lua_setglobal(lua, "ANIM_TYPE_MISK_1");
+        lua_pushinteger(lua, ANIM_TYPE_MISK_2);
+        lua_setglobal(lua, "ANIM_TYPE_MISK_2");
+        lua_pushinteger(lua, ANIM_TYPE_MISK_3);
+        lua_setglobal(lua, "ANIM_TYPE_MISK_3");
+        lua_pushinteger(lua, ANIM_TYPE_MISK_4);
+        lua_setglobal(lua, "ANIM_TYPE_MISK_4");
 
         lua_pushinteger(lua, MOVE_STATIC_POS);
         lua_setglobal(lua, "MOVE_STATIC_POS");
@@ -5231,11 +5525,19 @@ void Script_LuaRegisterFuncs(lua_State *lua)
     lua_register(lua, "setEntityScaling", lua_SetEntityScaling);
     lua_register(lua, "getEntitySpeed", lua_GetEntitySpeed);
     lua_register(lua, "setEntitySpeed", lua_SetEntitySpeed);
+    lua_register(lua, "setEntityLinearSpeed", lua_SetEntityLinearSpeed);
     lua_register(lua, "getEntitySpeedLinear", lua_GetEntitySpeedLinear);
     lua_register(lua, "setEntityCollision", lua_SetEntityCollision);
     lua_register(lua, "setEntityCollisionFlags", lua_SetEntityCollisionFlags);
     lua_register(lua, "getEntityAnim", lua_GetEntityAnim);
     lua_register(lua, "setEntityAnim", lua_SetEntityAnim);
+    lua_register(lua, "entitySSAnimEnsureExists", lua_EntitySSAnimEnsureExists);
+    lua_register(lua, "entitySSAnimSetTarget", lua_EntitySSAnimSetTarget);
+    lua_register(lua, "entitySSAnimSetAxisMod", lua_EntitySSAnimSetAxisMod);
+    lua_register(lua, "entitySSAnimSetTargetingLimit", lua_EntitySSAnimSetTargetingLimit);
+    lua_register(lua, "entitySSAnimSetCurrentRotation", lua_EntitySSAnimSetCurrentRotation);
+    lua_register(lua, "entitySSAnimSetExtFlags", lua_EntitySSAnimSetExtFlags);
+    lua_register(lua, "entitySSAnimSetEnable", lua_EntitySSAnimSetEnable);
     lua_register(lua, "setEntityAnimFlag", lua_SetEntityAnimFlag);
     lua_register(lua, "setEntityBodyPartFlag", lua_SetEntityBodyPartFlag);
     lua_register(lua, "setModelBodyPartFlag", lua_SetModelBodyPartFlag);
@@ -5257,8 +5559,8 @@ void Script_LuaRegisterFuncs(lua_State *lua)
     lua_register(lua, "setEntityStateFlag", lua_SetEntityStateFlag);
     lua_register(lua, "getEntityCallbackFlag", lua_GetEntityCallbackFlag);
     lua_register(lua, "setEntityCallbackFlag", lua_SetEntityCallbackFlag);
-    lua_register(lua, "getEntityState", lua_GetEntityState);
-    lua_register(lua, "setEntityState", lua_SetEntityState);
+    lua_register(lua, "getEntityAnimState", lua_GetEntityAnimState);
+    lua_register(lua, "setEntityAnimState", lua_SetEntityAnimState);
     lua_register(lua, "setEntityRoomMove", lua_SetEntityRoomMove);
     lua_register(lua, "getEntityMoveType", lua_GetEntityMoveType);
     lua_register(lua, "setEntityMoveType", lua_SetEntityMoveType);

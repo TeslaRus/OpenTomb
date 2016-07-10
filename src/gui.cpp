@@ -1,6 +1,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "core/gl_util.h"
 #include "core/gl_font.h"
@@ -240,6 +241,7 @@ void Gui_Render()
     {
         Gui_DrawInventory();
     }
+    Gui_DrawNotifier();
     qglUseProgramObjectARB(shader->program);
 
     qglDepthMask(GL_FALSE);
@@ -247,7 +249,10 @@ void Gui_Render()
     qglPixelStorei(GL_UNPACK_LSB_FIRST, GL_FALSE);
     qglPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-    Gui_DrawCrosshair();
+    if(screen_info.crosshair != 0)
+    {
+        Gui_DrawCrosshair();
+    }
     Gui_DrawBars();
 
     qglUniform1fARB(shader->colorReplace, 1.0f);
@@ -304,7 +309,7 @@ void Item_Frame(struct ss_bone_frame_s *bf, float time)
     bf->animations.frame_time = (float)frame * bf->animations.period + dt;
     bf->animations.lerp = dt / bf->animations.period;
     Anim_GetNextFrame(&bf->animations, bf->animations.period, stc, &bf->animations.next_frame, &bf->animations.next_animation, 0x00);
-    SSBoneFrame_Update(bf);
+    SSBoneFrame_Update(bf, time);
 }
 
 
@@ -858,39 +863,6 @@ void Gui_SwitchGLMode(char is_gui)
     }
 }
 
-void Gui_FillCrosshairBuffer()
-{
-    GLfloat x0 = screen_info.w / 2.0f;
-    GLfloat y0 = screen_info.h / 2.0f;
-    GLfloat *v, crosshairArray[32];
-    const GLfloat size = 5.0f;
-    const GLfloat color[4] = {1.0, 0.0, 0.0, 1.0};
-
-    v = crosshairArray;
-   *v++ = x0; *v++ = y0 - size;
-    vec4_copy(v, color);
-    v += 4;
-   *v++ = 0.0; *v++ = 0.0;
-
-   *v++ = x0; *v++ = y0 + size;
-    vec4_copy(v, color);
-    v += 4;
-   *v++ = 0.0; *v++ = 0.0;
-
-   *v++ = x0 - size; *v++ = y0;
-    vec4_copy(v, color);
-    v += 4;
-   *v++ = 0.0; *v++ = 0.0;
-
-   *v++ = x0 + size; *v++ = y0;
-    vec4_copy(v, color);
-    v += 4;
-   *v++ = 0.0; *v++ = 0.0;
-
-    qglBindBufferARB(GL_ARRAY_BUFFER, crosshairBuffer);
-    qglBufferDataARB(GL_ARRAY_BUFFER, sizeof(GLfloat[32]), crosshairArray, GL_STATIC_DRAW);
-}
-
 void Gui_FillBackgroundBuffer()
 {
     GLfloat x0 = 0.0f;
@@ -925,8 +897,43 @@ void Gui_FillBackgroundBuffer()
     qglBufferDataARB(GL_ARRAY_BUFFER, sizeof(GLfloat[32]), backgroundArray, GL_STATIC_DRAW);
 }
 
+void Gui_FillCrosshairBuffer()
+{
+    GLfloat x = (GLfloat)screen_info.w / 2.0f;
+    GLfloat y = (GLfloat)screen_info.h / 2.0f;
+    GLfloat *v, crosshairArray[32];
+    const GLfloat size = 8.0f;
+    const GLfloat color[4] = {1.0f, 0.0f, 0.0f, 1.0f};
+
+    v = crosshairArray;
+   *v++ = x; *v++ = y - size;
+    vec4_copy(v, color);
+    v += 4;
+   *v++ = 0.0; *v++ = 0.0;
+
+   *v++ = x; *v++ = y + size;
+    vec4_copy(v, color);
+    v += 4;
+   *v++ = 0.0; *v++ = 0.0;
+
+   *v++ = x - size; *v++ = y;
+    vec4_copy(v, color);
+    v += 4;
+   *v++ = 0.0; *v++ = 0.0;
+
+   *v++ = x + size; *v++ = y;
+    vec4_copy(v, color);
+    v += 4;
+   *v++ = 0.0; *v++ = 0.0;
+
+    // copy vertices into GL buffer
+    qglBindBufferARB(GL_ARRAY_BUFFER, crosshairBuffer);
+    qglBufferDataARB(GL_ARRAY_BUFFER, sizeof(GLfloat[32]), crosshairArray, GL_STATIC_DRAW);
+}
+
 void Gui_DrawCrosshair()
 {
+    // TBI: actual ingame crosshair
     BindWhiteTexture();
     qglBindBufferARB(GL_ARRAY_BUFFER_ARB, crosshairBuffer);
     qglVertexPointer(2, GL_FLOAT, 8 * sizeof(GLfloat), (void *)0);
