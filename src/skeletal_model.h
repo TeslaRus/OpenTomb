@@ -60,7 +60,8 @@ typedef struct ss_bone_tag_s
     float                   qrotate[4];                                         // quaternion rotation
     float                   transform[16]      __attribute__((packed, aligned(16)));    // 4x4 OpenGL matrix for stack usage
     float                   full_transform[16] __attribute__((packed, aligned(16)));    // 4x4 OpenGL matrix for global usage
-
+    float                   orig_transform[16] __attribute__((packed, aligned(16)));    // 4x4 OpenGL matrix for global usage (no targeting modifications)
+    
     uint32_t                body_part;                                          // flag: BODY, LEFT_LEG_1, RIGHT_HAND_2, HEAD...
 }ss_bone_tag_t, *ss_bone_tag_p;
 
@@ -96,6 +97,7 @@ typedef struct ss_animation_s
     void                      (*onEndFrame)(struct entity_s *ent, struct ss_animation_s *ss_anim, int state);
     struct skeletal_model_s    *model;                                          // pointer to the base model
     struct ss_animation_s      *next;
+    struct ss_animation_s      *prev;
 }ss_animation_t, *ss_animation_p;
 
 /*
@@ -239,7 +241,7 @@ void SSBoneFrame_SetTrget(struct ss_animation_s *ss_anim, uint16_t targeted_bone
 void SSBoneFrame_SetTargetingAxisMod(struct ss_animation_s *ss_anim, const float mod[3]);
 void SSBoneFrame_SetTargetingLimit(struct ss_animation_s *ss_anim, const float limit[4]);
 void SSBoneFrame_SetAnimation(struct ss_bone_frame_s *bf, int anim_type, int animation, int frame);
-struct ss_animation_s *SSBoneFrame_AddOverrideAnim(struct ss_bone_frame_s *bf, struct skeletal_model_s *sm, uint16_t anim_type);
+struct ss_animation_s *SSBoneFrame_AddOverrideAnim(struct ss_bone_frame_s *bf, struct skeletal_model_s *sm, uint16_t anim_type_id);
 struct ss_animation_s *SSBoneFrame_GetOverrideAnim(struct ss_bone_frame_s *bf, uint16_t anim_type);
 void SSBoneFrame_EnableOverrideAnimByType(struct ss_bone_frame_s *bf, uint16_t anim_type);
 void SSBoneFrame_EnableOverrideAnim(struct ss_bone_frame_s *bf, struct ss_animation_s *ss_anim);
