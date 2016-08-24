@@ -328,7 +328,7 @@ function switch_activate(object_id, actor_id)   -- actor ID is needed to activat
         end
     end
     
-    local t = getEntityAnim(object_id);
+    local t = getEntityAnim(object_id, ANIM_TYPE_BASE);
     
     if(on.ready_anim < 0 or on.ready_anim == t) then
         if(key ~= nil) then
@@ -347,7 +347,7 @@ function switch_activate(object_id, actor_id)   -- actor ID is needed to activat
         setEntityActivity(object_id, 1);
         addTask(
         function()
-            local a, f, c = getEntityAnim(actor_id);
+            local a, f, c = getEntityAnim(actor_id, ANIM_TYPE_BASE);
             if(on.switch_frame ~= nil) then
                 c = on.switch_frame
             end
@@ -359,6 +359,7 @@ function switch_activate(object_id, actor_id)   -- actor ID is needed to activat
                     setEntityLock(object_id, 1);        -- lock filled hole
                 else
                     setEntitySectorStatus(object_id, 1);        -- only for switches - turn on
+                    setEntityEvent(object_id, 1);
                 end
                 return false;
             end
@@ -370,12 +371,13 @@ function switch_activate(object_id, actor_id)   -- actor ID is needed to activat
         setEntityActivity(object_id, 1);
         addTask(
         function()
-            local a, f, c = getEntityAnim(actor_id);
+            local a, f, c = getEntityAnim(actor_id, ANIM_TYPE_BASE);
             if(off.switch_frame ~= nil) then
                 c = off.switch_frame
             end
             if(f >= c - 1) then   -- check the end of animation
                 setEntitySectorStatus(object_id, 1);  -- only for switches - turn off
+                setEntityEvent(object_id, 0);
                 return false;
             end
             return true;

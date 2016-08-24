@@ -271,44 +271,8 @@ void Gui_Render()
  */
 void Item_Frame(struct ss_bone_frame_s *bf, float time)
 {
-    int16_t frame, anim;
-    long int t;
-    float dt;
-    state_change_p stc;
-
-    bf->animations.lerp = 0.0;
-    stc = Anim_FindStateChangeByID(bf->animations.model->animations + bf->animations.current_animation, bf->animations.next_state);
-    Anim_GetNextFrame(&bf->animations, time, stc, &frame, &anim, 0x00);
-    if(anim != bf->animations.current_animation)
-    {
-        bf->animations.last_animation = bf->animations.current_animation;
-        /*frame %= bf->model->animations[anim].frames_count;
-        frame = (frame >= 0)?(frame):(bf->model->animations[anim].frames_count - 1 + frame);
-
-        bf->last_state = bf->model->animations[anim].state_id;
-        bf->next_state = bf->model->animations[anim].state_id;
-        bf->current_animation = anim;
-        bf->current_frame = frame;
-        bf->next_animation = anim;
-        bf->next_frame = frame;*/
-        stc = Anim_FindStateChangeByID(bf->animations.model->animations + bf->animations.current_animation, bf->animations.next_state);
-    }
-    else if(bf->animations.current_frame != frame)
-    {
-        if(bf->animations.current_frame == 0)
-        {
-            bf->animations.last_animation = bf->animations.current_animation;
-        }
-        bf->animations.current_frame = frame;
-    }
-
-    bf->animations.frame_time += time;
-
-    t = (bf->animations.frame_time) / bf->animations.period;
-    dt = bf->animations.frame_time - (float)t * bf->animations.period;
-    bf->animations.frame_time = (float)frame * bf->animations.period + dt;
-    bf->animations.lerp = dt / bf->animations.period;
-    Anim_GetNextFrame(&bf->animations, bf->animations.period, stc, &bf->animations.next_frame, &bf->animations.next_animation, 0x00);
+    int frame_switch_state = Anim_SetNextFrame(&bf->animations, time);
+    //Anim_GetNextFrame(&bf->animations, bf->animations.period, stc, &bf->animations.next_frame, &bf->animations.next_animation, &was_last_anim);
     SSBoneFrame_Update(bf, time);
 }
 
@@ -445,22 +409,22 @@ int gui_InventoryManager::getItemElementsCountByType(int type)
 
 void gui_InventoryManager::restoreItemAngle(float time)
 {
-    if(mItemAngle > 0.0)
+    if(mItemAngle > 0.0f)
     {
-        if(mItemAngle <= 180)
+        if(mItemAngle <= 180.0f)
         {
-            mItemAngle -= 180.0 * time / mRingRotatePeriod;
-            if(mItemAngle < 0.0)
+            mItemAngle -= 180.0f * time / mRingRotatePeriod;
+            if(mItemAngle < 0.0f)
             {
-                mItemAngle = 0.0;
+                mItemAngle = 0.0f;
             }
         }
         else
         {
-            mItemAngle += 180.0 * time / mRingRotatePeriod;
-            if(mItemAngle >= 360.0)
+            mItemAngle += 180.0f * time / mRingRotatePeriod;
+            if(mItemAngle >= 360.0f)
             {
-                mItemAngle = 0.0;
+                mItemAngle = 0.0f;
             }
         }
     }
@@ -471,6 +435,8 @@ void gui_InventoryManager::setInventory(struct inventory_node_s **i)
     mInventory = i;
     mCurrentState = INVENTORY_DISABLED;
     mNextState = INVENTORY_DISABLED;
+    mLabel_ItemName.show = 0;
+    mLabel_Title.show = 0;
 }
 
 void gui_InventoryManager::setTitle(int items_type)
@@ -781,6 +747,8 @@ void gui_InventoryManager::render()
     {
         float matrix[16], offset[3], ang;
         int num = 0;
+        mLabel_Title.x = screen_info.w / 2;
+        mLabel_ItemName.x = screen_info.w / 2;
         for(inventory_node_p i = *mInventory; i; i = i->next)
         {
             base_item_p bi = World_GetBaseItemByID(i->id);

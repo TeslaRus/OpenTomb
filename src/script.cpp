@@ -271,7 +271,7 @@ bool Script_GetOverridedSample(lua_State *lua, int sound_id, int *first_sample_n
         if(lua_isfunction(lua, -1))
         {
             lua_pushinteger(lua, World_GetVersion());
-            lua_pushinteger(lua, gameflow_manager.CurrentLevelID);
+            lua_pushinteger(lua, gameflow.getCurrentLevelID());
             lua_pushinteger(lua, sound_id);
             if(lua_CallAndLog(lua, 3, 2, 0))
             {
@@ -317,7 +317,9 @@ bool Script_GetSoundtrack(lua_State *lua, int track_index, char *file_path, int 
                 strncpy(file_path, real_path, 255);
 
                 if(*stream_type != -1)
+                {
                     result = true;
+                }
             }
         }
         lua_settop(lua, top);
@@ -375,8 +377,8 @@ bool Script_GetLoadingScreen(lua_State *lua, int level_index, char *pic_path)
         lua_getglobal(lua, "getLoadingScreen");
         if(lua_isfunction(lua, -1))
         {
-            lua_pushinteger(lua, gameflow_manager.CurrentGameID);
-            lua_pushinteger(lua, gameflow_manager.CurrentLevelID);
+            lua_pushinteger(lua, gameflow.getCurrentGameID());
+            lua_pushinteger(lua, gameflow.getCurrentLevelID());
             lua_pushinteger(lua, level_index);
             if (lua_CallAndLog(lua, 3, 1, 0))
             {
@@ -462,7 +464,7 @@ bool Script_CallVoidFunc(lua_State *lua, const char* func_name, bool destroy_aft
 int Script_ExecEntity(lua_State *lua, int id_callback, int id_object, int id_activator)
 {
     int top = lua_gettop(lua);
-    int ret = -1;
+    int ret = ENTITY_TRIGGERING_NOT_READY;
 
     lua_getglobal(lua, "execEntity");
     if(lua_isfunction(lua, -1))
@@ -1812,9 +1814,9 @@ int lua_GetSecretStatus(lua_State *lua)
     if(lua_gettop(lua) < 1) return 0;   // No parameter specified - return
 
     int secret_number = lua_tointeger(lua, 1);
-    if((secret_number > TR_GAMEFLOW_MAX_SECRETS) || (secret_number < 0)) return 0;   // No such secret - return
+    if((secret_number > GF_MAX_SECRETS) || (secret_number < 0)) return 0;   // No such secret - return
 
-    lua_pushinteger(lua, (int)gameflow_manager.SecretsTriggerMap[secret_number]);
+    lua_pushinteger(lua, (int)gameflow.getSecretStateAtIndex(secret_number));
     return 1;
 }
 
@@ -1824,9 +1826,9 @@ int lua_SetSecretStatus(lua_State *lua)
     if(lua_gettop(lua) < 2) return 0;   // No parameter specified - return
 
     int secret_number = lua_tointeger(lua, 1);
-    if((secret_number > TR_GAMEFLOW_MAX_SECRETS) || (secret_number < 0)) return 0;   // No such secret - return
+    if((secret_number > GF_MAX_SECRETS) || (secret_number < 0)) return 0;   // No such secret - return
 
-    gameflow_manager.SecretsTriggerMap[secret_number] = lua_tointeger(lua, 2);
+    gameflow.setSecretStateAtIndex(secret_number, lua_tointeger(lua, 2));
     return 0;
 }
 
@@ -2194,99 +2196,6 @@ int lua_SetStateChangeRange(lua_State * lua)
             }
             break;
         }
-    }
-
-    return 0;
-}
-
-
-int lua_GetAnimCommandTransform(lua_State * lua)
-{
-    if(lua_gettop(lua) < 3)
-    {
-        Con_Warning("getAnimCommandTransform: expecting arguments (model_id, anim_num, frame_num)");
-        return 0;
-    }
-
-    int id = lua_tointeger(lua, 1);
-    int anim = lua_tointeger(lua, 2);
-    int frame = lua_tointeger(lua, 3);
-    skeletal_model_p model = World_GetModelByID(id);
-    if(model == NULL)
-    {
-        Con_Warning("no skeletal model with id = %d", id);
-        return 0;
-    }
-
-    if((anim < 0) || (anim + 1 > model->animation_count))
-    {
-        Con_Warning("wrong anim number = %d", anim);
-        return 0;
-    }
-
-    if(frame < 0)                                                               // it is convenient to use -1 as a last frame number
-    {
-        frame = (int)model->animations[anim].frames_count + frame;
-    }
-
-    if((frame < 0) || (frame + 1 > model->animations[anim].frames_count))
-    {
-        Con_Warning("wrong anim frame number = %d", frame);
-        return 0;
-    }
-
-    lua_pushinteger(lua, model->animations[anim].frames[frame].command);
-    lua_pushnumber(lua, model->animations[anim].frames[frame].move[0]);
-    lua_pushnumber(lua, model->animations[anim].frames[frame].move[1]);
-    lua_pushnumber(lua, model->animations[anim].frames[frame].move[2]);
-
-    return 4;
-}
-
-
-int lua_SetAnimCommandTransform(lua_State * lua)
-{
-    int top = lua_gettop(lua);
-
-    if(top < 4)
-    {
-        Con_Warning("setAnimCommandTransform: expecting arguments (model_id, anim_num, frame_num, flag, (dx, dy, dz))");
-        return 0;
-    }
-
-    int id = lua_tointeger(lua, 1);
-    int anim = lua_tointeger(lua, 2);
-    int frame = lua_tointeger(lua, 3);
-    skeletal_model_p model = World_GetModelByID(id);
-    if(model == NULL)
-    {
-        Con_Warning("no skeletal model with id = %d", id);
-        return 0;
-    }
-
-    if((anim < 0) || (anim + 1 > model->animation_count))
-    {
-        Con_Warning("wrong anim number = %d", anim);
-        return 0;
-    }
-
-    if(frame < 0)                                                               // it is convenient to use -1 as a last frame number
-    {
-        frame = (int)model->animations[anim].frames_count + frame;
-    }
-
-    if((frame < 0) || (frame + 1 > model->animations[anim].frames_count))
-    {
-        Con_Warning("wrong frame number = %d", frame);
-        return 0;
-    }
-
-    model->animations[anim].frames[frame].command = 0x00ff & lua_tointeger(lua, 4);
-    if(top >= 7)
-    {
-        model->animations[anim].frames[frame].move[0] = lua_tonumber(lua, 5);
-        model->animations[anim].frames[frame].move[1] = lua_tonumber(lua, 6);
-        model->animations[anim].frames[frame].move[2] = lua_tonumber(lua, 7);
     }
 
     return 0;
@@ -3098,7 +3007,7 @@ int lua_SetEntityAnim(lua_State * lua)
 
     if(top < 4)
     {
-        Con_Warning("setEntityAnim: expecting arguments (entity_id, anim_type_id, anim_num, frame_number, (next_anim_num, next_frame_num))");
+        Con_Warning("setEntityAnim: expecting arguments (entity_id, anim_type_id, anim_num, frame_number, (next_anim, next_frame))");
         return 0;
     }
 
@@ -3115,7 +3024,7 @@ int lua_SetEntityAnim(lua_State * lua)
     ss_animation_p ss_anim = SSBoneFrame_GetOverrideAnim(ent->bf, anim_type_id);
     if(ss_anim)
     {
-        SSBoneFrame_SetAnimation(ent->bf, anim_type_id, lua_tointeger(lua, 3), lua_tointeger(lua, 4));
+        Anim_SetAnimation(ss_anim, lua_tointeger(lua, 3), lua_tointeger(lua, 4));
         if(top >= 6)
         {
             ss_anim->next_animation = lua_tointeger(lua, 5);
@@ -3226,9 +3135,9 @@ int lua_SetModelBodyPartFlag(lua_State * lua)
 
 int lua_GetEntityAnim(lua_State * lua)
 {
-    if(lua_gettop(lua) < 1)
+    if(lua_gettop(lua) < 2)
     {
-        Con_Warning("getEntityAnim: expecting arguments (entity_id)");
+        Con_Warning("getEntityAnim: expecting arguments (entity_id, anim_type_id)");
         return 0;
     }
 
@@ -3241,11 +3150,17 @@ int lua_GetEntityAnim(lua_State * lua)
         return 0;
     }
 
-    lua_pushinteger(lua, ent->bf->animations.current_animation);
-    lua_pushinteger(lua, ent->bf->animations.current_frame);
-    lua_pushinteger(lua, ent->bf->animations.model->animations[ent->bf->animations.current_animation].frames_count);
+    int anim_id = lua_tointeger(lua, 2);
+    ss_animation_p ss_anim = SSBoneFrame_GetOverrideAnim(ent->bf, anim_id);
+    if(ss_anim && ss_anim->model)
+    {
+        lua_pushinteger(lua, ss_anim->next_animation);
+        lua_pushinteger(lua, ss_anim->next_frame);
+        lua_pushinteger(lua, ss_anim->model->animations[ss_anim->next_animation].max_frame);
+        return 3;
+    }
 
-    return 3;
+    return 0;
 }
 
 
@@ -4314,7 +4229,7 @@ int lua_GetEntityAnimState(lua_State * lua)
     {
         if(ss_anim->type == anim_type_id)
         {
-            lua_pushinteger(lua, ent->bf->animations.last_state);
+            lua_pushinteger(lua, ent->bf->animations.next_state);
             return 1;
         }
     }
@@ -4351,7 +4266,7 @@ int lua_SetEntityAnimState(lua_State * lua)
     int top = lua_gettop(lua);
     if(top < 3)
     {
-        Con_Warning("setEntityAnimState: expecting arguments (entity_id, anim_type_id, next_state, (last_state))");
+        Con_Warning("setEntityAnimState: expecting arguments (entity_id, anim_type_id, next_state, (current_state))");
         return 0;
     }
 
@@ -4372,7 +4287,7 @@ int lua_SetEntityAnimState(lua_State * lua)
             ss_anim->next_state = lua_tointeger(lua, 3);
             if(top >= 4)
             {
-                ss_anim->last_state = lua_tointeger(lua, 4);
+                ss_anim->current_state = lua_tointeger(lua, 4);
             }
             break;
         }
@@ -4937,7 +4852,7 @@ int lua_StopSound(lua_State *lua)
 
 int lua_GetLevel(lua_State *lua)
 {
-    lua_pushinteger(lua, gameflow_manager.CurrentLevelID);
+    lua_pushinteger(lua, gameflow.getCurrentLevelID());
     return 1;
 }
 
@@ -4954,7 +4869,10 @@ int lua_SetLevel(lua_State *lua)
     Con_Notify("level was changed to %d", id);
 
     Game_LevelTransition(id);
-    Gameflow_Send(TR_GAMEFLOW_OP_LEVELCOMPLETE, id);    // Next level
+    if(!gameflow.Send(GF_OP_LEVELCOMPLETE, id))
+    {
+        Con_Warning("setLevel: Failed to add opcode to gameflow action list");
+    }
 
     return 0;
 }
@@ -4969,16 +4887,16 @@ int lua_SetGame(lua_State *lua)
         return 0;
     }
 
-    gameflow_manager.CurrentGameID = lua_tointeger(lua, 1);
+    gameflow.setCurrentGameID(lua_tointeger(lua, 1));
     if(!lua_isnil(lua, 2))
     {
-        gameflow_manager.CurrentLevelID = lua_tointeger(lua, 2);
+        gameflow.setCurrentLevelID(lua_tointeger(lua, 2));
     }
 
     lua_getglobal(lua, "getTitleScreen");
     if(lua_isfunction(lua, -1))
     {
-        lua_pushnumber(lua, gameflow_manager.CurrentGameID);
+        lua_pushnumber(lua, gameflow.getCurrentGameID());
         if(lua_CallAndLog(lua, 1, 1, 0))
         {
             //Gui_FadeAssignPic(FADER_LOADSCREEN, lua_tostring(lua, -1));
@@ -4987,9 +4905,13 @@ int lua_SetGame(lua_State *lua)
     }
     lua_settop(lua, top);
 
-    Con_Notify("level was changed to %d", gameflow_manager.CurrentGameID);
-    Game_LevelTransition(gameflow_manager.CurrentLevelID);
-    Gameflow_Send(TR_GAMEFLOW_OP_LEVELCOMPLETE, gameflow_manager.CurrentLevelID);
+    Con_Notify("level was changed to %d", gameflow.getCurrentGameID());
+    Game_LevelTransition(gameflow.getCurrentLevelID());
+
+    if(!gameflow.Send(GF_OP_LEVELCOMPLETE, gameflow.getCurrentLevelID()))
+    {
+        Con_Warning("setGame: Failed to add opcode to gameflow action list");
+    }
 
     return 0;
 }
@@ -5010,14 +4932,14 @@ int lua_LoadMap(lua_State *lua)
         {
             if(!lua_isnil(lua, 2))
             {
-                gameflow_manager.CurrentGameID = lua_tointeger(lua, 2);
+                gameflow.setCurrentGameID(lua_tointeger(lua, 2));
             }
             if(!lua_isnil(lua, 3))
             {
-                gameflow_manager.CurrentLevelID = lua_tointeger(lua, 3);
+                gameflow.setCurrentLevelID(lua_tointeger(lua, 3));
             }
             char file_path[MAX_ENGINE_PATH];
-            Script_GetLoadingScreen(lua, gameflow_manager.CurrentLevelID, file_path);
+            Script_GetLoadingScreen(lua, gameflow.getCurrentLevelID(), file_path);
             if(!Gui_LoadScreenAssignPic(file_path))
             {
                 Gui_LoadScreenAssignPic("resource/graphics/legal");
@@ -5043,7 +4965,9 @@ int lua_SetFlipState(lua_State *lua)
 
     uint32_t flip_index = (uint32_t)lua_tointeger(lua, 1);
     uint32_t flip_state = (uint32_t)lua_tointeger(lua, 2);
-    return World_SetFlipState(flip_index, flip_state);
+    World_SetFlipState(flip_index, flip_state);
+
+    return 0;
 }
 
 
@@ -5058,8 +4982,9 @@ int lua_SetFlipMap(lua_State *lua)
     uint32_t flip_index = (uint32_t)lua_tointeger(lua, 1);
     uint8_t  flip_mask = (uint32_t)lua_tointeger(lua, 2);
     uint8_t  flip_operation = (uint32_t)lua_tointeger(lua, 3);
+    World_SetFlipMap(flip_index, flip_mask, flip_operation);
 
-    return World_SetFlipMap(flip_index, flip_mask, flip_operation);
+    return 0;
 }
 
 
@@ -5408,6 +5333,10 @@ void Script_LoadConstants(lua_State *lua)
         lua_pushinteger(lua, COLLISION_TYPE_GHOST);
         lua_setglobal(lua, "COLLISION_TYPE_GHOST");
 
+        lua_pushinteger(lua, ENTITY_TRIGGERING_ACTIVATED);
+        lua_setglobal(lua, "ENTITY_TRIGGERING_ACTIVATED");
+        lua_pushinteger(lua, ENTITY_TRIGGERING_DEACTIVATED);
+        lua_setglobal(lua, "ENTITY_TRIGGERING_DEACTIVATED");
         lua_pushinteger(lua, ENTITY_TRIGGERING_NOT_READY);
         lua_setglobal(lua, "ENTITY_TRIGGERING_NOT_READY");
 
@@ -5508,8 +5437,6 @@ void Script_LuaRegisterFuncs(lua_State *lua)
     lua_register(lua, "getFlipState", lua_GetFlipState);
 
     lua_register(lua, "setModelCollisionMap", lua_SetModelCollisionMap);
-    lua_register(lua, "getAnimCommandTransform", lua_GetAnimCommandTransform);
-    lua_register(lua, "setAnimCommandTransform", lua_SetAnimCommandTransform);
     lua_register(lua, "setStateChangeRange", lua_SetStateChangeRange);
 
     lua_register(lua, "addItem", lua_AddItem);

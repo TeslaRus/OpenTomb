@@ -284,7 +284,7 @@ void Save_Entity(FILE **f, entity_p ent)
     for(ss_anim = &ent->bf->animations; ss_anim; ss_anim = ss_anim->next)
     {
         fprintf(*f, "\nsetEntityAnim(%d, %d, %d, %d, %d, %d);", ent->id, ss_anim->type, ss_anim->current_animation, ss_anim->current_frame, ss_anim->next_animation, ss_anim->next_frame);
-        fprintf(*f, "\nsetEntityAnimState(%d, %d, %d, %d);", ent->id, ss_anim->type, ss_anim->next_state, ss_anim->last_state);
+        fprintf(*f, "\nsetEntityAnimState(%d, %d, %d, %d);", ent->id, ss_anim->type, ss_anim->next_state, ss_anim->current_state);
         fprintf(*f, "\nentitySSAnimSetTarget(%d, %d, %d, %.2f, %.2f, %.2f, %.6f, %.6f, %.6f);", ent->id, ss_anim->type, ss_anim->targeting_bone,
             ss_anim->target[0], ss_anim->target[1], ss_anim->target[2],
             ss_anim->bone_direction[0], ss_anim->bone_direction[1], ss_anim->bone_direction[2]);
@@ -333,7 +333,7 @@ int Game_Save(const char* name)
         return 0;
     }
 
-    fprintf(f, "loadMap(\"%s\", %d, %d);\n", gameflow_manager.CurrentLevelPath, gameflow_manager.CurrentGameID, gameflow_manager.CurrentLevelID);
+    fprintf(f, "loadMap(\"%s\", %d, %d);\n", gameflow.getCurrentLevelPath(), gameflow.getCurrentGameID(), gameflow.getCurrentLevelID());
 
     // Save flipmap and flipped room states.
     uint8_t *flip_map;
@@ -441,7 +441,7 @@ void Game_ApplyControls(struct entity_s *ent)
         Cam_MoveAlong(&engine_camera, dist * move_logic[0]);
         Cam_MoveStrafe(&engine_camera, dist * move_logic[1]);
         Cam_MoveVertical(&engine_camera, dist * move_logic[2]);
-        engine_camera.current_room = World_FindRoomByPosCogerrence(engine_camera.pos, engine_camera.current_room);
+        engine_camera.current_room = World_FindRoomByPosCogerrence(engine_camera.gl_transform + 12, engine_camera.current_room);
     }
     else if(control_states.noclip != 0)
     {
@@ -451,12 +451,12 @@ void Game_ApplyControls(struct entity_s *ent)
         Cam_MoveAlong(&engine_camera, dist * move_logic[0]);
         Cam_MoveStrafe(&engine_camera, dist * move_logic[1]);
         Cam_MoveVertical(&engine_camera, dist * move_logic[2]);
-        engine_camera.current_room = World_FindRoomByPosCogerrence(engine_camera.pos, engine_camera.current_room);
+        engine_camera.current_room = World_FindRoomByPosCogerrence(engine_camera.gl_transform + 12, engine_camera.current_room);
 
         ent->angles[0] = 180.0 * control_states.cam_angles[0] / M_PI;
-        pos[0] = engine_camera.pos[0] + engine_camera.view_dir[0] * control_states.cam_distance;
-        pos[1] = engine_camera.pos[1] + engine_camera.view_dir[1] * control_states.cam_distance;
-        pos[2] = engine_camera.pos[2] + engine_camera.view_dir[2] * control_states.cam_distance - 512.0;
+        pos[0] = engine_camera.gl_transform[12 + 0] + engine_camera.gl_transform[8 + 0] * control_states.cam_distance;
+        pos[1] = engine_camera.gl_transform[12 + 1] + engine_camera.gl_transform[8 + 1] * control_states.cam_distance;
+        pos[2] = engine_camera.gl_transform[12 + 2] + engine_camera.gl_transform[8 + 2] * control_states.cam_distance - 512.0;
         vec3_copy(ent->transform+12, pos);
         Entity_UpdateTransform(ent);
         Entity_UpdateRigidBody(ent, 1);
@@ -766,15 +766,15 @@ void Game_Prepare()
         room_p room = World_GetRoomByID(0);
         if(room)
         {
-            engine_camera.pos[0] = room->bb_max[0];
-            engine_camera.pos[1] = room->bb_max[1];
-            engine_camera.pos[2] = room->bb_max[2];
+            engine_camera.gl_transform[12 + 0] = room->bb_max[0];
+            engine_camera.gl_transform[12 + 1] = room->bb_max[1];
+            engine_camera.gl_transform[12 + 2] = room->bb_max[2];
         }
     }
 
     // Set gameflow parameters to default.
     // Reset secret trigger map.
-    memset(gameflow_manager.SecretsTriggerMap, 0, sizeof(gameflow_manager.SecretsTriggerMap));
+    gameflow.resetSecrets();///@UNIMPLEMENTED We should save the secrets to a save file prior to resetting!
 }
 
 
@@ -812,10 +812,11 @@ void Game_SetCameraTarget(uint32_t entity_id, float timer)
 void Game_SetCamera(uint32_t camera_id, int once, int move, float timer)
 {
     static_camera_sink_p sink = World_GetstaticCameraSink(camera_id);
-    if(sink)
+    if(sink && !sink->locked)
     {
         if(engine_camera_state.state != CAMERA_STATE_FLYBY)
         {
+            sink->locked |= 0x01 & once;
             engine_camera_state.state = CAMERA_STATE_FIXED;
             engine_camera_state.sink = sink;
             engine_camera_state.time = timer;

@@ -55,7 +55,7 @@ static ALCdevice              *al_device      = NULL;
 static ALCcontext             *al_context     = NULL;
 
 static volatile int             engine_done   = 0;
-static int                      engine_set_sero_time = 0;
+static int                      engine_set_zero_time = 0;
 float time_scale = 1.0f;
 
 engine_container_p      last_cont = NULL;
@@ -131,6 +131,48 @@ void Engine_Start(const char *config_name)
     SDL_ShowCursor(0);
 
     luaL_dofile(engine_lua, "autoexec.lua");
+}
+
+
+void Engine_ParseArgs(int argc, char **argv)
+{
+    //No arguments to process so let's exit
+    if(argc <= 0)
+    {
+        return;
+    }
+
+    //Note: first argument is always executable filepath so we start to iterate from 1
+    for(int32_t i = 1; i < argc; i++)
+    {
+        char* currentArg = argv[i];
+
+        //Check delimiter
+        if(currentArg[0] == '-')
+        {
+            //Increment pointer char pointer by 1 so we can simply compare "config="
+            currentArg++;
+            if(!strncmp(currentArg, "config=", 6))
+            {
+                ///@FIXME probably best to strlen arg then check the final size to prevent 0 length paths
+                currentArg += 6;
+
+                Sys_DebugLog(SYS_LOG_FILENAME, "Config path override: %s\n", currentArg);
+
+                //Check if the config file exists or not
+                if(Sys_FileFound(currentArg, 0))
+                {
+                    ///@TODO Attempt to load config from custom file, if fail load default.
+                    Sys_DebugLog(SYS_LOG_FILENAME, "Config exists!");
+                }
+                else
+                {
+                    ///@TODO Should load default config
+                    Sys_DebugLog(SYS_LOG_FILENAME, "Config doesn't exist!");
+                }
+            }
+        }
+    }
 }
 
 
@@ -224,7 +266,6 @@ void Engine_Init_Pre()
 
     Script_CallVoidFunc(engine_lua, "loadscript_pre", true);
 
-    Gameflow_Init();
     Cam_Init(&engine_camera);
     engine_camera_state.state = CAMERA_STATE_NORMAL;
     engine_camera_state.flyby = NULL;
@@ -755,9 +796,9 @@ void Engine_MainLoop()
         oldtime = newtime;
         time *= time_scale;
 
-        if(engine_set_sero_time)
+        if(engine_set_zero_time)
         {
-            engine_set_sero_time = 0;
+            engine_set_zero_time = 0;
             time = 0.0f;
         }
 
@@ -785,7 +826,7 @@ void Engine_MainLoop()
         Sys_ResetTempMem();
         Engine_PollSDLEvents();
         Game_Frame(time);
-        Gameflow_Do();
+        gameflow.Do();
 
         Audio_Update(time);
         Engine_Display();
@@ -823,8 +864,10 @@ void ShowDebugInfo()
                         {
                             char trig_type[64];
                             char trig_func[64];
+                            char trig_mask[16];
                             Trigger_TrigTypeToStr(trig_type, 64, rs->trigger->sub_function);
-                            GLText_OutTextXY(30.0f, y += dy, "trig(sub = %s, val = 0x%X, mask = 0x%X)", trig_type, rs->trigger->function_value, rs->trigger->mask);
+                            Trigger_TrigMaskToStr(trig_mask, rs->trigger->mask);
+                            GLText_OutTextXY(30.0f, y += dy, "trig(sub = %s, val = 0x%X, mask = 0b%s, timer = %d)", trig_type, rs->trigger->function_value, trig_mask, rs->trigger->timer);
                             for(trigger_command_p cmd = rs->trigger->commands; cmd; cmd = cmd->next)
                             {
                                 entity_p trig_obj = World_GetEntityByID(cmd->operands);
@@ -832,10 +875,22 @@ void ShowDebugInfo()
                                 {
                                     renderer.debugDrawer->SetColor(0.0, 0.0, 1.0);
                                     renderer.debugDrawer->DrawBBox(trig_obj->bf->bb_min, trig_obj->bf->bb_max, trig_obj->transform);
-                                    renderer.OutTextXYZ(trig_obj->transform[12 + 0], trig_obj->transform[12 + 1], trig_obj->transform[12 + 2], "(id = 0x%X)", trig_obj->id);
+                                    Trigger_TrigMaskToStr(trig_mask, trig_obj->trigger_layout);
+                                    gl_text_line_p text = renderer.OutTextXYZ(trig_obj->transform[12 + 0], trig_obj->transform[12 + 1], trig_obj->transform[12 + 2], "(id = 0x%X, layout = 0b%s)", trig_obj->id, trig_mask);
+                                    if(text)
+                                    {
+                                        text->x_align = GLTEXT_ALIGN_CENTER;
+                                    }
                                 }
                                 Trigger_TrigCmdToStr(trig_func, 64, cmd->function);
-                                GLText_OutTextXY(30.0f, y += dy, "   cmd(func = %s, op = 0x%X)", trig_func, cmd->operands);
+                                if(cmd->function == TR_FD_TRIGFUNC_SET_CAMERA)
+                                {
+                                    GLText_OutTextXY(30.0f, y += dy, "   cmd(func = %s, op = 0x%X, cam_id = 0x%X, cam_move = %d, cam_timer = %d)", trig_func, cmd->operands, cmd->cam_index, cmd->cam_move, cmd->cam_timer);
+                                }
+                                else
+                                {
+                                    GLText_OutTextXY(30.0f, y += dy, "   cmd(func = %s, op = 0x%X)", trig_func, cmd->operands);
+                                }
                             }
                         }
                     }
@@ -851,8 +906,10 @@ void ShowDebugInfo()
                 entity_p ent = World_GetPlayer();
                 if(ent && ent->character)
                 {
-                    GLText_OutTextXY(30.0f, y += dy, "last_anim = %03d, curr_anim = %03d, next_anim = %03d, last_st = %03d, next_st = %03d", ent->bf->animations.last_animation, ent->bf->animations.current_animation, ent->bf->animations.next_animation, ent->bf->animations.last_state, ent->bf->animations.next_state);
-                    GLText_OutTextXY(30.0f, y += dy, "curr_anim = %03d, next_anim = %03d, curr_frame = %03d, next_frame = %03d", ent->bf->animations.current_animation, ent->bf->animations.next_animation, ent->bf->animations.current_frame, ent->bf->animations.next_frame);
+                    animation_frame_p anim = ent->bf->animations.model->animations + ent->bf->animations.current_animation;
+                    GLText_OutTextXY(30.0f, y += dy, "curr_st = %03d, next_st = %03d", ent->bf->animations.current_state, ent->bf->animations.next_state);
+                    GLText_OutTextXY(30.0f, y += dy, "curr_anim = %03d, curr_frame = %03d, next_anim = %03d, next_frame = %03d", ent->bf->animations.current_animation, ent->bf->animations.current_frame, ent->bf->animations.next_animation, ent->bf->animations.next_frame);
+                    GLText_OutTextXY(30.0f, y += dy, "anim_next_anim = %03d, anim_next_frame = %03d", anim->next_anim->id, anim->next_frame);
                     GLText_OutTextXY(30.0f, y += dy, "posX = %f, posY = %f, posZ = %f", ent->transform[12], ent->transform[13], ent->transform[14]);
                 }
             }
@@ -875,8 +932,10 @@ void ShowDebugInfo()
                         {
                             char trig_type[64];
                             char trig_func[64];
+                            char trig_mask[16];
                             Trigger_TrigTypeToStr(trig_type, 64, rs->trigger->sub_function);
-                            GLText_OutTextXY(30.0f, y += dy, "trig(sub = %s, val = 0x%X, mask = 0x%X)", trig_type, rs->trigger->function_value, rs->trigger->mask);
+                            Trigger_TrigMaskToStr(trig_mask, rs->trigger->mask);
+                            GLText_OutTextXY(30.0f, y += dy, "trig(sub = %s, val = 0x%X, mask = 0b%s, timer = %d)", trig_type, rs->trigger->function_value, trig_mask, rs->trigger->timer);
                             for(trigger_command_p cmd = rs->trigger->commands; cmd; cmd = cmd->next)
                             {
                                 entity_p trig_obj = World_GetEntityByID(cmd->operands);
@@ -884,10 +943,22 @@ void ShowDebugInfo()
                                 {
                                     renderer.debugDrawer->SetColor(0.0, 0.0, 1.0);
                                     renderer.debugDrawer->DrawBBox(trig_obj->bf->bb_min, trig_obj->bf->bb_max, trig_obj->transform);
-                                    renderer.OutTextXYZ(trig_obj->transform[12 + 0], trig_obj->transform[12 + 1], trig_obj->transform[12 + 2], "(id = 0x%X)", trig_obj->id);
+                                    Trigger_TrigMaskToStr(trig_mask, trig_obj->trigger_layout);
+                                    gl_text_line_p text = renderer.OutTextXYZ(trig_obj->transform[12 + 0], trig_obj->transform[12 + 1], trig_obj->transform[12 + 2], "(id = 0x%X, layout = 0b%s)", trig_obj->id, trig_mask);
+                                    if(text)
+                                    {
+                                        text->x_align = GLTEXT_ALIGN_CENTER;
+                                    }
                                 }
                                 Trigger_TrigCmdToStr(trig_func, 64, cmd->function);
-                                GLText_OutTextXY(30.0f, y += dy, "   cmd(func = %s, op = 0x%X)", trig_func, cmd->operands);
+                                if(cmd->function == TR_FD_TRIGFUNC_SET_CAMERA)
+                                {
+                                    GLText_OutTextXY(30.0f, y += dy, "   cmd(func = %s, op = 0x%X, cam_id = 0x%X, cam_move = %d, cam_timer = %d)", trig_func, cmd->operands, cmd->cam_index, cmd->cam_move, cmd->cam_timer);
+                                }
+                                else
+                                {
+                                    GLText_OutTextXY(30.0f, y += dy, "   cmd(func = %s, op = 0x%X)", trig_func, cmd->operands);
+                                }
                             }
                         }
                     }
@@ -967,7 +1038,7 @@ void Engine_GetLevelName(char *name, const char *path)
 void Engine_GetLevelScriptName(int game_version, char *name, const char *postfix, uint32_t buf_size)
 {
     char level_name[LEVEL_NAME_MAX_LEN];
-    Engine_GetLevelName(level_name, gameflow_manager.CurrentLevelPath);
+    Engine_GetLevelName(level_name, gameflow.getCurrentLevelPath());
 
     name[0] = 0;
 
@@ -1048,7 +1119,7 @@ int Engine_LoadMap(const char *name)
     Gui_DrawLoadScreen(0);
 
     // it is needed for "not in the game" levels or correct saves loading.
-    strncpy(gameflow_manager.CurrentLevelPath, name, MAX_ENGINE_PATH);
+    gameflow.setCurrentLevelPath(name);
 
     Gui_DrawLoadScreen(100);
 
@@ -1079,7 +1150,6 @@ int Engine_LoadMap(const char *name)
             return 0;
     }
 
-    Audio_Init();
     Game_Prepare();
 
     room_p rooms;
@@ -1093,7 +1163,7 @@ int Engine_LoadMap(const char *name)
 
     Gui_DrawLoadScreen(1000);
     Gui_NotifierStop();
-    engine_set_sero_time = 1;
+    engine_set_zero_time = 1;
 
     return 1;
 }
@@ -1130,9 +1200,9 @@ int Engine_ExecCmd(char *ch)
         else if(!strcmp(token, "goto"))
         {
             control_states.free_look = 1;
-            engine_camera.pos[0] = SC_ParseFloat(&ch);
-            engine_camera.pos[1] = SC_ParseFloat(&ch);
-            engine_camera.pos[2] = SC_ParseFloat(&ch);
+            engine_camera.gl_transform[12 + 0] = SC_ParseFloat(&ch);
+            engine_camera.gl_transform[12 + 1] = SC_ParseFloat(&ch);
+            engine_camera.gl_transform[12 + 2] = SC_ParseFloat(&ch);
             return 1;
         }
         else if(!strcmp(token, "save"))
@@ -1268,7 +1338,7 @@ int Engine_ExecCmd(char *ch)
             room_p r = engine_camera.current_room;
             if(r)
             {
-                room_sector_p sect = Room_GetSectorXYZ(r, engine_camera.pos);
+                room_sector_p sect = Room_GetSectorXYZ(r, engine_camera.gl_transform + 12);
                 Con_Printf("ID = %d, x_sect = %d, y_sect = %d", r->id, r->sectors_x, r->sectors_y);
                 if(sect)
                 {

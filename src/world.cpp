@@ -86,9 +86,6 @@ extern "C" {
     struct flyby_camera_state_s    *flyby_cameras;
     struct flyby_camera_sequence_s *flyby_camera_sequences;
 
-    uint32_t                        anim_commands_count;
-    int16_t                        *anim_commands;
-
     /// private:
     struct lua_State               *objects_flags_conf;
     struct lua_State               *ent_ID_override;
@@ -115,7 +112,6 @@ bool Res_CreateEntityFunc(lua_State *lua, const char* func_name, int entity_id);
 
 
 void World_GenTextures(class VT_Level *tr);
-void World_GenAnimCommands(class VT_Level *tr);
 void World_GenAnimTextures(class VT_Level *tr);
 void World_GenMeshes(class VT_Level *tr);
 void World_GenSprites(class VT_Level *tr);
@@ -170,8 +166,6 @@ void World_Prepare()
     global_world.skeletal_models = NULL;
     global_world.skeletal_models_count = 0;
     global_world.sky_box = NULL;
-    global_world.anim_commands = NULL;
-    global_world.anim_commands_count = 0;
 
     global_world.objects_flags_conf = NULL;
     global_world.ent_ID_override = NULL;
@@ -193,9 +187,6 @@ void World_Open(class VT_Level *tr)
 
     World_GenTextures(tr);              // Generate OGL textures
     Gui_DrawLoadScreen(300);
-
-    World_GenAnimCommands(tr);          // Copy anim commands
-    Gui_DrawLoadScreen(310);
 
     World_GenAnimTextures(tr);          // Generate animated textures
     Gui_DrawLoadScreen(320);
@@ -275,6 +266,8 @@ void World_Open(class VT_Level *tr)
         delete global_world.tex_atlas;
         global_world.tex_atlas = NULL;
     }
+
+    Audio_Init();
 }
 
 
@@ -606,12 +599,6 @@ struct static_camera_sink_s *World_GetstaticCameraSink(uint32_t id)
         return global_world.cameras_sinks + id;
     }
     return NULL;
-}
-
-
-int16_t *World_GetAnimCommands()
-{
-    return global_world.anim_commands;
 }
 
 
@@ -962,18 +949,21 @@ void World_BuildOverlappedRoomsList(struct room_s *room)
  */
 int World_SetFlipState(uint32_t flip_index, uint32_t flip_state)
 {
-    flip_state &= 0x01;  // State is always boolean.
-
     if(flip_index >= global_world.flip_count)
     {
         Con_Warning("wrong flipmap index");
         return 0;
     }
 
-    if(global_world.flip_map[flip_index] == 0x1F)         // Check flipmap state.
+    if((global_world.flip_map[flip_index] == 0x1F) || (flip_state & 0x02))      // Check flipmap state.
     {
         room_p current_room = global_world.rooms;
         bool is_global_flip = global_world.version < TR_IV;
+        if(global_world.flip_map[flip_index] != 0x1F)
+        {
+            flip_state = 0;
+        }
+
         for(uint32_t i = 0; i < global_world.rooms_count; i++, current_room++)
         {
             if(is_global_flip || (current_room->content->alternate_group == flip_index))
@@ -988,7 +978,7 @@ int World_SetFlipState(uint32_t flip_index, uint32_t flip_state)
                 }
             }
         }
-        global_world.flip_state[flip_index] = flip_state;
+        global_world.flip_state[flip_index] = flip_state & 0x01;
     }
 
     return 0;
@@ -997,8 +987,6 @@ int World_SetFlipState(uint32_t flip_index, uint32_t flip_state)
 
 int World_SetFlipMap(uint32_t flip_index, uint8_t flip_mask, uint8_t flip_operation)
 {
-    flip_operation = (flip_operation > TRIGGER_OP_XOR) ? (TRIGGER_OP_XOR) : (TRIGGER_OP_OR);
-
     if(flip_index >= global_world.flip_count)
     {
         Con_Warning("wrong flipmap index");
@@ -1540,14 +1528,6 @@ void World_GenTextures(class VT_Level *tr)
 }
 
 
-void World_GenAnimCommands(class VT_Level *tr)
-{
-    global_world.anim_commands_count = tr->anim_commands_count;
-    global_world.anim_commands = tr->anim_commands;
-    tr->anim_commands = NULL;
-    tr->anim_commands_count = 0;
-}
-
 /**   Animated textures loading.
   *   Natively, animated textures stored as a stream of bitu16s, which
   *   is then parsed on the fly. What we do is parse this stream to the
@@ -1744,6 +1724,7 @@ void World_GenCameras(class VT_Level *tr)
             global_world.cameras_sinks[i].x                   =  tr->cameras[i].x;
             global_world.cameras_sinks[i].y                   =  tr->cameras[i].z;
             global_world.cameras_sinks[i].z                   = -tr->cameras[i].y;
+            global_world.cameras_sinks[i].locked              = 0;
             global_world.cameras_sinks[i].room_or_strength    =  tr->cameras[i].room;
             global_world.cameras_sinks[i].flag_or_zone        =  tr->cameras[i].unknown1;
         }
@@ -2205,8 +2186,8 @@ void World_GenRoom(struct room_s *room, class VT_Level *tr)
      */
     room->alternate_room = NULL;
     room->base_room = NULL;
-
-    if((tr_room->alternate_room >= 0) && ((uint32_t)tr_room->alternate_room < tr->rooms_count))
+    // condition was commented because heavy glitches in TR3+
+    if((tr_room->alternate_room >= 0) && ((uint32_t)tr_room->alternate_room < tr->rooms_count) /*&& (room->id < tr_room->alternate_room)*/)
     {
         room->alternate_room = global_world.rooms + tr_room->alternate_room;
     }
@@ -2251,7 +2232,7 @@ void World_GenSkeletalModels(class VT_Level *tr)
         tr_moveable = &tr->moveables[i];
         smodel->id = tr_moveable->object_id;
         smodel->mesh_count = tr_moveable->num_meshes;
-        TR_GenSkeletalModel(smodel, i, global_world.meshes, global_world.anim_commands, tr);
+        TR_GenSkeletalModel(smodel, i, global_world.meshes, tr);
         SkeletalModel_FillTransparency(smodel);
     }
 }
@@ -2383,7 +2364,7 @@ void World_GenEntities(class VT_Level *tr)
             switch(tr->game_version)
             {
                 case TR_I:
-                    if(gameflow_manager.CurrentLevelID == 0)
+                    if(gameflow.getCurrentLevelID() == 0)
                     {
                         LM = World_GetModelByID(TR_ITEM_LARA_SKIN_ALTERNATE_TR1);
                         if(LM)
@@ -2517,6 +2498,11 @@ void World_GenRoomCollision()
 {
     room_p r = global_world.rooms;
 
+    if(r == NULL)
+    {
+        return;
+    }
+
     /*
     if(level_script != NULL)
     {
@@ -2561,6 +2547,12 @@ void World_GenRoomCollision()
 void World_FixRooms()
 {
     room_p r = global_world.rooms;
+
+    if(r == NULL)
+    {
+        return;
+    }
+
     for(uint32_t i = 0; i < global_world.rooms_count; i++, r++)
     {
         if(r->base_room != NULL)
@@ -2584,6 +2576,11 @@ void World_FixRooms()
 void World_MakeEntityItems(struct RedBlackNode_s *n)
 {
     base_item_p item = (base_item_p)n->data;
+
+    if(item == NULL)
+    {
+        return;
+    }
 
     for(uint32_t i = 0; i < global_world.rooms_count; i++)
     {

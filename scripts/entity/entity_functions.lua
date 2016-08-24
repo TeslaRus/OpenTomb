@@ -53,13 +53,21 @@ function door_init(id)   -- NORMAL doors only!
     setEntityActivity(object_id, 1);
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
-        swapEntityState(object_id, 0, 1);
+        local a, f, c = getEntityAnim(object_id, ANIM_TYPE_BASE);
+        if(c == 1) then
+            return swapEntityState(object_id, 0, 1);
+        end;
+        return ENTITY_TRIGGERING_NOT_READY;
     end;
     
     entity_funcs[id].onDeactivate = entity_funcs[id].onActivate;    -- Same function.
     
     entity_funcs[id].onLoop = function(object_id)
-        if(tickEntity(object_id) == TICK_STOPPED) then
+        if(getEntityEvent(object_id) == 0) then
+            setEntityTimer(object_id, 0.0);
+        end;
+
+        if((tickEntity(object_id) == TICK_STOPPED) and (getEntityEvent(object_id) ~= 0)) then
             swapEntityState(object_id, 0, 1);
             setEntityEvent(object_id, 0);
         end;
@@ -75,13 +83,15 @@ function keyhole_init(id)    -- Key and puzzle holes
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
         if(object_id == nil or getEntityActivity(object_id) or not canTriggerEntity(activator_id, object_id, 256.0, 0.0, 256.0, 0.0)) then
-            return;
+            return ENTITY_TRIGGERING_NOT_READY;
         end
         
         if((not getEntityActivity(object_id)) and (switch_activate(object_id, activator_id) == 1)) then
             setEntityPos(activator_id, getEntityPos(object_id));
             moveEntityLocal(activator_id, 0.0, 360.0, 0.0);
+            return ENTITY_TRIGGERING_ACTIVATED;
         end
+        return ENTITY_TRIGGERING_NOT_READY;
     end;
 end
 
@@ -91,13 +101,15 @@ function switch_init(id)     -- Ordinary switches
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
         if(object_id == nil or not canTriggerEntity(activator_id, object_id, 256.0, 0.0, 256.0, 0.0)) then
-            return;
+            return ENTITY_TRIGGERING_NOT_READY;
         end
         
         if(switch_activate(object_id, activator_id) == 1) then
             setEntityPos(activator_id, getEntityPos(object_id));    -- Move activator right next to object.
             moveEntityLocal(activator_id, 0.0, 360.0, 0.0);         -- Shift activator back to proper distance.
+            return ENTITY_TRIGGERING_ACTIVATED;
         end;
+        return ENTITY_TRIGGERING_NOT_READY;
     end;
     
     entity_funcs[id].onLoop = function(object_id)
@@ -117,7 +129,7 @@ function anim_init(id)      -- Ordinary animatings
     entity_funcs[id].onActivate = function(object_id, activator_id)
         swapEntityState(object_id, 1, 0);
         swapEntityActivity(object_id);
-        swapEntityEnability(object_id);
+        return swapEntityEnability(object_id);
     end    
     
     entity_funcs[id].onDeactivate = entity_funcs[id].onActivate;
@@ -143,7 +155,7 @@ function gen_soundsource_init(id)    -- Generic sound source (continous)
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
         stopSound(entity_funcs[object_id].sound_id, object_id); -- Needed for deactivation cases.
-        swapEntityActivity(object_id);
+        return swapEntityActivity(object_id);
     end
     
     entity_funcs[id].onDeactivate = entity_funcs[id].onActivate;
@@ -171,7 +183,7 @@ function randomized_soundsource_init(id)    -- Randomized sound source
     entity_funcs[id].sound_id = 0;
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
-        swapEntityActivity(object_id);
+        return swapEntityActivity(object_id);
     end
     
     entity_funcs[id].onLoop = function(object_id)
@@ -210,7 +222,7 @@ function doorbell_init(id)    -- Lara's Home doorbell (TR2)
     setEntityActivity(id, 0);
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
-        swapEntityActivity(object_id);
+        return swapEntityActivity(object_id);
     end
     
     entity_funcs[id].onDeactivate = entity_funcs[id].onActivate;
@@ -251,10 +263,12 @@ function heli_TR2_init(id)    -- Helicopter (TR2)
             setEntityVisibility(id, 1);
             playSound(297, object_id);
         end;
+        return ENTITY_TRIGGERING_ACTIVATED;
     end
     
     entity_funcs[id].onDeactivate = function(object_id, activator_id)
         setEntityActivity(object_id, 0);
+        return ENTITY_TRIGGERING_DEACTIVATED;
     end
     
     entity_funcs[id].onLoop = function(object_id)
@@ -284,6 +298,7 @@ function heli_rig_TR2_init(id)    -- Helicopter in Offshore Rig (TR2)
     entity_funcs[id].onActivate = function(object_id, activator_id)
         setEntityActivity(object_id, 1);
         setEntityVisibility(object_id, 1);
+        return ENTITY_TRIGGERING_ACTIVATED;
     end
     
     entity_funcs[id].onLoop = function(object_id)
@@ -291,8 +306,10 @@ function heli_rig_TR2_init(id)    -- Helicopter in Offshore Rig (TR2)
             if(getEntityAnimState(object_id, ANIM_TYPE_BASE) ~= 2) then
                 setEntityAnimState(object_id, ANIM_TYPE_BASE, 2);
             else
-                local anim, frame, count = getEntityAnim(object_id);
-                if(frame == count-1) then disableEntity(object_id) end;
+                local anim, frame, count = getEntityAnim(object_id, ANIM_TYPE_BASE);
+                if(frame == count-1) then 
+                    disableEntity(object_id) 
+                end;
             end
         end;
     end
@@ -309,10 +326,12 @@ function swingblade_init(id)        -- Swinging blades (TR1)
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
         setEntityAnimState(object_id, ANIM_TYPE_BASE, 2);
+        return ENTITY_TRIGGERING_ACTIVATED;
     end    
     
     entity_funcs[id].onDeactivate = function(object_id, activator_id)
         setEntityAnimState(object_id, ANIM_TYPE_BASE, 0);
+        return ENTITY_TRIGGERING_DEACTIVATED;
     end
     
     entity_funcs[id].onLoop = function(object_id)
@@ -338,14 +357,18 @@ function tallblock_init(id)    -- Tall moving block (TR1)
         if(not getEntityActivity(object_id)) then
             setEntityActivity(object_id, 1);
             playSound(64, object_id);
+            return ENTITY_TRIGGERING_ACTIVATED;
         end;
+        return ENTITY_TRIGGERING_NOT_READY;
     end
     
     entity_funcs[id].onDeactivate = entity_funcs[id].onActivate;
     
     entity_funcs[id].onLoop = function(object_id)
         local move_speed = 32.0 * 60.0 * frame_time;;
-        if(not getEntityEvent(object_id)) then move_speed = 0 - move_speed end;
+        if(not getEntityEvent(object_id)) then 
+            move_speed = 0.0 - move_speed;
+        end;
         
         entity_funcs[object_id].distance_passed = entity_funcs[object_id].distance_passed + move_speed;
         moveEntityLocal(object_id, 0.0, move_speed, 0.0);
@@ -371,17 +394,21 @@ function gen_trap_init(id)      -- Generic traps (TR1-TR2)
     setEntityActivity(id, 1);
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
-        swapEntityState(object_id, 0, 1);
+        return swapEntityState(object_id, 0, 1);
     end;
     
     entity_funcs[id].onDeactivate = entity_funcs[id].onActivate
     
     entity_funcs[id].onLoop = function(object_id)
-        if(tickEntity(object_id) == TICK_STOPPED) then setEntityAnimState(object_id, ANIM_TYPE_BASE, 0) end;
+        if(tickEntity(object_id) == TICK_STOPPED) then 
+            setEntityAnimState(object_id, ANIM_TYPE_BASE, 0) 
+        end;
     end
     
     entity_funcs[id].onCollide = function(object_id, activator_id)
-        if(getEntityAnimState(object_id, ANIM_TYPE_BASE) == 1) then changeCharacterParam(activator_id, PARAM_HEALTH, -35) end;
+        if(getEntityAnimState(object_id, ANIM_TYPE_BASE) == 1) then 
+            changeCharacterParam(activator_id, PARAM_HEALTH, -35) 
+        end;
     end
     
     prepareEntity(id);
@@ -395,7 +422,7 @@ function sethblade_init(id)      -- Seth blades (TR4)
     setEntityActivity(id, 1);
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
-        swapEntityState(object_id, 1, 2);
+        return swapEntityState(object_id, 1, 2);
     end;
     
     entity_funcs[id].onDeactivate = entity_funcs[id].onActivate
@@ -428,7 +455,13 @@ function slicerdicer_init(id)      -- Slicer-dicer (TR4)
     moveEntityLocal(id, 512.0, 0.0, 0.0);  -- Fix position
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
-        if(not getEntityActivity(object_id)) then enableEntity(object_id) else disableEntity(object_id) end;
+        if(not getEntityActivity(object_id)) then 
+            enableEntity(object_id);
+            return ENTITY_TRIGGERING_ACTIVATED;
+        else 
+            disableEntity(object_id)
+            return ENTITY_TRIGGERING_DEACTIVATED;
+        end;
     end;
     
     entity_funcs[id].onDeactivate = entity_funcs[id].onActivate;
@@ -481,8 +514,10 @@ function lasersweep_init(id)      -- Laser sweeper (TR3)
     entity_funcs[id].onActivate = function(object_id, activator_id)
         if(not getEntityActivity(object_id)) then
             setEntityActivity(id, 1);
+            return ENTITY_TRIGGERING_ACTIVATED;
         else
             entity_funcs[object_id].stopping = true;
+            return ENTITY_TRIGGERING_DEACTIVATED;
         end;
     end;
     
@@ -547,7 +582,7 @@ function propeller_init(id)      -- Generic propeller (TR1-TR2)
     setEntityActivity(id, 1);
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
-        swapEntityState(object_id, 0, 1);
+        return swapEntityState(object_id, 0, 1);
     end;
     
     entity_funcs[id].onDeactivate = entity_funcs[id].onActivate;
@@ -571,15 +606,17 @@ function wallblade_init(id)     -- Wall blade (TR1-TR3)
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
         setEntityActivity(object_id, 1);
+        return ENTITY_TRIGGERING_ACTIVATED;
     end    
     
     entity_funcs[id].onDeactivate = function(object_id, activator_id)
         setEntityActivity(object_id, 0);
+        return ENTITY_TRIGGERING_DEACTIVATED;
     end
     
     entity_funcs[id].onLoop = function(object_id)
         if(tickEntity(object_id) == TICK_STOPPED) then setEntityActivity(object_id, 0) end;
-        local anim_number = getEntityAnim(object_id);
+        local anim_number = getEntityAnim(object_id, ANIM_TYPE_BASE);
         if(anim_number == 2) then
             setEntityAnim(object_id, ANIM_TYPE_BASE, 3, 0);
         elseif(anim_number == 1) then
@@ -603,10 +640,12 @@ function plough_init(id)     -- Plough (TR4)
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
         setEntityActivity(object_id, 1);
+        return ENTITY_TRIGGERING_ACTIVATED;
     end    
     
     entity_funcs[id].onDeactivate = function(object_id, activator_id)
         setEntityActivity(object_id, 0);
+        return ENTITY_TRIGGERING_DEACTIVATED;
     end
     
     entity_funcs[id].onLoop = function(object_id)
@@ -638,7 +677,9 @@ function boulder_init(id)
                 pushEntityBody(object_id, 0, math.random(150) + 2500.0, 10.0, true);
                 lockEntityBodyLinearFactor(object_id, 0);
             end;
+            return ENTITY_TRIGGERING_ACTIVATED;
         end;
+        return ENTITY_TRIGGERING_NOT_READY;
     end
 
 end
@@ -652,11 +693,11 @@ function pickup_init(id, item_id)    -- Pick-ups
 
     entity_funcs[id].onActivate = function(object_id, activator_id)
         if((item_id == nil) or (object_id == nil)) then
-            return;
+            return ENTITY_TRIGGERING_NOT_READY;
         end
         
         local need_set_pos = true;
-        local curr_anim = getEntityAnim(activator_id);
+        local curr_anim = getEntityAnim(activator_id, ANIM_TYPE_BASE);
 
         if(curr_anim == 103) then                 -- Stay idle
             local dx, dy, dz = getEntityVector(object_id, activator_id);
@@ -674,14 +715,12 @@ function pickup_init(id, item_id)    -- Pick-ups
         elseif(curr_anim == 108) then             -- Swim idle
             setEntityAnim(activator_id, ANIM_TYPE_BASE, 130, 0);     -- Swim pickup
         else
-            return;     -- Disable picking up, if Lara isn't idle.
+            return ENTITY_TRIGGERING_NOT_READY;                      -- Disable picking up, if Lara isn't idle.
         end;
 
         addTask(
         function()
-        
             -- Position corrector
-        
             if(getEntityMoveType(activator_id) == MOVE_UNDERWATER) then
                 if(getEntityDistance(object_id, activator_id) > 128.0) then
                     moveEntityToEntity(activator_id, object_id, 25.0);
@@ -692,11 +731,9 @@ function pickup_init(id, item_id)    -- Pick-ups
                 end;
             end;
             
-            local a, f, c = getEntityAnim(activator_id);
-            
+            local a, f, c = getEntityAnim(activator_id, ANIM_TYPE_BASE);
             -- Standing pickup anim makes action on frame 40 in TR1-3, in TR4-5
             -- it was generalized with all rest animations by frame 16.
-
             if((a == 135) and (getLevelVersion() < TR_IV)) then
                 if(f < 40) then
                     return true;
@@ -711,6 +748,7 @@ function pickup_init(id, item_id)    -- Pick-ups
             disableEntity(object_id);
             return false;   -- Item successfully picked up, kill the task.
         end);
+        return ENTITY_TRIGGERING_ACTIVATED;
     end;
 end
 
@@ -740,14 +778,14 @@ function fallblock_init(id)  -- Falling block (TR1-3)
             return;
         end
 
-        local anim = getEntityAnim(object_id);
+        local anim = getEntityAnim(object_id, ANIM_TYPE_BASE);
         if(anim == 0) then
             setEntityAnim(object_id, ANIM_TYPE_BASE, 1, 0);
             -- print("you trapped to id = "..object_id);
             local once = true;
             addTask(
             function()
-                local anim = getEntityAnim(object_id);
+                local anim = getEntityAnim(object_id, ANIM_TYPE_BASE);
                 if(anim == 1) then
                     return true;
                 end;
@@ -776,10 +814,10 @@ function fallceiling_init(id)  -- Falling ceiling (TR1-3)
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
         if((object_id == nil) or (activator_id == nil)) then
-            return;
+            return ENTITY_TRIGGERING_NOT_READY;
         end
         
-        local anim = getEntityAnim(object_id);
+        local anim = getEntityAnim(object_id, ANIM_TYPE_BASE);
         if(anim == 0) then
             setEntityAnim(object_id, ANIM_TYPE_BASE, 1, 0);
             setEntityVisibility(object_id, 1);
@@ -792,11 +830,13 @@ function fallceiling_init(id)  -- Falling ceiling (TR1-3)
                 end;
                 return true;
             end);
+            return ENTITY_TRIGGERING_ACTIVATED;
         end;
+        return ENTITY_TRIGGERING_NOT_READY;
     end;
     
     entity_funcs[id].onCollide = function(object_id, activator_id)
-        if((getEntityAnim(object_id) == 1) and (getEntityModelID(activator_id) == 0) and (getCharacterParam(activator_id, PARAM_HEALTH) > 0)) then
+        if((getEntityAnim(object_id, ANIM_TYPE_BASE) == 1) and (getEntityModelID(activator_id) == 0) and (getCharacterParam(activator_id, PARAM_HEALTH) > 0)) then
             setCharacterParam(activator_id, PARAM_HEALTH, 0);
         end;
     end
@@ -810,7 +850,7 @@ function pushdoor_init(id)   -- Pushdoors (TR4)
 
     entity_funcs[id].onActivate = function(object_id, activator_id)
         if((object_id == nil) or (activator_id == nil)) then
-            return;
+            return ENTITY_TRIGGERING_NOT_READY;
         end;
 
         if((not getEntityActivity(object_id)) and (getEntityDirDot(object_id, activator_id) < -0.9)) then
@@ -821,7 +861,9 @@ function pushdoor_init(id)   -- Pushdoors (TR4)
             -- floor door 317 anim
             -- vertical door 412 anim
             setEntityAnim(activator_id, ANIM_TYPE_BASE, 412, 0);
+            return ENTITY_TRIGGERING_ACTIVATED;
         end;
+        return ENTITY_TRIGGERING_NOT_READY;
     end;
 end
 
@@ -832,11 +874,11 @@ function midastouch_init(id)    -- Midas gold touch
     
     entity_funcs[id].onLoop = function(object_id)
         if(getEntityDistance(player, object_id) < 1024.0) then
-            local lara_anim, frame, count = getEntityAnim(player);
+            local lara_anim, frame, count = getEntityAnim(player, ANIM_TYPE_BASE);
             local lara_sector = getEntitySectorIndex(player);
             local hand_sector = getEntitySectorIndex(object_id);
             
-            if((lara_sector == hand_sector) and (getEntityMoveType(player) == MOVE_ON_FLOOR) and (getEntityAnim(player) ~= 50)) then
+            if((lara_sector == hand_sector) and (getEntityMoveType(player) == MOVE_ON_FLOOR) and (lara_anim ~= 50)) then
                 setCharacterParam(player, PARAM_HEALTH, 0);
                 entitySSAnimEnsureExists(player, ANIM_TYPE_MISK_1, 5); --ANIM_TYPE_MISK_1 - add const
                 setEntityAnim(player, ANIM_TYPE_MISK_1, 1, 0);
@@ -886,6 +928,7 @@ function twobp_init(id)        -- Two-block platform
         end;
         
         entity_funcs[object_id].waiting = false;
+        return ENTITY_TRIGGERING_ACTIVATED;
     end
     
     entity_funcs[id].onDeactivate = entity_funcs[id].onActivate;
@@ -971,6 +1014,7 @@ function rblock_init(id)        -- Raising block (generic)
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
         setEntityActivity(object_id, 1);
+        return ENTITY_TRIGGERING_ACTIVATED;
     end
     
     entity_funcs[id].onDeactivate = entity_funcs[id].onActivate;
@@ -1033,6 +1077,7 @@ function expplatform_init(id)        -- Expanding platform
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
         setEntityActivity(object_id, 1);
+        return ENTITY_TRIGGERING_ACTIVATED;
     end
     
     entity_funcs[id].onDeactivate = entity_funcs[id].onActivate;
@@ -1128,7 +1173,7 @@ function newspike_init(id)  -- Teeth spikes (TR4-5)
         if(entity_funcs[object_id].waiting == true) then
             entity_funcs[object_id].waiting = false;
             entity_funcs[object_id].onDeactivate(object_id, activator_id);
-            return;
+            return ENTITY_TRIGGERING_NOT_READY;
         end;
     
         -- For teeth spikes, OCB value stores vertical rotation in first 3 bits (0x07), horizontal
@@ -1141,7 +1186,9 @@ function newspike_init(id)  -- Teeth spikes (TR4-5)
         -- that spikes are pointed downwards (e. g. 180 degrees rotation).
         
         rotateEntity(object_id, 0.0, 0.0, (180.0 + rot_value * 45.0));
-        if(bit32.band(curr_OCB, 0x08) ~= 0) then rotateEntity(object_id, 270.0) end;   -- Rotate horizontally.
+        if(bit32.band(curr_OCB, 0x08) ~= 0) then 
+            rotateEntity(object_id, 270.0) 
+        end;   -- Rotate horizontally.
         
         -- Fix teeth spikes position for right angles (except upwards case).
         
@@ -1157,8 +1204,8 @@ function newspike_init(id)  -- Teeth spikes (TR4-5)
         -- constantly mode, and mode 2 is single pop-retract (as seen in Coastal Ruins shooting range).
         
         entity_funcs[object_id].mode = bit32.rshift(bit32.band(curr_OCB, 0x30), 4);
-    
         setEntityActivity(object_id, 1);
+        return ENTITY_TRIGGERING_ACTIVATED;
     end    
     
     entity_funcs[id].onDeactivate = function(object_id, activator_id)
@@ -1171,6 +1218,7 @@ function newspike_init(id)  -- Teeth spikes (TR4-5)
         
         setEntityActivity(object_id, 1);
         entity_funcs[object_id].mode = 2;
+        return ENTITY_TRIGGERING_DEACTIVATED;
     end
     
     entity_funcs[id].onLoop = function(object_id)
@@ -1293,11 +1341,13 @@ function spikewall_init(id)      -- Spike wall
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
         setEntityActivity(object_id, 1);
+        return ENTITY_TRIGGERING_ACTIVATED;
     end    
     
     entity_funcs[id].onDeactivate = function(object_id, activator_id)
         setEntityActivity(object_id, 0);
         stopSound(getGlobalSound(getLevelVersion(), GLOBALID_MOVINGWALL), object_id);
+        return ENTITY_TRIGGERING_DEACTIVATED;
     end
     
     entity_funcs[id].onLoop = function(object_id)
@@ -1350,11 +1400,13 @@ function spikeceiling_init(id)
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
         setEntityActivity(object_id, 1);
+        return ENTITY_TRIGGERING_ACTIVATED;
     end    
     
     entity_funcs[id].onDeactivate = function(object_id, activator_id)
         setEntityActivity(object_id, 0);
         stopSound(getGlobalSound(getLevelVersion(), GLOBALID_MOVINGWALL), object_id);
+        return ENTITY_TRIGGERING_DEACTIVATED;
     end
     
     entity_funcs[id].onLoop = function(object_id)
@@ -1439,13 +1491,17 @@ function cleaner_init(id)      -- Thames Wharf machine (aka cleaner)
     
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
-        if(not getEntityActivity(object_id)) then enableEntity(object_id) end;
+        if(not getEntityActivity(object_id)) then 
+            enableEntity(object_id) 
+        end;
+        return ENTITY_TRIGGERING_ACTIVATED;
     end    
     
     entity_funcs[id].onDeactivate = function(object_id, activator_id)
         playSound(131, object_id);
         stopSound(191, object_id);
         setEntityActivity(object_id, 0);
+        return ENTITY_TRIGGERING_DEACTIVATED;
     end
     
     entity_funcs[id].onLoop = function(object_id)
@@ -1577,11 +1633,13 @@ function damocles_init(id)      -- Sword of Damocles
         setEntityActivity(object_id, 1);
         entity_funcs[id].rot_speed = ((math.random(20) - 10) / 5) + 1;
         entity_funcs[id].falling = false;
+        return ENTITY_TRIGGERING_ACTIVATED;
     end    
     
     entity_funcs[id].onDeactivate = function(object_id, activator_id)
         setEntityActivity(object_id, 0);
         entity_funcs[id].rot_speed = 0.0;
+        return ENTITY_TRIGGERING_DEACTIVATED;
     end
     
     entity_funcs[id].onLoop = function(object_id)
@@ -1629,7 +1687,10 @@ function baddie_init(id)    -- INVALID!
     disableEntity(id);
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
-        if(not getEntityActivity(object_id)) then enableEntity(object_id) end;
+        if(not getEntityActivity(object_id)) then 
+            enableEntity(object_id) 
+        end;
+        return ENTITY_TRIGGERING_ACTIVATED;
     end;
     
 end

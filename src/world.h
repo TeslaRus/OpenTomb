@@ -4,6 +4,10 @@
 
 #include <stdint.h>
 
+#define FLIP_STATE_OFF      (0x00)
+#define FLIP_STATE_ON       (0x01)
+#define FLIP_STATE_BY_FLAG  (0x03)
+
 
 void World_Prepare();
 void World_Open(class VT_Level *tr);
@@ -17,7 +21,6 @@ struct RedBlackNode_s *World_GetEntityTreeRoot();
 struct flyby_camera_sequence_s *World_GetFlyBySequences();
 struct base_item_s *World_GetBaseItemByID(uint32_t id);
 struct static_camera_sink_s *World_GetstaticCameraSink(uint32_t id);
-int16_t *World_GetAnimCommands();
 
 void World_GetRoomInfo(struct room_s **rooms, uint32_t *rooms_count);
 void World_GetAnimSeqInfo(struct anim_seq_s **seq, uint32_t *seq_count);
