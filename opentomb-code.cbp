@@ -44,7 +44,7 @@
 			<Add option="-Wall" />
 			<Add option="-m32" />
 			<Add option="-DOV_EXCLUDE_STATIC_CALLBACKS" />
-			<Add directory="extern/al" />
+			<Add directory="extern/al/AL" />
 			<Add directory="extern/ogg" />
 			<Add directory="extern/bullet" />
 			<Add directory="extern/freetype2/include" />
