@@ -639,9 +639,9 @@ tr3_entity_tbl[233] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_
 tr3_entity_tbl[234] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "keyhole"};           -- Lock 3
 tr3_entity_tbl[235] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "keyhole"};           -- Lock 4
 tr3_entity_tbl[236] = {coll = COLLISION_TYPE_NONE,      shape = COLLISION_SHAPE_BOX};           -- Pickup 1 (pick-up)
-tr3_entity_tbl[237] = {coll = COLLISION_TYPE_NONE,      shape = COLLISION_SHAPE_BOX};           -- Pickup 2 .unused] (pick-up)
+tr3_entity_tbl[237] = {coll = COLLISION_TYPE_NONE,      shape = COLLISION_SHAPE_BOX};           -- Pickup 2 .unused  (pick-up)
 tr3_entity_tbl[238] = {coll = COLLISION_TYPE_NONE,      shape = COLLISION_SHAPE_BOX};           -- Pickup 1 (menu item)
-tr3_entity_tbl[239] = {coll = COLLISION_TYPE_NONE,      shape = COLLISION_SHAPE_BOX};           -- Pickup 2 .unused] (menu item)
+tr3_entity_tbl[239] = {coll = COLLISION_TYPE_NONE,      shape = COLLISION_SHAPE_BOX};           -- Pickup 2 .unused  (menu item)
 tr3_entity_tbl[240] = {coll = COLLISION_TYPE_NONE,      shape = COLLISION_SHAPE_BOX};           -- Infada stone (pick-up)
 tr3_entity_tbl[241] = {coll = COLLISION_TYPE_NONE,      shape = COLLISION_SHAPE_BOX};           -- Element 115 (pick-up)
 tr3_entity_tbl[242] = {coll = COLLISION_TYPE_NONE,      shape = COLLISION_SHAPE_BOX};           -- Eye of Isis (pick-up)
@@ -1060,7 +1060,7 @@ tr4_entity_tbl[314] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_
 tr4_entity_tbl[315] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "switch"}; -- Underwater switch 2
 tr4_entity_tbl[316] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "switch"}; -- Turn switch
 tr4_entity_tbl[317] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "switch"}; -- Cog switch
-tr4_entity_tbl[318] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "switch"}; -- Lever switch
+tr4_entity_tbl[318] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "big_switch"}; -- Lever switch
 tr4_entity_tbl[319] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "switch"}; -- Jump switch
 tr4_entity_tbl[320] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "switch"}; -- Crowbar switch
 tr4_entity_tbl[321] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "switch"}; -- Pulley

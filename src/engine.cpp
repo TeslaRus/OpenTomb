@@ -54,6 +54,7 @@ static SDL_GLContext           sdl_gl_context = 0;
 static ALCdevice              *al_device      = NULL;
 static ALCcontext             *al_context     = NULL;
 
+static char                     base_path[1024] = {0};
 static volatile int             engine_done   = 0;
 static int                      engine_set_zero_time = 0;
 float time_scale = 1.0f;
@@ -81,7 +82,6 @@ engine_container_p Container_Create()
     return ret;
 }
 
-
 void Engine_Init_Pre();
 void Engine_Init_Post();
 void Engine_InitGL();
@@ -96,10 +96,67 @@ void Engine_Resize(int nominalW, int nominalH, int pixelsW, int pixelsH);
 
 void ShowDebugInfo();
 
-void Engine_Start(const char *config_name)
+void Engine_Start(int argc, char **argv)
 {
+    char *config_name = NULL;
+    char *autoexec_name = NULL;
+
     Engine_InitDefaultGlobals();
-    Engine_LoadConfig(config_name);
+
+    for(int i = 1; i < argc; ++i)
+    {
+        if(0 == strncmp(argv[i], "-config", 7))
+        {
+            if((i + 1 < argc) && (Sys_FileFound(argv[i + 1], 0)))
+            {
+                config_name = argv[i + 1];
+            }
+            ++i;
+        }
+        else if(0 == strncmp(argv[i], "-autoexec", 9))
+        {
+            if((i + 1 < argc) && (Sys_FileFound(argv[i + 1], 0)))
+            {
+                autoexec_name = argv[i + 1];
+            }
+            ++i;
+        }
+        else if(0 == strncmp(argv[i], "-base_path", 10))
+        {
+            if(i + 1 < argc)
+            {
+                strncpy(base_path, argv[i + 1], sizeof(base_path) - 1);
+                if(base_path[0])
+                {
+                    char *ch = base_path;
+                    for(; *ch; ++ch)
+                    {
+                        if(*ch == '\\')
+                        {
+                            *ch = '/';
+                        }
+                    }
+                    if(*(ch - 1) != '/')
+                    {
+                        *ch = '/';
+                        ++ch;
+                        *ch = 0;
+                    }
+                }
+            }
+            ++i;
+        }
+        else
+        {
+            puts("usage:");
+            puts("-config \"path_to_config_file\"");
+            puts("-autoexec \"path_to_autoexec_file\"");
+            puts("-base_path \"path_to_base_folder_location (contains data, resource, save and script folders)\"");
+            exit(0);
+        }
+    }
+
+    Engine_LoadConfig(config_name ? config_name : "config.lua");
 
     // Primary initialization.
     Engine_Init_Pre();
@@ -130,49 +187,7 @@ void Engine_Start(const char *config_name)
     SDL_WarpMouseInWindow(sdl_window, screen_info.w/2, screen_info.h/2);
     SDL_ShowCursor(0);
 
-    luaL_dofile(engine_lua, "autoexec.lua");
-}
-
-
-void Engine_ParseArgs(int argc, char **argv)
-{
-    //No arguments to process so let's exit
-    if(argc <= 0)
-    {
-        return;
-    }
-
-    //Note: first argument is always executable filepath so we start to iterate from 1
-    for(int32_t i = 1; i < argc; i++)
-    {
-        char* currentArg = argv[i];
-
-        //Check delimiter
-        if(currentArg[0] == '-')
-        {
-            //Increment pointer char pointer by 1 so we can simply compare "config="
-            currentArg++;
-            if(!strncmp(currentArg, "config=", 6))
-            {
-                ///@FIXME probably best to strlen arg then check the final size to prevent 0 length paths
-                currentArg += 6;
-
-                Sys_DebugLog(SYS_LOG_FILENAME, "Config path override: %s\n", currentArg);
-
-                //Check if the config file exists or not
-                if(Sys_FileFound(currentArg, 0))
-                {
-                    ///@TODO Attempt to load config from custom file, if fail load default.
-                    Sys_DebugLog(SYS_LOG_FILENAME, "Config exists!");
-                }
-                else
-                {
-                    ///@TODO Should load default config
-                    Sys_DebugLog(SYS_LOG_FILENAME, "Config doesn't exist!");
-                }
-            }
-        }
-    }
+    luaL_dofile(engine_lua, autoexec_name ? autoexec_name : "autoexec.lua");
 }
 
 
@@ -234,6 +249,12 @@ void Engine_Shutdown(int val)
     SDL_Quit();
 
     exit(val);
+}
+
+
+const char *Engine_GetBasePath()
+{
+    return base_path;
 }
 
 
@@ -515,6 +536,8 @@ void Engine_LoadConfig(const char *filename)
         {
             luaL_openlibs(lua);
             lua_register(lua, "bind", lua_BindKey);                             // get and set key bindings
+            lua_pushstring(lua, Engine_GetBasePath());
+            lua_setglobal(lua, "base_path");
             luaL_dofile(lua, filename);
 
             Script_ParseScreen(lua, &screen_info);
@@ -585,14 +608,13 @@ void Engine_GLSwapWindow()
 
 void Engine_Resize(int nominalW, int nominalH, int pixelsW, int pixelsH)
 {
+    const float scale_coeff = 1024.0f;
     screen_info.w = nominalW;
     screen_info.h = nominalH;
 
-    screen_info.w_unit = (float)nominalW / SYS_SCREEN_METERING_RESOLUTION;
-    screen_info.h_unit = (float)nominalH / SYS_SCREEN_METERING_RESOLUTION;
-    screen_info.scale_factor = (screen_info.w < screen_info.h) ? (screen_info.h_unit) : (screen_info.w_unit);
+    screen_info.scale_factor = (screen_info.w < screen_info.h) ? (screen_info.h / scale_coeff) : (screen_info.w / scale_coeff);
 
-    GLText_UpdateResize(screen_info.scale_factor);
+    GLText_UpdateResize(screen_info.w, screen_info.h, screen_info.scale_factor);
     Con_UpdateResize();
     Gui_UpdateResize();
 
@@ -890,7 +912,7 @@ void ShowDebugInfo()
                                 Trigger_TrigCmdToStr(trig_func, 64, cmd->function);
                                 if(cmd->function == TR_FD_TRIGFUNC_SET_CAMERA)
                                 {
-                                    GLText_OutTextXY(30.0f, y += dy, "   cmd(func = %s, op = 0x%X, cam_id = 0x%X, cam_move = %d, cam_timer = %d)", trig_func, cmd->operands, cmd->cam_index, cmd->cam_move, cmd->cam_timer);
+                                    GLText_OutTextXY(30.0f, y += dy, "   cmd(func = %s, op = 0x%X, cam_id = 0x%X, cam_move = %d, cam_timer = %d)", trig_func, cmd->operands, cmd->camera.index, cmd->camera.move, cmd->camera.timer);
                                 }
                                 else
                                 {
@@ -959,7 +981,7 @@ void ShowDebugInfo()
                                 Trigger_TrigCmdToStr(trig_func, 64, cmd->function);
                                 if(cmd->function == TR_FD_TRIGFUNC_SET_CAMERA)
                                 {
-                                    GLText_OutTextXY(30.0f, y += dy, "   cmd(func = %s, op = 0x%X, cam_id = 0x%X, cam_move = %d, cam_timer = %d)", trig_func, cmd->operands, cmd->cam_index, cmd->cam_move, cmd->cam_timer);
+                                    GLText_OutTextXY(30.0f, y += dy, "   cmd(func = %s, op = 0x%X, cam_id = 0x%X, cam_move = %d, cam_timer = %d)", trig_func, cmd->operands, cmd->camera.index, cmd->camera.move, cmd->camera.timer);
                                 }
                                 else
                                 {
@@ -1041,13 +1063,12 @@ void Engine_GetLevelName(char *name, const char *path)
 }
 
 
-void Engine_GetLevelScriptName(int game_version, char *name, const char *postfix, uint32_t buf_size)
+void Engine_GetLevelScriptNameLocal(int game_version, char *name, const char *postfix, uint32_t buf_size)
 {
     char level_name[LEVEL_NAME_MAX_LEN];
-    Engine_GetLevelName(level_name, gameflow.getCurrentLevelPath());
+    Engine_GetLevelName(level_name, gameflow.getCurrentLevelPathLocal());
 
     name[0] = 0;
-
     strncat(name, "scripts/level/", buf_size);
 
     if(game_version < TR_II)
@@ -1113,9 +1134,16 @@ bool Engine_LoadPCLevel(const char *name)
 
 int Engine_LoadMap(const char *name)
 {
-    if(!Sys_FileFound(name, 0))
+    size_t map_len = strlen(name);
+    size_t base_len = strlen(base_path);
+    size_t buf_len = map_len + base_len + 1;
+    char map_name_buf[buf_len];
+    strncpy(map_name_buf, base_path, buf_len);
+    strncat(map_name_buf, name, buf_len);
+
+    if(!Sys_FileFound(map_name_buf, 0))
     {
-        Con_Warning("file not found: \"%s\"", name);
+        Con_Warning("file not found: \"%s\"", map_name_buf);
         return 0;
     }
 
@@ -1125,16 +1153,16 @@ int Engine_LoadMap(const char *name)
     Gui_DrawLoadScreen(0);
 
     // it is needed for "not in the game" levels or correct saves loading.
-    gameflow.setCurrentLevelPath(name);
+    gameflow.setCurrentLevelPath(map_name_buf);
 
     Gui_DrawLoadScreen(100);
 
 
     // Here we can place different platform-specific level loading routines.
-    switch(VT_Level::get_level_format(name))
+    switch(VT_Level::get_level_format(map_name_buf))
     {
         case LEVEL_FORMAT_PC:
-            if(!Engine_LoadPCLevel(name))
+            if(!Engine_LoadPCLevel(map_name_buf))
             {
                 return 0;
             }
