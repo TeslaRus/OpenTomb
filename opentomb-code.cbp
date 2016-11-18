@@ -1289,18 +1289,15 @@
 		<Unit filename="scripts/config/control_constants.lua">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
-		<Unit filename="scripts/entity/entity_functions.lua">
-			<Option target="&lt;{~None~}&gt;" />
-		</Unit>
-		<Unit filename="scripts/entity/entity_model_ID_override.lua">
-			<Option target="&lt;{~None~}&gt;" />
-		</Unit>
-		<Unit filename="scripts/entity/entity_properties.lua">
-			<Option target="&lt;{~None~}&gt;" />
-		</Unit>
-		<Unit filename="scripts/entity/script_switch.lua">
-			<Option target="&lt;{~None~}&gt;" />
-		</Unit>
+		<Unit filename="scripts/entity/entity_functions.lua" />
+		<Unit filename="scripts/entity/entity_functions_common.lua" />
+		<Unit filename="scripts/entity/entity_functions_enemies.lua" />
+		<Unit filename="scripts/entity/entity_functions_platforms.lua" />
+		<Unit filename="scripts/entity/entity_functions_traps.lua" />
+		<Unit filename="scripts/entity/entity_functions_unique.lua" />
+		<Unit filename="scripts/entity/entity_model_ID_override.lua" />
+		<Unit filename="scripts/entity/entity_properties.lua" />
+		<Unit filename="scripts/entity/script_switch.lua" />
 		<Unit filename="scripts/gameflow/TR1.lua">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>

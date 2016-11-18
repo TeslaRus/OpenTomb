@@ -284,6 +284,7 @@ void SSBoneFrame_InitSSAnim(struct ss_animation_s *ss_anim, uint32_t anim_type_i
 
     ss_anim->frame_time = 0.0f;
     ss_anim->next_state = 0;
+    ss_anim->next_state_heavy = -1;
     ss_anim->lerp = 0.0;
     ss_anim->current_animation = 0;
     ss_anim->current_frame = 0;
@@ -735,6 +736,17 @@ int  Anim_SetNextFrame(struct ss_animation_s *ss_anim, float time)
     int32_t new_frame;
     animation_frame_p next_anim = ss_anim->model->animations + ss_anim->next_animation;
     state_change_p stc = Anim_FindStateChangeByID(next_anim, ss_anim->next_state);
+    
+    if((next_anim->state_id == ss_anim->next_state_heavy) && (next_anim->next_anim->state_id == ss_anim->next_state_heavy))
+    {
+        ss_anim->next_state_heavy = -1;
+    }
+    
+    if(ss_anim->next_state_heavy >= 0)
+    {
+        state_change_p stc_heavy = Anim_FindStateChangeByID(next_anim, ss_anim->next_state_heavy);
+        stc = (stc_heavy) ? (stc_heavy) : (stc);
+    }
     
     ss_anim->frame_time = (ss_anim->frame_time >= 0.0f) ? (ss_anim->frame_time) : (0.0f);
     ss_anim->frame_time += time;

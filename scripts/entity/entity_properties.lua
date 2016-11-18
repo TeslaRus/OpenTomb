@@ -109,7 +109,7 @@ tr1_entity_tbl[56] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_B
 tr1_entity_tbl[57] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_TRIMESH, func = "door"};       -- Door
 tr1_entity_tbl[58] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_TRIMESH, func = "door"};       -- Door
 tr1_entity_tbl[59] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_TRIMESH, func = "door"};       -- Door
-tr1_entity_tbl[60] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_TRIMESH, func = "door"};       -- Door
+tr1_entity_tbl[60] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "door"};       -- Door
 tr1_entity_tbl[61] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_TRIMESH, func = "door"};       -- Door
 tr1_entity_tbl[62] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_TRIMESH, func = "door"};       -- Door
 tr1_entity_tbl[63] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_TRIMESH, func = "door"};       -- Door
@@ -197,7 +197,7 @@ tr1_entity_tbl[150] = {coll = COLLISION_TYPE_NONE,      shape = COLLISION_SHAPE_
 -- ANIMATINGS --
 
 tr1_entity_tbl[161] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_TRIMESH};                     -- Centaur statue
-tr1_entity_tbl[162] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_TRIMESH};                     -- Natla's mines cabin
+tr1_entity_tbl[162] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_TRIMESH, func = "natla_cabin_TR1"};     -- Natla's mines cabin
 tr1_entity_tbl[163] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_TRIMESH};                     -- Mutant egg
 
 -- SERVICE OBJECTS --
@@ -1060,7 +1060,7 @@ tr4_entity_tbl[314] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_
 tr4_entity_tbl[315] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "switch"}; -- Underwater switch 2
 tr4_entity_tbl[316] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "switch"}; -- Turn switch
 tr4_entity_tbl[317] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "switch"}; -- Cog switch
-tr4_entity_tbl[318] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "big_switch"}; -- Lever switch
+tr4_entity_tbl[318] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "lever_switch"}; -- Lever switch
 tr4_entity_tbl[319] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "switch"}; -- Jump switch
 tr4_entity_tbl[320] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "switch"}; -- Crowbar switch
 tr4_entity_tbl[321] = {coll = COLLISION_TYPE_KINEMATIC, shape = COLLISION_SHAPE_BOX, func = "switch"}; -- Pulley
