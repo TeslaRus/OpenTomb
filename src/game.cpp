@@ -17,6 +17,7 @@ extern "C" {
 #include "render/camera.h"
 #include "render/frustum.h"
 #include "render/render.h"
+#include "script/script.h"
 #include "engine.h"
 #include "physics.h"
 #include "controls.h"
@@ -26,7 +27,6 @@ extern "C" {
 #include "audio.h"
 #include "skeletal_model.h"
 #include "entity.h"
-#include "script.h"
 #include "trigger.h"
 #include "anim_state_control.h"
 #include "character_controller.h"
@@ -269,7 +269,7 @@ void Save_Entity(FILE **f, entity_p ent)
     fprintf(*f, "\nsetEntitySpeed(%d, %.2f, %.2f, %.2f);", ent->id, ent->speed[0], ent->speed[1], ent->speed[2]);
 
     fprintf(*f, "\nsetEntityFlags(%d, 0x%.4X, 0x%.4X, 0x%.8X);", ent->id, ent->state_flags, ent->type_flags, ent->callback_flags);
-    fprintf(*f, "\nsetEntityCollisionFlags(%d, %d, %d);", ent->id, ent->self->collision_type, ent->self->collision_shape);
+    fprintf(*f, "\nsetEntityCollisionFlags(%d, %d, %d, %d);", ent->id, ent->self->collision_group, ent->self->collision_shape, ent->self->collision_mask);
     fprintf(*f, "\nsetEntityTriggerLayout(%d, 0x%.2X);", ent->id, ent->trigger_layout);
 
     if(ent->self->room != NULL)
@@ -285,7 +285,7 @@ void Save_Entity(FILE **f, entity_p ent)
     {
         fprintf(*f, "\nsetEntityAnim(%d, %d, %d, %d, %d, %d);", ent->id, ss_anim->type, ss_anim->current_animation, ss_anim->current_frame, ss_anim->next_animation, ss_anim->next_frame);
         fprintf(*f, "\nsetEntityAnimStateHeavy(%d, %d, %d);", ent->id, ss_anim->type, ss_anim->next_state_heavy);
-        fprintf(*f, "\nsetEntityAnimState(%d, %d, %d, %d);", ent->id, ss_anim->type, ss_anim->next_state, ss_anim->current_state);
+        fprintf(*f, "\nsetEntityAnimState(%d, %d, %d);", ent->id, ss_anim->type, ss_anim->next_state);
         fprintf(*f, "\nentitySSAnimSetTarget(%d, %d, %d, %.2f, %.2f, %.2f, %.6f, %.6f, %.6f);", ent->id, ss_anim->type, ss_anim->targeting_bone,
             ss_anim->target[0], ss_anim->target[1], ss_anim->target[2],
             ss_anim->bone_direction[0], ss_anim->bone_direction[1], ss_anim->bone_direction[2]);
@@ -527,31 +527,19 @@ void Game_ApplyControls(struct entity_s *ent)
 }
 
 
-void Game_LoopEntities(struct RedBlackNode_s *x)
-{
-    entity_p entity = (entity_p)x->data;
-
-    if(entity->state_flags & ENTITY_STATE_ENABLED)
-    {
-        Entity_ProcessSector(entity);
-        Script_LoopEntity(engine_lua, entity->id);
-    }
-
-    if(x->left != NULL)
-    {
-        Game_LoopEntities(x->left);
-    }
-    if(x->right != NULL)
-    {
-        Game_LoopEntities(x->right);
-    }
-}
-
-
 void Game_UpdateAllEntities(struct RedBlackNode_s *x)
 {
-    Entity_Frame((entity_p)x->data, engine_frame_time);
-    Entity_UpdateRigidBody((entity_p)x->data, 0);
+    entity_p ent = (entity_p)x->data;
+    if(!ent->self->room || ent->self->room == ent->self->room->real_room)
+    {
+        if(ent->state_flags & ENTITY_STATE_ENABLED)
+        {
+            Entity_ProcessSector(ent);
+            Script_LoopEntity(engine_lua, ent->id);
+        }
+        Entity_Frame(ent, engine_frame_time);
+        Entity_UpdateRigidBody(ent, 0);
+    }
 
     if(x->left != NULL)
     {
@@ -593,6 +581,10 @@ void Game_UpdateCharactersTree(struct RedBlackNode_s *x)
         }
         Character_ApplyCommands(ent);
 
+        Entity_ProcessSector(ent);
+        Character_UpdateParams(ent);
+        Entity_CheckCollisionCallbacks(ent);
+
         for(int h = 0; h < ent->character->hair_count; h++)
         {
             Hair_Update(ent->character->hairs[h], ent->physics);
@@ -624,6 +616,7 @@ void Game_UpdateCharacters()
         {
             ent->character->resp.kill = 0;   // Kill, if no HP.
         }
+
         for(int h = 0; h < ent->character->hair_count; h++)
         {
             Hair_Update(ent->character->hairs[h], ent->physics);
@@ -676,12 +669,7 @@ void Game_Frame(float time)
     {
         Entity_ProcessSector(player);
         Character_UpdateParams(player);
-        Entity_CheckCollisionCallbacks(player);                                 ///@FIXME: Must do it for ALL interactive entities!
-    }
-
-    if(is_entitytree)
-    {
-        Game_LoopEntities(World_GetEntityTreeRoot());
+        Entity_CheckCollisionCallbacks(player);
     }
 
     // This must be called EVERY frame to max out smoothness.

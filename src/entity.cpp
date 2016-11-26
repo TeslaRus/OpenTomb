@@ -12,6 +12,7 @@ extern "C" {
 #include "core/obb.h"
 #include "render/camera.h"
 #include "render/render.h"
+#include "script/script.h"
 #include "vt/tr_versions.h"
 #include "audio.h"
 #include "mesh.h"
@@ -21,7 +22,6 @@ extern "C" {
 #include "world.h"
 #include "engine.h"
 #include "physics.h"
-#include "script.h"
 #include "trigger.h"
 #include "anim_state_control.h"
 #include "character_controller.h"
@@ -48,8 +48,9 @@ entity_p Entity_Create()
     ret->self->object = ret;
     ret->self->object_type = OBJECT_ENTITY;
     ret->self->room = NULL;
-    ret->self->collision_type = COLLISION_TYPE_KINEMATIC;
     ret->self->collision_shape = COLLISION_SHAPE_TRIMESH;
+    ret->self->collision_group = COLLISION_GROUP_KINEMATIC;
+    ret->self->collision_mask = COLLISION_MASK_ALL;
     ret->obb = OBB_Create();
     ret->obb->transform = ret->transform;
 
@@ -151,12 +152,11 @@ void Entity_EnableCollision(entity_p ent)
 {
     if(Physics_IsBodyesInited(ent->physics))
     {
-        ent->self->collision_type |= 0x0001;
         Physics_EnableCollision(ent->physics);
     }
     else
     {
-        ent->self->collision_type = COLLISION_TYPE_KINEMATIC;
+        ent->self->collision_group = COLLISION_GROUP_KINEMATIC;
         Physics_GenRigidBody(ent->physics, ent->bf);
     }
 }
@@ -166,7 +166,6 @@ void Entity_DisableCollision(entity_p ent)
 {
     if(Physics_IsBodyesInited(ent->physics))
     {
-        ent->self->collision_type &= ~0x0001;
         Physics_DisableCollision(ent->physics);
     }
 }
@@ -354,7 +353,7 @@ void Entity_UpdateRigidBody(struct entity_s *ent, int force)
         }
 
         Entity_UpdateRoomPos(ent);
-        if(ent->self->collision_type & 0x0001)
+        if(ent->self->collision_group != COLLISION_NONE)
         {
             switch(ent->self->collision_shape)
             {
@@ -413,7 +412,7 @@ void Entity_GhostUpdate(struct entity_s *ent)
 
 
 ///@TODO: make experiment with convexSweepTest with spheres: no more iterative cycles;
-int Entity_GetPenetrationFixVector(struct entity_s *ent, float reaction[3], float move_global[3])
+int Entity_GetPenetrationFixVector(struct entity_s *ent, float reaction[3], float move_global[3], int16_t filter)
 {
     int ret = 0;
 
@@ -468,7 +467,7 @@ int Entity_GetPenetrationFixVector(struct entity_s *ent, float reaction[3], floa
             {
                 vec3_copy(tr + 12, curr);
                 Physics_SetGhostWorldTransform(ent->physics, tr, m);
-                if(Physics_GetGhostPenetrationFixVector(ent->physics, m, tmp))
+                if(Physics_GetGhostPenetrationFixVector(ent->physics, m, filter, tmp))
                 {
                     vec3_add_to(ent->transform + 12, tmp);
                     vec3_add_to(curr, tmp);
@@ -493,7 +492,7 @@ int Entity_GetPenetrationFixVector(struct entity_s *ent, float reaction[3], floa
  * @param cmd - here we fill cmd->horizontal_collide field
  * @param move - absolute 3d move vector
  */
-int Entity_CheckNextPenetration(struct entity_s *ent, float move[3])
+int Entity_CheckNextPenetration(struct entity_s *ent, float move[3], int16_t filter)
 {
     int ret = 0;
     if(Physics_IsGhostsInited(ent->physics))
@@ -503,7 +502,7 @@ int Entity_CheckNextPenetration(struct entity_s *ent, float move[3])
         Entity_GhostUpdate(ent);
         vec3_add(pos, pos, move);
         //resp->horizontal_collide = 0x00;
-        ret = Entity_GetPenetrationFixVector(ent, reaction, move);
+        ret = Entity_GetPenetrationFixVector(ent, reaction, move, filter);
         if((ret > 0) && (ent->character != NULL))
         {
             t1 = reaction[0] * reaction[0] + reaction[1] * reaction[1];
@@ -526,7 +525,7 @@ int Entity_CheckNextPenetration(struct entity_s *ent, float move[3])
 }
 
 
-void Entity_FixPenetrations(struct entity_s *ent, float move[3])
+void Entity_FixPenetrations(struct entity_s *ent, float move[3], int16_t filter)
 {
     if(Physics_IsGhostsInited(ent->physics))
     {
@@ -549,7 +548,7 @@ void Entity_FixPenetrations(struct entity_s *ent, float move[3])
             return;
         }
 
-        int numPenetrationLoops = Entity_GetPenetrationFixVector(ent, reaction, move);
+        int numPenetrationLoops = Entity_GetPenetrationFixVector(ent, reaction, move, filter);
         vec3_add(ent->transform + 12, ent->transform + 12, reaction);
 
         if(ent->character != NULL)
@@ -640,7 +639,7 @@ void Entity_CheckCollisionCallbacks(entity_p ent)
 {
     // I do not know why, but without Entity_GhostUpdate(ent); it works pretty slow!
     Entity_GhostUpdate(ent);
-    collision_node_p cn = Physics_GetCurrentCollisions(ent->physics);
+    collision_node_p cn = Physics_GetCurrentCollisions(ent->physics, COLLISION_GROUP_TRIGGERS);
     for(; cn; cn = cn->next)
     {
         // do callbacks here:
@@ -652,7 +651,6 @@ void Entity_CheckCollisionCallbacks(entity_p ent)
             {
                 // Activator and entity IDs are swapped in case of collision callback.
                 Script_ExecEntity(engine_lua, ENTITY_CALLBACK_COLLISION, activator->id, ent->id);
-                //Con_Printf("collider_bone_index = %d, collider_type = %d", cn->part_self, cn->obj->object_type);
             }
         }
     }
@@ -673,7 +671,7 @@ void Entity_DoAnimCommands(entity_p entity, struct ss_animation_s *ss_anim)
             switch(command->id)
             {
                 case TR_ANIMCOMMAND_SETPOSITION:
-                    if(ss_anim->changing_next >= 0x02)                          // This command executes ONLY at the end of animation.
+                    if(ss_anim->frame_changing_state >= 0x02)                          // This command executes ONLY at the end of animation.
                     {
                         float tr[3];
                         entity->no_fix_all = 0x01;
@@ -684,7 +682,7 @@ void Entity_DoAnimCommands(entity_p entity, struct ss_animation_s *ss_anim)
                     break;
 
                 case TR_ANIMCOMMAND_JUMPDISTANCE:
-                    if(entity->character && (ss_anim->changing_next >= 0x02))   // This command executes ONLY at the end of animation.
+                    if(entity->character && (ss_anim->frame_changing_state >= 0x02))   // This command executes ONLY at the end of animation.
                     {
                         Character_SetToJump(entity, -command->data[0], command->data[1]);
                     }
@@ -760,7 +758,7 @@ void Entity_DoAnimCommands(entity_p entity, struct ss_animation_s *ss_anim)
                                 break;
 
                             case TR_EFFECT_CHANGEDIRECTION:
-                                if(ss_anim->changing_next >= 0x01)
+                                if(ss_anim->frame_changing_state >= 0x01)
                                 {
                                     entity->angles[0] += 180.0f;
                                     if(entity->move_type == MOVE_UNDERWATER)
@@ -966,7 +964,7 @@ void Entity_SetAnimation(entity_p entity, int anim_type, int animation, int fram
                 entity->anim_linear_speed = entity->bf->animations.model->animations[animation].speed_x;
                 Anim_SetAnimation(ss_anim, animation, frame);
                 SSBoneFrame_Update(entity->bf, 0.0f);
-                Entity_FixPenetrations(entity, NULL);
+                Entity_FixPenetrations(entity, NULL, COLLISION_FILTER_CHARACTER);
             }
         }
     }
@@ -1078,7 +1076,7 @@ void Entity_Frame(entity_p entity, float time)
         SSBoneFrame_Update(entity->bf, time);
         if(entity->character != NULL)
         {
-            Entity_FixPenetrations(entity, NULL);
+            Entity_FixPenetrations(entity, NULL, COLLISION_FILTER_CHARACTER);
         }
     }
 }

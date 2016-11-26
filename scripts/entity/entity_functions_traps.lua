@@ -35,7 +35,7 @@ function gen_trap_init(id)      -- Generic traps (TR1-TR2)
     
     entity_funcs[id].onCollide = function(object_id, activator_id)
         if(getEntityAnimState(object_id, ANIM_TYPE_BASE) == 1) then 
-            changeCharacterParam(activator_id, PARAM_HEALTH, -35.0 * frame_time * 30.0) 
+            changeCharacterParam(activator_id, PARAM_HEALTH, -35.0 * 60.0 * frame_time) 
         end;
     end
 end
@@ -117,7 +117,7 @@ function swingblade_init(id)        -- Swinging blades (TR1)
     end
     
     entity_funcs[id].onCollide = function(object_id, activator_id)
-        changeCharacterParam(activator_id, PARAM_HEALTH, -45.0 * frame_time * 30.0);
+        changeCharacterParam(activator_id, PARAM_HEALTH, -45.0 * 60 * frame_time);
     end
 end
 
@@ -161,7 +161,7 @@ function wallblade_init(id)     -- Wall blade (TR1-TR3)
     end;
     
     entity_funcs[id].onCollide = function(object_id, activator_id)
-        changeCharacterParam(activator_id, PARAM_HEALTH, -50.0 * 30.0 * frame_time);
+        changeCharacterParam(activator_id, PARAM_HEALTH, -50.0 * 60.0 * frame_time);
     end;
 end
 
@@ -391,6 +391,7 @@ function spikewall_init(id)      -- Spike wall
 
     setEntityTypeFlag(id, ENTITY_TYPE_GENERIC);
     setEntityCallbackFlag(id, ENTITY_CALLBACK_COLLISION, 1);
+    setEntityCollisionFlags(id, bit32.bor(COLLISION_GROUP_TRIGGERS, COLLISION_GROUP_CHARACTERS), nil, bit32.bor(COLLISION_GROUP_CHARACTERS, COLLISION_GROUP_GHOST));
     setEntityActivity(id, false);
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
@@ -432,7 +433,7 @@ function spikewall_init(id)      -- Spike wall
             end;
             
             if(getCharacterParam(activator_id, PARAM_HEALTH) > 0) then
-                changeCharacterParam(activator_id, PARAM_HEALTH, -20);
+                changeCharacterParam(activator_id, PARAM_HEALTH, -20 * 60 * frame_time);
                 playSound(getGlobalSound(getLevelVersion(), GLOBALID_SPIKEHIT), activator_id);
                 if(getCharacterParam(activator_id, PARAM_HEALTH) <= 0) then
                     addEntityRagdoll(activator_id, RD_TYPE_LARA);
@@ -450,6 +451,7 @@ function spikeceiling_init(id)
 
     setEntityTypeFlag(id, ENTITY_TYPE_GENERIC);
     setEntityCallbackFlag(id, ENTITY_CALLBACK_COLLISION, 1);
+    setEntityCollisionFlags(id, COLLISION_GROUP_TRIGGERS, nil, bit32.bor(COLLISION_GROUP_CHARACTERS, COLLISION_GROUP_GHOST));
     setEntityActivity(id, false);
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
@@ -497,7 +499,7 @@ function spikeceiling_init(id)
                     setCharacterParam(activator_id, PARAM_HEALTH, 0);
                     playSound(SOUND_IMPALE, activator_id);
                 else
-                    changeCharacterParam(activator_id, PARAM_HEALTH, -20);
+                    changeCharacterParam(activator_id, PARAM_HEALTH, -20 * 60 * frame_time);
                     playSound(getGlobalSound(getLevelVersion(), GLOBALID_SPIKEHIT), activator_id);
                     if(getCharacterParam(activator_id, PARAM_HEALTH) <= 0) then
                         addEntityRagdoll(activator_id, RD_TYPE_LARA);
@@ -518,8 +520,8 @@ function lasersweep_init(id)      -- Laser sweeper (TR3)
     setEntityCallbackFlag(id, ENTITY_CALLBACK_COLLISION, 1);
     setEntityActivity(id, false);
     
-    entity_funcs[id].speed         = 1.0;
-    entity_funcs[id].phase_length  = math.abs(2048.0 * frame_time * entity_funcs[id].speed);
+    entity_funcs[id].speed         = 1.0 * 60.0;
+    entity_funcs[id].phase_length  = math.abs(2048.0 * entity_funcs[id].speed / 60.0);
     entity_funcs[id].current_phase = 0.0;
     
     entity_funcs[id].stopping      = false;  -- Sweeper will be stopped on the next phase end.
@@ -545,7 +547,7 @@ function lasersweep_init(id)      -- Laser sweeper (TR3)
         end;
         
         if(entity_funcs[object_id].current_wait == 0.0) then
-            local next_phase = entity_funcs[object_id].current_phase + entity_funcs[object_id].speed;
+            local next_phase = entity_funcs[object_id].current_phase + entity_funcs[object_id].speed * frame_time;
             
             if(((next_phase >= 90.0) and (entity_funcs[object_id].current_phase < 90.0)) or
                ((next_phase >= 270.0) and (entity_funcs[object_id].current_phase < 270.0))) then

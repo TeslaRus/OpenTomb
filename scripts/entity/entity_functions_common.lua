@@ -188,6 +188,35 @@ function lever_switch_init(id)     -- Big switches (TR4) - lever
 end
 
 
+function anim_single_init(id)      -- Ordinary one way animatings
+
+    setEntityTypeFlag(id, ENTITY_TYPE_GENERIC);
+    setEntityActivity(id, false);
+   
+    entity_funcs[id].onActivate = function(object_id, activator_id)
+        setEntityAnimState(object_id, ANIM_TYPE_BASE, 1);
+        setEntityActivity(object_id, true);
+        return ENTITY_TRIGGERING_ACTIVATED;
+    end;
+
+    --TODO: move that hack to level script (after loading scripts system backporting?)
+    if(id == 12) then
+        entity_funcs[id].onLoop = function(object_id)
+            local x, y, z = getEntityPos(object_id);
+            if(x > 48896) then
+                x = x - 1024.0 * frame_time;
+                if(x < 48896) then
+                    x = 48896;
+                end;
+                setEntityPos(object_id, x, y, z);
+            else
+                entity_funcs[id].onLoop = nil;
+            end;
+        end;
+    end;
+end
+
+
 function anim_init(id)      -- Ordinary animatings
 
     setEntityTypeFlag(id, ENTITY_TYPE_GENERIC);
@@ -309,9 +338,45 @@ function boulder_init(id)
                 pushEntityBody(object_id, 0, math.random(150) + 2500.0, 10.0, true);
                 lockEntityBodyLinearFactor(object_id, 0);
             end;
-            return ENTITY_TRIGGERING_ACTIVATED;
         end;
-        return ENTITY_TRIGGERING_NOT_READY;
+        return ENTITY_TRIGGERING_ACTIVATED;
     end
 
 end
+
+
+function boulder_heavy_init(id)
+
+    setEntityTypeFlag(id, ENTITY_TYPE_HEAVYTRIGGER_ACTIVATOR);
+    setEntityActivity(id, false);
+    setEntityCallbackFlag(id, ENTITY_CALLBACK_COLLISION, 1);
+    local group = bit32.bor(COLLISION_GROUP_TRIGGERS, COLLISION_GROUP_CHARACTERS);
+    local mask = bit32.bor(COLLISION_GROUP_STATIC_ROOM, COLLISION_GROUP_STATIC_OBLECT);
+    setEntityCollisionFlags(id, group, nil, mask);
+
+    entity_funcs[id].onActivate = function(object_id, activator_id)
+        if(not getEntityActivity(object_id)) then
+            setEntityActivity(object_id, true);
+            setEntityAnimState(object_id, ANIM_TYPE_BASE, 1);
+        end;
+        return ENTITY_TRIGGERING_ACTIVATED;
+    end
+
+    entity_funcs[id].onLoop = function(object_id)
+        if(getEntityActivity(object_id)) then
+            local is_stopped = moveEntityHeavy(object_id, 2048.0 * frame_time, true);
+            local is_dropped = dropEntity(object_id, frame_time, true);
+            if(is_dropped and is_stopped) then
+                setEntityActivity(object_id, false);
+                dropEntity(object_id, 1.0, true);
+            end;
+        end;
+    end;
+
+    entity_funcs[id].onCollide = function(object_id, activator_id)
+        if(getEntityActivity(object_id)) then 
+            changeCharacterParam(activator_id, PARAM_HEALTH, -35.0 * 60 * frame_time) 
+        end;
+    end;
+
+end;
