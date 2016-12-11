@@ -55,17 +55,47 @@ end
 
 function midastouch_init(id)    -- Midas gold touch
 
-    setEntityTypeFlag(id, ENTITY_TYPE_GENERIC);
-    
+    setEntityTypeFlag(id, ENTITY_TYPE_INTERACTIVE);
+
+    setEntityActivationOffset(id, -640.0, 0.0, -512.0, 128.0);
+    setEntityActivationDirection(id, 1.0, 0.0, 0.0, 0.87);
+
+    entity_funcs[id].onActivate = function(object_id, activator_id)
+        if(activator_id == nil) then
+            return ENTITY_TRIGGERING_NOT_READY;
+        end
+
+        if((not entitySSAnimGetEnable(activator_id, ANIM_TYPE_MISK_1)) and (getItemsCount(activator_id, 100) > 0)) then
+            entityRotateToTriggerZ(activator_id, object_id);
+            entityMoveToTriggerActivationPoint(activator_id, object_id);
+            entitySSAnimEnsureExists(activator_id, ANIM_TYPE_MISK_1, 5);
+            setEntityAnim(activator_id, ANIM_TYPE_MISK_1, 0, 0);
+            entitySSAnimSetEnable(activator_id, ANIM_TYPE_MISK_1, 1);
+            entitySSAnimSetEnable(activator_id, ANIM_TYPE_BASE, 0);
+        end;
+        return ENTITY_TRIGGERING_ACTIVATED;
+    end;
+
     entity_funcs[id].onLoop = function(object_id)
         if(getEntityDistance(player, object_id) < 1024.0) then
             local lara_anim, frame, count = getEntityAnim(player, ANIM_TYPE_BASE);
             local lara_sector = getEntitySectorIndex(player);
             local hand_sector = getEntitySectorIndex(object_id);
             
+            if(entitySSAnimGetEnable(player, ANIM_TYPE_MISK_1)) then
+                entityMoveToTriggerActivationPoint(player, object_id);
+                local a, f, c = getEntityAnim(activator_id, ANIM_TYPE_MISK_1);
+                if((a == 0) and (f + 1 >= c)) then
+                    entitySSAnimSetEnable(player, ANIM_TYPE_MISK_1, 0);
+                    entitySSAnimSetEnable(player, ANIM_TYPE_BASE, 1);
+                    removeItem(player, 100, 1);
+                    addItem(player, ITEM_PUZZLE_1, 1);
+                end;
+            end;
+
             if((lara_sector == hand_sector) and (getEntityMoveType(player) == MOVE_ON_FLOOR) and (lara_anim ~= 50)) then
                 setCharacterParam(player, PARAM_HEALTH, 0);
-                entitySSAnimEnsureExists(player, ANIM_TYPE_MISK_1, 5); --ANIM_TYPE_MISK_1 - add const
+                entitySSAnimEnsureExists(player, ANIM_TYPE_MISK_1, 5);          --ANIM_TYPE_MISK_1 - add const
                 setEntityAnim(player, ANIM_TYPE_MISK_1, 1, 0);
                 entitySSAnimSetEnable(player, ANIM_TYPE_MISK_1, 1);
                 entitySSAnimSetEnable(player, ANIM_TYPE_BASE, 0);
@@ -73,8 +103,6 @@ function midastouch_init(id)    -- Midas gold touch
             end;
         end;
     end
-    
-    prepareEntity(id);
 end
 
 
@@ -82,58 +110,102 @@ function damocles_init(id)      -- Sword of Damocles
 
     setEntityTypeFlag(id, ENTITY_TYPE_GENERIC);
     setEntityCallbackFlag(id, ENTITY_CALLBACK_COLLISION, 1);
+    setEntityCollisionFlags(id, bit32.bor(COLLISION_GROUP_TRIGGERS, COLLISION_GROUP_CHARACTERS), nil, COLLISION_GROUP_CHARACTERS);
     setEntityActivity(id, false);
-    
+    local rot_speed = 60.0 * (((math.random(20) - 10) / 5) + 1);
+
     entity_funcs[id].onActivate = function(object_id, activator_id)
         setEntityActivity(object_id, true);
-        entity_funcs[id].rot_speed = ((math.random(20) - 10) / 5) + 1;
-        entity_funcs[id].falling = false;
         return ENTITY_TRIGGERING_ACTIVATED;
     end    
     
     entity_funcs[id].onDeactivate = function(object_id, activator_id)
         setEntityActivity(object_id, false);
-        entity_funcs[id].rot_speed = 0.0;
         return ENTITY_TRIGGERING_DEACTIVATED;
     end
     
     entity_funcs[id].onLoop = function(object_id)
-        rotateEntity(object_id, entity_funcs[object_id].rot_speed);
+        rotateEntity(object_id, rot_speed * frame_time);
         
         if(sameRoom(player, object_id)) then
-            local dx,dy,dz = getEntityVector(player, object_id);
-            if((math.abs(dx) < 1024.0) and (math.abs(dy) < 1024.0) and (entity_funcs[object_id].falling == false)) then
-                entity_funcs[object_id].falling = true;
-                addTask(
-                function()
-                    moveEntityToEntity(object_id, player, 32.0, true);
-                    if(dropEntity(object_id, frame_time, true)) then
-                        playSound(103, object_id);
-                        setEntityActivity(object_id, false);
-                        entity_funcs[object_id].falling = false;
-                        return false;
-                    end;
-                    return true;
-                end);
+            local dx, dy, dz = getEntityVector(player, object_id);
+            local vx, vy, vz = getEntitySpeed(object_id);
+            if((vz < 0.0) or (dx * dx + dy * dy < 1048576.0)) then
+                moveEntityToEntity(object_id, player, 48.0 * 60.0 * frame_time, true);
+                if(dropEntity(object_id, frame_time, true)) then
+                    playSound(103, object_id);
+                    setEntityActivity(object_id, false);
+                    entity_funcs[id].onLoop = nil;
+                end;
             end;
         end
     end    
     
     entity_funcs[id].onCollide = function(object_id, activator_id)
-        if((entity_funcs[object_id].falling == true) and (getEntityModelID(activator_id) == 0) and (getCharacterParam(activator_id, PARAM_HEALTH) > 0)) then
+        if(getEntityActivity(object_id) and (activator_id == player) and (getCharacterParam(activator_id, PARAM_HEALTH) > 0)) then
             setCharacterParam(activator_id, PARAM_HEALTH, 0);
             playSound(SOUND_GEN_DEATH, activator_id);
             playSound(103, object_id);
             addEntityRagdoll(activator_id, RD_TYPE_LARA);
-            setEntityActivity(object_id, false);
-            setEntityBodyMass(object_id, 1, 15.0);
+            --setEntityCollisionFlags(object_id, COLLISION_GROUP_ALL, nil, COLLISION_GROUP_ALL);
+            --setEntityBodyMass(object_id, 1, 15.0);
         end;
-    end
+    end;
+end
+
+
+function Thor_hummer_init(id)      -- map 5
+
+    setEntityActivity(id, false);
     
-    entity_funcs[id].onDelete = function(object_id)
-        entity_funcs[object_id].rot_speed = nil;
-        entity_funcs[object_id].falling = nil;
-    end
+    local spawned_id = spawnEntity(45, 25, getEntityPos(63));
+
+    print("thor spawned id = " .. spawned_id);
+    
+    entity_funcs[id].onActivate = function(object_id, activator_id)
+        local a, f, c = getEntityAnim(object_id, ANIM_TYPE_BASE);
+        if(a == 0) then
+            setEntityAnim(object_id, ANIM_TYPE_BASE, 1, 0);
+            setEntityAnim(spawned_id, ANIM_TYPE_BASE, 1, 0);
+            setEntityActivity(object_id, true);
+        end;
+        return ENTITY_TRIGGERING_ACTIVATED;
+    end;
+
+    entity_funcs[id].onDeactivate = function(object_id, activator_id)
+        local a, f, c = getEntityAnim(object_id, ANIM_TYPE_BASE);
+        if(a == 1) then
+            setEntityAnim(object_id, ANIM_TYPE_BASE, 0, 0);
+            setEntityAnim(spawned_id, ANIM_TYPE_BASE, 0, 0);
+        end;
+        return ENTITY_TRIGGERING_DEACTIVATED;
+    end;
+
+    entity_funcs[id].onLoop = function(object_id)
+        local a, f, c = getEntityAnim(object_id, ANIM_TYPE_BASE);
+
+        if((tickEntity(object_id) == TICK_STOPPED) and (a <= 1)) then
+            setEntityAnim(object_id, ANIM_TYPE_BASE, 0, 0);
+            setEntityAnim(spawned_id, ANIM_TYPE_BASE, 0, 0);
+            return;
+        end;
+
+        if(a == 1) then
+            if((f + 1 >= c) and (getEntityTimer(object_id) >= 0.75)) then
+                setEntityAnim(object_id, ANIM_TYPE_BASE, 2, 0);
+                setEntityAnim(spawned_id, ANIM_TYPE_BASE, 2, 0);
+            end;
+        elseif((a == 2) and (f + 1 >= c)) then
+            setEntityAnim(object_id, ANIM_TYPE_BASE, 3, 0);
+            setEntityAnim(spawned_id, ANIM_TYPE_BASE, 3, 0);
+            
+            local x, y, z = getEntityPos(19);
+            setEntityPos(19, x, y, -17152);
+            x, y, z = getEntityPos(20);
+            setEntityPos(20, x, y, -19200);
+            entity_funcs[id].onLoop = nil;
+        end;
+    end;
 end
 
 
@@ -223,7 +295,7 @@ function heli_rig_TR2_init(id)    -- Helicopter in Offshore Rig (TR2)
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
         setEntityActivity(object_id, true);
-        setEntityVisibility(object_id, 1);
+        setEntityVisibility(object_id, true);
         return ENTITY_TRIGGERING_ACTIVATED;
     end
     
@@ -255,7 +327,7 @@ function heli_TR2_init(id)    -- Helicopter (TR2)
     entity_funcs[id].onActivate = function(object_id, activator_id)
         if(not getEntityActivity(object_id)) then
             setEntityActivity(object_id, true);
-            setEntityVisibility(id, 1);
+            setEntityVisibility(id, true);
             playSound(297, object_id);
         end;
         return ENTITY_TRIGGERING_ACTIVATED;

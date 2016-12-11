@@ -252,12 +252,9 @@ void Entity_UpdateRigidBody(struct entity_s *ent, int force)
     {
         float tr[16];
         Physics_GetBodyWorldTransform(ent->physics, ent->transform, 0);
-        Entity_UpdateRoomPos(ent);
         switch(ent->self->collision_shape)
         {
             case COLLISION_SHAPE_SINGLE_BOX:
-                return;
-
             case COLLISION_SHAPE_SINGLE_SPHERE:
                 {
                     float centre[3], offset[3];
@@ -352,15 +349,11 @@ void Entity_UpdateRigidBody(struct entity_s *ent, int force)
             return;
         }
 
-        Entity_UpdateRoomPos(ent);
         if(ent->self->collision_group != COLLISION_NONE)
         {
             switch(ent->self->collision_shape)
             {
                 case COLLISION_SHAPE_SINGLE_BOX:
-                    Physics_SetBodyWorldTransform(ent->physics, ent->transform, 0);
-                    break;
-
                 case COLLISION_SHAPE_SINGLE_SPHERE:
                     {
                         float centre[3], offset[3];
@@ -372,6 +365,7 @@ void Entity_UpdateRigidBody(struct entity_s *ent, int force)
                         ent->transform[12 + 1] += offset[1];
                         ent->transform[12 + 2] += offset[2];
                         Physics_SetBodyWorldTransform(ent->physics, ent->transform, 0);
+                        Physics_SetGhostWorldTransform(ent->physics,ent->transform, 0);
                         ent->transform[12 + 0] -= offset[0];
                         ent->transform[12 + 1] -= offset[1];
                         ent->transform[12 + 2] -= offset[2];
@@ -385,6 +379,7 @@ void Entity_UpdateRigidBody(struct entity_s *ent, int force)
                         {
                             Mat4_Mat4_mul(tr, ent->transform, ent->bf->bone_tags[i].full_transform);
                             Physics_SetBodyWorldTransform(ent->physics, tr, i);
+                            Physics_SetGhostWorldTransform(ent->physics, tr, i);
                         }
                     }
                     break;
@@ -477,6 +472,7 @@ int Entity_GetPenetrationFixVector(struct entity_s *ent, float reaction[3], int1
                 vec3_add_to(curr, move);
             }
         }
+        Entity_GhostUpdate(ent);
         vec3_sub(reaction, ent->transform + 12, orig_pos);
         vec3_copy(ent->transform + 12, orig_pos);
     }
@@ -501,7 +497,6 @@ int Entity_CheckNextPenetration(struct entity_s *ent, float move[3], float react
 
         Entity_GhostUpdate(ent);
         vec3_add(pos, pos, move);
-
         ret = Entity_GetPenetrationFixVector(ent, reaction, filter);
         if((ret > 0) && (ent->character != NULL))
         {
@@ -529,8 +524,6 @@ void Entity_FixPenetrations(struct entity_s *ent, float move[3], int16_t filter)
 {
     if(Physics_IsGhostsInited(ent->physics))
     {
-        float t1, t2, reaction[3];
-
         if((move != NULL) && (ent->character != NULL))
         {
             ent->character->resp.horizontal_collide    = 0x00;
@@ -548,49 +541,59 @@ void Entity_FixPenetrations(struct entity_s *ent, float move[3], int16_t filter)
             return;
         }
 
-        int numPenetrationLoops = Entity_GetPenetrationFixVector(ent, reaction, filter);
-        vec3_add(ent->transform + 12, ent->transform + 12, reaction);
-
-        if(ent->character != NULL)
+        bool is_first_test = true;
+        int num_iters = 3;
+        const float part = 1.0f / (float)num_iters;
+        float t1, t2, reaction[3];
+        int numPenetrationLoops = 0;
+        while((--num_iters >= 0) && ((numPenetrationLoops = Entity_GetPenetrationFixVector(ent, reaction, filter)) > 0))
         {
-            if((move != NULL) && (numPenetrationLoops > 0))
+            reaction[0] *= part;
+            reaction[1] *= part;
+            reaction[2] *= part;
+            vec3_add(ent->transform + 12, ent->transform + 12, reaction);
+
+            if(ent->character)
             {
-                t1 = reaction[0] * reaction[0] + reaction[1] * reaction[1];
-                t2 = move[0] * move[0] + move[1] * move[1];
-                if((reaction[2] * reaction[2] < t1) && (move[2] * move[2] < t2))    // we have horizontal move and horizontal correction
+                if(is_first_test && move && (numPenetrationLoops > 0))
                 {
-                    t2 *= t1;
-                    t1 = (reaction[0] * move[0] + reaction[1] * move[1]) / sqrtf(t2);
-                    if(t1 < ent->character->critical_wall_component)
+                    t1 = reaction[0] * reaction[0] + reaction[1] * reaction[1];
+                    t2 = move[0] * move[0] + move[1] * move[1];
+                    if((reaction[2] * reaction[2] < t1) && (move[2] * move[2] < t2))    // we have horizontal move and horizontal correction
                     {
-                        ent->character->resp.horizontal_collide |= 0x01;
+                        t2 *= t1;
+                        t1 = (reaction[0] * move[0] + reaction[1] * move[1]) / sqrtf(t2);
+                        if(t1 < ent->character->critical_wall_component)
+                        {
+                            ent->character->resp.horizontal_collide |= 0x01;
+                        }
+                    }
+                    else if((reaction[2] * reaction[2] > t1) && (move[2] * move[2] > t2))
+                    {
+                        if((reaction[2] > 0.0) && (move[2] < 0.0))
+                        {
+                            ent->character->resp.vertical_collide |= 0x01;
+                        }
+                        else if((reaction[2] < 0.0) && (move[2] > 0.0))
+                        {
+                            ent->character->resp.vertical_collide |= 0x02;
+                        }
                     }
                 }
-                else if((reaction[2] * reaction[2] > t1) && (move[2] * move[2] > t2))
+
+                if(ent->character->height_info.ceiling_hit.hit && (reaction[2] < -0.1))
                 {
-                    if((reaction[2] > 0.0) && (move[2] < 0.0))
-                    {
-                        ent->character->resp.vertical_collide |= 0x01;
-                    }
-                    else if((reaction[2] < 0.0) && (move[2] > 0.0))
-                    {
-                        ent->character->resp.vertical_collide |= 0x02;
-                    }
+                    ent->character->resp.vertical_collide |= 0x02;
+                }
+
+                if(ent->character->height_info.floor_hit.hit && (reaction[2] > 0.1))
+                {
+                    ent->character->resp.vertical_collide |= 0x01;
                 }
             }
-
-            if(ent->character->height_info.ceiling_hit.hit && (reaction[2] < -0.1))
-            {
-                ent->character->resp.vertical_collide |= 0x02;
-            }
-
-            if(ent->character->height_info.floor_hit.hit && (reaction[2] > 0.1))
-            {
-                ent->character->resp.vertical_collide |= 0x01;
-            }
+            is_first_test = false;
+            Entity_GhostUpdate(ent);
         }
-
-        Entity_GhostUpdate(ent);
     }
 }
 
@@ -926,14 +929,23 @@ void Entity_ProcessSector(entity_p ent)
 
         if(lowest_sector->flags & SECTOR_FLAG_DEATH)
         {
-            if((ent->move_type == MOVE_ON_FLOOR)    ||
-               (ent->move_type == MOVE_UNDERWATER)  ||
-               (ent->move_type == MOVE_WADE)        ||
-               (ent->move_type == MOVE_ON_WATER)    ||
-               (ent->move_type == MOVE_QUICKSAND))
+            switch(ent->move_type)
             {
-                Character_SetParam(ent, PARAM_HEALTH, 0.0);
-                ent->character->resp.kill = 1;
+                case MOVE_ON_FLOOR:
+                case MOVE_QUICKSAND:
+                    if(ent->transform[12 + 2] <= lowest_sector->floor + 16)
+                    {
+                        Character_SetParam(ent, PARAM_HEALTH, 0.0);
+                        ent->character->resp.kill = 1;
+                    }
+                    break;
+
+                case MOVE_WADE:
+                case MOVE_ON_WATER:
+                case MOVE_UNDERWATER:
+                    Character_SetParam(ent, PARAM_HEALTH, 0.0);
+                    ent->character->resp.kill = 1;
+                    break;
             }
         }
     }
@@ -1157,17 +1169,17 @@ void Entity_CheckActivators(struct entity_s *ent)
         engine_container_p cont = ent->self->room->content->containers;
         for(; cont; cont = cont->next)
         {
-            if((cont->object_type == OBJECT_ENTITY) && (cont->object))
+            if((cont->object_type == OBJECT_ENTITY) && cont->object && (cont->object != ent))
             {
                 entity_p trigger = (entity_p)cont->object;
                 if((trigger->type_flags & ENTITY_TYPE_INTERACTIVE) && (trigger->state_flags & ENTITY_STATE_ENABLED))
                 {
-                    if((trigger != ent) && (OBB_OBB_Test(trigger->obb, ent->obb, 32.0f) == 1) && Entity_CanTrigger(ent, trigger))
+                    if(Entity_CanTrigger(ent, trigger))
                     {
                         Script_ExecEntity(engine_lua, ENTITY_CALLBACK_ACTIVATE, trigger->id, ent->id);
                     }
                 }
-                else if((trigger->type_flags & ENTITY_TYPE_PICKABLE) && (trigger->state_flags & ENTITY_STATE_ENABLED))
+                else if((trigger->type_flags & ENTITY_TYPE_PICKABLE) && (trigger->state_flags & ENTITY_STATE_ENABLED) && (trigger->state_flags & ENTITY_STATE_VISIBLE))
                 {
                     float ppos[3];
                     float *v = trigger->transform + 12;
@@ -1177,8 +1189,8 @@ void Entity_CheckActivators(struct entity_s *ent)
                     ppos[1] = ent->transform[12 + 1] + ent->transform[4 + 1] * ent->bf->bb_max[1];
                     ppos[2] = ent->transform[12 + 2] + ent->transform[4 + 2] * ent->bf->bb_max[1];
                     r *= r;
-                    if((trigger != ent) && ((v[0] - ppos[0]) * (v[0] - ppos[0]) + (v[1] - ppos[1]) * (v[1] - ppos[1]) < r) &&
-                                      (v[2] + 32.0 > ent->transform[12 + 2] + ent->bf->bb_min[2]) && (v[2] - 32.0 < ent->transform[12 + 2] + ent->bf->bb_max[2]))
+                    if(((v[0] - ppos[0]) * (v[0] - ppos[0]) + (v[1] - ppos[1]) * (v[1] - ppos[1]) < r) &&
+                        (v[2] + 72.0 > ent->transform[12 + 2] + ent->bf->bb_min[2]) && (v[2] - 32.0 < ent->transform[12 + 2] + ent->bf->bb_max[2]))
                     {
                         Script_ExecEntity(engine_lua, ENTITY_CALLBACK_ACTIVATE, trigger->id, ent->id);
                     }
@@ -1217,6 +1229,10 @@ int  Entity_Activate(struct entity_s *entity_object, struct entity_s *entity_act
 
         // Full entity mask (11111) is always a reason to activate an entity.
         // If mask is not full, entity won't activate - no exclusions.
+        entity_object->timer = trigger_timer;                                   // Engage timer.
+        // Update trigger layout.
+        entity_object->trigger_layout &= ~(uint8_t)(ENTITY_TLAYOUT_MASK);       // mask  - 00011111
+        entity_object->trigger_layout ^= (uint8_t)mask;
 
         if(mask == 0x1F)
         {
@@ -1225,13 +1241,10 @@ int  Entity_Activate(struct entity_s *entity_object, struct entity_s *entity_act
         }
         else if(mask != 0x1F)
         {
+            entity_object->timer = 0.0f;
             activation_state = Script_ExecEntity(engine_lua, ENTITY_CALLBACK_DEACTIVATE, entity_object->id, activator_id);
             event = 0;
         }
-
-        // Update trigger layout.
-        entity_object->trigger_layout &= ~(uint8_t)(ENTITY_TLAYOUT_MASK);       // mask  - 00011111
-        entity_object->trigger_layout ^= (uint8_t)mask;
 
         if(activation_state != ENTITY_TRIGGERING_NOT_READY)
         {
@@ -1244,7 +1257,6 @@ int  Entity_Activate(struct entity_s *entity_object, struct entity_s *entity_act
             entity_object->trigger_layout &= ~(uint8_t)(ENTITY_TLAYOUT_LOCK);   // lock  - 01000000
             entity_object->trigger_layout ^= ((uint8_t)trigger_lock) << 6;
         }
-        entity_object->timer = trigger_timer;                                   // Engage timer.
     }
 
     return activation_state;

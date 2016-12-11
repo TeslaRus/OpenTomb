@@ -33,7 +33,6 @@ extern "C" {
 #include "../gameflow.h"
 #include "../anim_state_control.h"
 #include "../character_controller.h"
-#include "../audio.h"
 #include "../gui.h"
 #include "../engine_string.h"
 
@@ -48,22 +47,16 @@ int lua_GetLevelVersion(lua_State *lua)
 
 int lua_SameRoom(lua_State *lua)
 {
-    if(lua_gettop(lua) != 2)
+    if(lua_gettop(lua) < 2)
     {
         Con_Warning("sameRoom: expecting arguments (ent_id1, ent_id2)");
         return 0;
     }
 
     entity_p ent1 = World_GetEntityByID(lua_tonumber(lua, 1));
-    entity_p ent2 = World_GetEntityByID(lua_tonumber(lua, 1));
+    entity_p ent2 = World_GetEntityByID(lua_tonumber(lua, 2));
 
-    if(ent1 && ent2)
-    {
-        lua_pushboolean(lua, ent1->self->room == ent2->self->room);
-        return 1;
-    }
-
-    lua_pushboolean(lua, 0);
+    lua_pushboolean(lua, ent1 && ent2 && (ent1->self->room == ent2->self->room));
     return 1;
 }
 
@@ -73,11 +66,8 @@ int lua_NewSector(lua_State *lua)
     if(lua_gettop(lua) > 0)
     {
         entity_p ent = World_GetEntityByID(lua_tonumber(lua, 1));
-        if(ent)
-        {
-            lua_pushboolean(lua, ent->current_sector == ent->last_sector);
-            return 1;
-        }
+        lua_pushboolean(lua, ent && (ent->current_sector == ent->last_sector));
+        return 1;
     }
 
     return 0;   // No argument specified - return.
@@ -97,7 +87,7 @@ int lua_SimilarSector(lua_State * lua)
     int id = lua_tointeger(lua, 1);
     entity_p ent = World_GetEntityByID(id);
 
-    if(ent == NULL)
+    if(!ent)
     {
         Con_Warning("no entity with id = %d", id);
         return 0;
@@ -109,9 +99,9 @@ int lua_SimilarSector(lua_State * lua)
 
     float next_pos[3];
 
-    next_pos[0] = ent->transform[12+0] + (dx * ent->transform[0+0] + dy * ent->transform[4+0] + dz * ent->transform[8+0]);
-    next_pos[1] = ent->transform[12+1] + (dx * ent->transform[0+1] + dy * ent->transform[4+1] + dz * ent->transform[8+1]);
-    next_pos[2] = ent->transform[12+2] + (dx * ent->transform[0+2] + dy * ent->transform[4+2] + dz * ent->transform[8+2]);
+    next_pos[0] = ent->transform[12 + 0] + (dx * ent->transform[0 + 0] + dy * ent->transform[4 + 0] + dz * ent->transform[8 + 0]);
+    next_pos[1] = ent->transform[12 + 1] + (dx * ent->transform[0 + 1] + dy * ent->transform[4 + 1] + dz * ent->transform[8 + 1]);
+    next_pos[2] = ent->transform[12 + 2] + (dx * ent->transform[0 + 2] + dy * ent->transform[4 + 2] + dz * ent->transform[8 + 2]);
 
     room_sector_p curr_sector = Room_GetSectorRaw(ent->self->room, ent->transform+12);
     room_sector_p next_sector = Room_GetSectorRaw(ent->self->room, next_pos);
@@ -146,45 +136,43 @@ int lua_GetSectorHeight(lua_State * lua)
 
     int id = lua_tointeger(lua, 1);
     entity_p ent = World_GetEntityByID(id);
+    if(ent)
+    {
+        bool ceiling = (top > 1) ? (lua_toboolean(lua, 2)) : (false);
+        float pos[3];
+        vec3_copy(pos, ent->transform + 12);
 
-    if(ent == NULL)
+        if(top > 2)
+        {
+            float dx = lua_tonumber(lua, 3);
+            float dy = lua_tonumber(lua, 4);
+            float dz = lua_tonumber(lua, 5);
+
+            pos[0] += dx * ent->transform[0 + 0] + dy * ent->transform[4 + 0] + dz * ent->transform[8 + 0];
+            pos[1] += dx * ent->transform[0 + 1] + dy * ent->transform[4 + 1] + dz * ent->transform[8 + 1];
+            pos[2] += dx * ent->transform[0 + 2] + dy * ent->transform[4 + 2] + dz * ent->transform[8 + 2];
+        }
+
+        room_sector_p curr_sector = Room_GetSectorRaw(ent->self->room, pos);
+        curr_sector = Sector_GetPortalSectorTargetRaw(curr_sector);
+        float point[3];
+        (ceiling) ? (Sector_LowestCeilingCorner(curr_sector, point)) : (Sector_HighestFloorCorner(curr_sector, point));
+
+        lua_pushnumber(lua, point[2]);
+        return 1;
+    }
+    else
     {
         Con_Warning("no entity with id = %d", id);
         return 0;
     }
-
-    bool ceiling = false;
-    if(top > 1) ceiling = lua_toboolean(lua, 2);
-
-    float pos[3];
-    vec3_copy(pos, ent->transform+12);
-
-    if(top > 2)
-    {
-        float dx = lua_tonumber(lua, 2);
-        float dy = lua_tonumber(lua, 3);
-        float dz = lua_tonumber(lua, 4);
-
-        pos[0] += dx * ent->transform[0+0] + dy * ent->transform[4+0] + dz * ent->transform[8+0];
-        pos[1] += dx * ent->transform[0+1] + dy * ent->transform[4+1] + dz * ent->transform[8+1];
-        pos[2] += dx * ent->transform[0+2] + dy * ent->transform[4+2] + dz * ent->transform[8+2];
-    }
-
-    room_sector_p curr_sector = Room_GetSectorRaw(ent->self->room, pos);
-    curr_sector = Sector_GetPortalSectorTargetRaw(curr_sector);
-    float point[3];
-    (ceiling) ? (Sector_LowestCeilingCorner(curr_sector, point)) : (Sector_HighestFloorCorner(curr_sector, point));
-
-    lua_pushnumber(lua, point[2]);
-    return 1;
 }
 
 
 int lua_SectorTriggerClear(lua_State * lua)
 {
-    int id, sx, sy, top;
-
-    top = lua_gettop(lua);
+    int id, sx, sy;
+    int top = lua_gettop(lua);
 
     if(top < 3)
     {
@@ -196,23 +184,24 @@ int lua_SectorTriggerClear(lua_State * lua)
     sx = lua_tointeger(lua, 2);
     sy = lua_tointeger(lua, 3);
     room_sector_p rs = World_GetRoomSector(id, sx, sy);
-    if(rs == NULL)
+    if(rs)
+    {
+        if(rs->trigger)
+        {
+            for(trigger_command_p current_command = rs->trigger->commands; current_command; )
+            {
+                trigger_command_p next_command = current_command->next;
+                current_command->next = NULL;
+                free(current_command);
+                current_command = next_command;
+            }
+            free(rs->trigger);
+            rs->trigger = NULL;
+        }
+    }
+    else
     {
         Con_AddLine("wrong sector info", FONTSTYLE_CONSOLE_WARNING);
-        return 0;
-    }
-
-    if(rs->trigger)
-    {
-        for(trigger_command_p current_command = rs->trigger->commands; current_command; )
-        {
-            trigger_command_p next_command = current_command->next;
-            current_command->next = NULL;
-            free(current_command);
-            current_command = next_command;
-        }
-        free(rs->trigger);
-        rs->trigger = NULL;
     }
 
     return 0;
@@ -221,9 +210,8 @@ int lua_SectorTriggerClear(lua_State * lua)
 
 int lua_SectorAddTrigger(lua_State * lua)
 {
-    int id, sx, sy, top;
-
-    top = lua_gettop(lua);
+    int id, sx, sy;
+    int top = lua_gettop(lua);
 
     if(top < 8)
     {
@@ -235,7 +223,7 @@ int lua_SectorAddTrigger(lua_State * lua)
     sx = lua_tointeger(lua, 2);
     sy = lua_tointeger(lua, 3);
     room_sector_p rs = World_GetRoomSector(id, sx, sy);
-    if(rs == NULL)
+    if(!rs)
     {
         Con_AddLine("wrong sector info", FONTSTYLE_CONSOLE_WARNING);
         return 0;
@@ -260,9 +248,8 @@ int lua_SectorAddTrigger(lua_State * lua)
 
 int lua_SectorAddTriggerCommand(lua_State * lua)
 {
-    int id, sx, sy, top;
-
-    top = lua_gettop(lua);
+    int id, sx, sy;
+    int top = lua_gettop(lua);
 
     if(top < 6)
     {
@@ -274,7 +261,7 @@ int lua_SectorAddTriggerCommand(lua_State * lua)
     sx = lua_tointeger(lua, 2);
     sy = lua_tointeger(lua, 3);
     room_sector_p rs = World_GetRoomSector(id, sx, sy);
-    if(rs == NULL)
+    if(!rs)
     {
         Con_AddLine("wrong sector info", FONTSTYLE_CONSOLE_WARNING);
         return 0;
@@ -362,24 +349,70 @@ int lua_SetGravity(lua_State * lua)                                             
 
 int lua_GetSecretStatus(lua_State *lua)
 {
-    if(lua_gettop(lua) < 1) return 0;   // No parameter specified - return
-
-    int secret_number = lua_tointeger(lua, 1);
-    if((secret_number > GF_MAX_SECRETS) || (secret_number < 0)) return 0;   // No such secret - return
-
-    lua_pushinteger(lua, (int)gameflow.getSecretStateAtIndex(secret_number));
-    return 1;
+    if(lua_gettop(lua) >= 1)
+    {
+        int secret_number = lua_tointeger(lua, 1);
+        if((secret_number <= GF_MAX_SECRETS) && (secret_number >= 0))
+        {
+            lua_pushinteger(lua, (int)gameflow.getSecretStateAtIndex(secret_number));
+            return 1;
+        }
+    }
+    return 0;   // No parameter specified - return
 }
 
 
 int lua_SetSecretStatus(lua_State *lua)
 {
-    if(lua_gettop(lua) < 2) return 0;   // No parameter specified - return
+    if(lua_gettop(lua) >= 1)
+    {
+        int secret_number = lua_tointeger(lua, 1);
+        if((secret_number <= GF_MAX_SECRETS) && (secret_number >= 0))
+        {
+            gameflow.setSecretStateAtIndex(secret_number, lua_tointeger(lua, 2));
+        }
+    }
+    return 0;
+}
 
-    int secret_number = lua_tointeger(lua, 1);
-    if((secret_number > GF_MAX_SECRETS) || (secret_number < 0)) return 0;   // No such secret - return
 
-    gameflow.setSecretStateAtIndex(secret_number, lua_tointeger(lua, 2));
+int lua_AddRoomToOverlappedList(lua_State * lua)
+{
+    if(lua_gettop(lua) >= 2)
+    {
+        room_p r0 = World_GetRoomByID(lua_tointeger(lua, 1));
+        room_p r1 = World_GetRoomByID(lua_tointeger(lua, 2));
+        if(r0 && r1 && !Room_IsInOverlappedRoomsList(r0, r1))
+        {
+            room_p *old_list = r0->overlapped_room_list;
+            room_p *new_list = (room_p*)malloc((r0->overlapped_room_list_size + 1) * sizeof(room_p));
+            for(uint16_t i = 0; i < r0->overlapped_room_list_size; ++i)
+            {
+                new_list[i] = r0->overlapped_room_list[i];
+            }
+            new_list[r0->overlapped_room_list_size] = r1->real_room;
+            r0->overlapped_room_list = new_list;
+            r0->overlapped_room_list_size++;
+            if(old_list)
+            {
+                free(old_list);
+            }
+
+            old_list = r1->overlapped_room_list;
+            new_list = (room_p*)malloc((r1->overlapped_room_list_size + 1) * sizeof(room_p));
+            for(uint16_t i = 0; i < r1->overlapped_room_list_size; ++i)
+            {
+                new_list[i] = r1->overlapped_room_list[i];
+            }
+            new_list[r1->overlapped_room_list_size] = r0->real_room;
+            r1->overlapped_room_list = new_list;
+            r1->overlapped_room_list_size++;
+            if(old_list)
+            {
+                free(old_list);
+            }
+        }
+    }
     return 0;
 }
 
@@ -422,7 +455,7 @@ int lua_SpawnEntity(lua_State * lua)
 {
     if(lua_gettop(lua) < 5)
     {
-        Con_Warning("spawnEntity: expecting arguments (model_id1, room_id, x, y, z, (ax, ay, az))");
+        Con_Warning("spawnEntity: expecting arguments (model_id1, room_id, x, y, z, (ax, ay, az, ov_id))");
         return 0;
     }
 
@@ -534,7 +567,7 @@ int lua_LoadMap(lua_State *lua)
     if(lua_isstring(lua, 1))
     {
         const char *s = lua_tostring(lua, 1);
-        if((s != NULL) && (s[0] != 0))
+        if(s && s[0])
         {
             if(!lua_isnil(lua, 2))
             {
@@ -805,6 +838,7 @@ void Script_LuaRegisterWorldFuncs(lua_State *lua)
 
     lua_register(lua, "getSecretStatus", lua_GetSecretStatus);
     lua_register(lua, "setSecretStatus", lua_SetSecretStatus);
+    lua_register(lua, "addRoomToOverlappedList", lua_AddRoomToOverlappedList);
 
     lua_register(lua, "genUVRotateAnimation", lua_genUVRotateAnimation);
 

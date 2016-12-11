@@ -504,14 +504,36 @@ int Room_IsOverlapped(struct room_s *r0, struct room_s *r1)
         return 0;
     }
 
-    if(r0->bb_min[0] >= r1->bb_max[0] || r0->bb_max[0] <= r1->bb_min[0] ||
-       r0->bb_min[1] >= r1->bb_max[1] || r0->bb_max[1] <= r1->bb_min[1] ||
+    const int margin = TR_METERING_SECTORSIZE * 2;
+
+    if(r0->bb_min[0] >= r1->bb_max[0] - margin || r0->bb_max[0] - margin <= r1->bb_min[0] ||
+       r0->bb_min[1] >= r1->bb_max[1] - margin || r0->bb_max[1] - margin <= r1->bb_min[1] ||
        r0->bb_min[2] >= r1->bb_max[2] || r0->bb_max[2] <= r1->bb_min[2])
     {
         return 0;
     }
 
-    return !Room_IsJoined(r0, r1);
+    room_sector_p rs = r0->sectors;
+    for(uint32_t i = 0; i < r0->sectors_count; i++, rs++)
+    {
+        if((rs->room_above == r1->real_room) ||
+           (rs->room_below == r1->real_room))
+        {
+            return 0;
+        }
+    }
+
+    rs = r1->sectors;
+    for(uint32_t i = 0; i < r1->sectors_count; i++, rs++)
+    {
+        if((rs->room_above == r0->real_room) ||
+           (rs->room_below == r0->real_room))
+        {
+            return 0;
+        }
+    }
+
+    return 1;
 }
 
 
@@ -685,8 +707,8 @@ struct room_sector_s *Sector_GetHighest(struct room_sector_s *sector)
 
 void Sector_HighestFloorCorner(room_sector_p rs, float v[3])
 {
-    float *r1 = (rs->floor_corners[0][2] > rs->floor_corners[1][2])?(rs->floor_corners[0]):(rs->floor_corners[1]);
-    float *r2 = (rs->floor_corners[2][2] > rs->floor_corners[3][2])?(rs->floor_corners[2]):(rs->floor_corners[3]);
+    float *r1 = (rs->floor_corners[0][2] > rs->floor_corners[1][2]) ? (rs->floor_corners[0]) : (rs->floor_corners[1]);
+    float *r2 = (rs->floor_corners[2][2] > rs->floor_corners[3][2]) ? (rs->floor_corners[2]) : (rs->floor_corners[3]);
 
     if(r1[2] > r2[2])
     {
@@ -701,8 +723,8 @@ void Sector_HighestFloorCorner(room_sector_p rs, float v[3])
 
 void Sector_LowestCeilingCorner(room_sector_p rs, float v[3])
 {
-    float *r1 = (rs->ceiling_corners[0][2] > rs->ceiling_corners[1][2])?(rs->ceiling_corners[0]):(rs->ceiling_corners[1]);
-    float *r2 = (rs->ceiling_corners[2][2] > rs->ceiling_corners[3][2])?(rs->ceiling_corners[2]):(rs->ceiling_corners[3]);
+    float *r1 = (rs->ceiling_corners[0][2] > rs->ceiling_corners[1][2]) ? (rs->ceiling_corners[0]) : (rs->ceiling_corners[1]);
+    float *r2 = (rs->ceiling_corners[2][2] > rs->ceiling_corners[3][2]) ? (rs->ceiling_corners[2]) : (rs->ceiling_corners[3]);
 
     if(r1[2] < r2[2])
     {

@@ -59,9 +59,8 @@ function pushdoor_init(id)   -- Pushdoors (TR4)
 
         if((not getEntityActivity(object_id))) then
             setEntityActivity(object_id, true);
-            local x, y, z, az, ax, ay = getEntityPos(object_id);
-            setEntityPos(activator_id, x, y, z, az + 180.0, ax, ay);
-            moveEntityLocal(activator_id, 0.0, 256.0, 0.0);
+            entityRotateToTriggerZ(activator_id, object_id);
+            entityMoveToTriggerActivationPoint(activator_id, object_id);
             -- floor door 317 anim
             -- vertical door 412 anim
             setEntityAnim(activator_id, ANIM_TYPE_BASE, 412, 0);
@@ -112,9 +111,8 @@ function keyhole_init(id)    -- Key and puzzle holes
         end
         
         if((not getEntityActivity(object_id)) and (switch_activate(object_id, activator_id) == 1)) then
-            setEntityPos(activator_id, getEntityPos(object_id));
-            moveEntityLocal(activator_id, getEntityActivationOffset(id));
             entityRotateToTriggerZ(activator_id, object_id);
+            entityMoveToTriggerActivationPoint(activator_id, object_id);
             return ENTITY_TRIGGERING_ACTIVATED;
         end
         return ENTITY_TRIGGERING_NOT_READY;
@@ -132,9 +130,8 @@ function switch_init(id)     -- Ordinary switches
         end
         
         if(switch_activate(object_id, activator_id) > 0) then
-            setEntityPos(activator_id, getEntityPos(object_id));                -- Move activator right next to object.
-            moveEntityLocal(activator_id, getEntityActivationOffset(id));       -- Shift activator back to proper distance.
             entityRotateToTriggerZ(activator_id, object_id);
+            entityMoveToTriggerActivationPoint(activator_id, object_id);
             return ENTITY_TRIGGERING_ACTIVATED;
         end;
         return ENTITY_TRIGGERING_NOT_READY;
@@ -162,9 +159,8 @@ function lever_switch_init(id)     -- Big switches (TR4) - lever
         
         local state = switch_activate(object_id, activator_id);                 -- 0 - nothing / in process, 1 - on, 2 - off
         if(state > 0) then
-            setEntityPos(activator_id, getEntityPos(object_id));                -- Move activator right next to object.
-            moveEntityLocal(activator_id, getEntityActivationOffset(id));       -- Shift activator back to proper distance.
             entityRotateToTriggerZ(activator_id, object_id);
+            entityMoveToTriggerActivationPoint(activator_id, object_id);
             if(state == 1) then
                 setEntityActivationDirection(id, 0.0, -1.0, 0.0);
                 setEntityActivationOffset(id, 0.0, 520.0, 0.0, 128);
@@ -190,6 +186,7 @@ end
 
 function anim_single_init(id)      -- Ordinary one way animatings
 
+    local version = getLevelVersion();
     setEntityTypeFlag(id, ENTITY_TYPE_GENERIC);
     setEntityActivity(id, false);
    
@@ -199,18 +196,32 @@ function anim_single_init(id)      -- Ordinary one way animatings
         return ENTITY_TRIGGERING_ACTIVATED;
     end;
 
+    entity_funcs[id].onDeactivate = function(object_id, activator_id)
+        setEntityActivity(object_id, false);
+        return ENTITY_TRIGGERING_DEACTIVATED;
+    end;
+
+    entity_funcs[id].onLoop = function(object_id)
+        if(tickEntity(object_id) == TICK_STOPPED) then
+            setEntityAnimState(object_id, ANIM_TYPE_BASE, 0);
+            setEntityActivity(object_id, false);
+        end;
+    end;
+
     --TODO: move that hack to level script (after loading scripts system backporting?)
-    if(id == 12) then
-        entity_funcs[id].onLoop = function(object_id)
-            local x, y, z = getEntityPos(object_id);
-            if(x > 48896) then
-                x = x - 1024.0 * frame_time;
-                if(x < 48896) then
-                    x = 48896;
+    if(version == TR_I) then
+        if(id == 12) then
+            entity_funcs[id].onLoop = function(object_id)
+                local x, y, z = getEntityPos(object_id);
+                if(x > 48896) then
+                    x = x - 1024.0 * frame_time;
+                    if(x < 48896) then
+                        x = 48896;
+                    end;
+                    setEntityPos(object_id, x, y, z);
+                else
+                    entity_funcs[id].onLoop = nil;
                 end;
-                setEntityPos(object_id, x, y, z);
-            else
-                entity_funcs[id].onLoop = nil;
             end;
         end;
     end;
@@ -252,6 +263,8 @@ end
 
 function pushable_init(id)
     setEntityTypeFlag(id, ENTITY_TYPE_HEAVYTRIGGER_ACTIVATOR);
+    setEntityCollisionFlags(id, COLLISION_GROUP_STATIC_ROOM, nil, nil);
+    setEntityCollisionGroup(id, COLLISION_GROUP_STATIC_ROOM);
 end
 
 
@@ -265,7 +278,8 @@ function pickup_init(id, item_id)    -- Pick-ups
         if((item_id == nil) or (object_id == nil)) then
             return ENTITY_TRIGGERING_NOT_READY;
         end
-        
+
+        setEntityVisibility(object_id, true);
         local need_set_pos = true;
         local curr_anim = getEntityAnim(activator_id, ANIM_TYPE_BASE);
 
@@ -351,26 +365,48 @@ function boulder_heavy_init(id)
     setEntityActivity(id, false);
     setEntityCallbackFlag(id, ENTITY_CALLBACK_COLLISION, 1);
     createGhosts(id);
-    local group = bit32.bor(COLLISION_GROUP_TRIGGERS, COLLISION_GROUP_CHARACTERS);
-    local mask = bit32.bor(COLLISION_GROUP_STATIC_ROOM, COLLISION_GROUP_STATIC_OBLECT);
+    local group = bit32.bor(COLLISION_GROUP_TRIGGERS, COLLISION_GROUP_KINEMATIC);
+    local mask = COLLISION_GROUP_STATIC_ROOM;
     setEntityCollisionFlags(id, group, nil, mask);
 
+    local x, y, z = getEntityPos(id);
+    entity_funcs[id].x = x;
+    entity_funcs[id].y = y;
+    entity_funcs[id].z = z;
+
     entity_funcs[id].onActivate = function(object_id, activator_id)
-        if(not getEntityActivity(object_id)) then
+        if(not getEntityActivity(object_id) and (getEntityEvent(object_id) == 0)) then
             setEntityActivity(object_id, true);
             setEntityAnimState(object_id, ANIM_TYPE_BASE, 1);
         end;
         return ENTITY_TRIGGERING_ACTIVATED;
     end
 
+    entity_funcs[id].onDeactivate = function(object_id, activator_id)
+        setEntityPos(object_id, entity_funcs[object_id].x, entity_funcs[object_id].y, entity_funcs[object_id].z);
+        setEntityActivity(object_id, false);
+        return ENTITY_TRIGGERING_DEACTIVATED;
+    end
+
     entity_funcs[id].onLoop = function(object_id)
         if(getEntityActivity(object_id)) then
-            moveEntityLocal(object_id, 0.0, 2048.0 * frame_time, 0.0);
-            local is_stopped, dx, dy, dz = getEntityCollisionFix(object_id, COLLISION_GROUP_STATIC_ROOM);
+            local dy = 2048.0 * frame_time;
+            local R = 512;
+            local r = 256;
+            local test_y = R - r + dy;
+            local lim = dy / test_y;
+            local is_stopped, t = getEntitySphereTest(object_id, mask, r, 0.0, test_y, 0.0);
             if(is_stopped) then
-                is_stopped = dz * dz < dx * dx + dy * dy;
-                moveEntityGlobal(object_id, dx, dy, dz);
+                dy = t * test_y - (R - r);
+                is_stopped = dy < 16.0;
             end;
+            
+            local need_fix, fx, fy, fz = getEntityCollisionFix(object_id, COLLISION_GROUP_STATIC_ROOM);
+            if(need_fix and (fz < 64.0)) then
+                moveEntityGlobal(object_id, 0.0, 0.0, fz * 60.0 * frame_time);
+            end;
+
+            moveEntityLocal(object_id, 0.0, dy, 0.0);
 
             local is_dropped = dropEntity(object_id, frame_time, true);
             if(is_dropped and is_stopped) then

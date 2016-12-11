@@ -201,7 +201,7 @@ function newspike_init(id)  -- Teeth spikes (TR4-5)
     setEntityCallbackFlag(id, ENTITY_CALLBACK_COLLISION, 1);
     setEntityActivity(id, false);
     
-    setEntityVisibility(id, 0);
+    setEntityVisibility(id, false);
     setEntityCollision(id, 0);
     
     entity_funcs[id].interval        = 150;     -- 150 frames = 2.5 seconds
@@ -304,7 +304,7 @@ function newspike_init(id)  -- Teeth spikes (TR4-5)
             if(entity_funcs[object_id].waiting == false) then
                 entity_funcs[object_id].curr_subscaling = 0;
                 entity_funcs[object_id].curr_scaling = 0.0;
-                setEntityVisibility(object_id, 0);
+                setEntityVisibility(object_id, false);
                 setEntityScaling(object_id, 1.0, 1.0, 0.0);
                 setEntityCollision(object_id, 0);
                 entity_funcs[object_id].waiting = true;
@@ -318,7 +318,7 @@ function newspike_init(id)  -- Teeth spikes (TR4-5)
         -- and material, and also play spike sound.
             
         else
-            setEntityVisibility(object_id, 1);
+            setEntityVisibility(object_id, true);
             setEntityCollision(object_id, 1);
             entity_funcs[object_id].curr_timer = 0;
             playSound(343, object_id);
@@ -391,7 +391,7 @@ function spikewall_init(id)      -- Spike wall
 
     setEntityTypeFlag(id, ENTITY_TYPE_GENERIC);
     setEntityCallbackFlag(id, ENTITY_CALLBACK_COLLISION, 1);
-    setEntityCollisionFlags(id, bit32.bor(COLLISION_GROUP_TRIGGERS, COLLISION_GROUP_CHARACTERS), nil, bit32.bor(COLLISION_GROUP_CHARACTERS, COLLISION_GROUP_GHOST));
+    setEntityCollisionFlags(id, bit32.bor(COLLISION_GROUP_TRIGGERS, COLLISION_GROUP_CHARACTERS), nil, COLLISION_GROUP_CHARACTERS);
     setEntityActivity(id, false);
     
     entity_funcs[id].onActivate = function(object_id, activator_id)
@@ -451,7 +451,7 @@ function spikeceiling_init(id)
 
     setEntityTypeFlag(id, ENTITY_TYPE_GENERIC);
     setEntityCallbackFlag(id, ENTITY_CALLBACK_COLLISION, 1);
-    setEntityCollisionFlags(id, COLLISION_GROUP_TRIGGERS, nil, bit32.bor(COLLISION_GROUP_CHARACTERS, COLLISION_GROUP_GHOST));
+    setEntityCollisionFlags(id, COLLISION_GROUP_TRIGGERS, nil, COLLISION_GROUP_CHARACTERS);
     setEntityActivity(id, false);
     
     entity_funcs[id].onActivate = function(object_id, activator_id)

@@ -112,6 +112,7 @@ void Character_Create(struct entity_s *ent)
         ent->self->collision_mask = COLLISION_GROUP_STATIC_ROOM | COLLISION_GROUP_STATIC_OBLECT | COLLISION_GROUP_KINEMATIC |
                                     COLLISION_GROUP_CHARACTERS | COLLISION_GROUP_DYNAMICS | COLLISION_GROUP_DYNAMICS_NI | COLLISION_GROUP_TRIGGERS;
         Physics_CreateGhosts(ent->physics, ent->bf, NULL);
+        Entity_GhostUpdate(ent);
     }
 }
 
@@ -627,6 +628,12 @@ void Character_CheckClimbability(struct entity_s *ent, struct climb_info_s *clim
     char up_founded = 0;
     collision_result_t cb;
     //const float color[3] = {1.0, 0.0, 0.0};
+
+    if(ent->current_sector && ent->current_sector->room_above &&
+       ent->current_sector->room_above->bb_min[2] < test_from[2] + 256.0f)
+    {
+        ent->self->room = ent->current_sector->room_above->real_room;
+    }
 
     climb->height_info = CHARACTER_STEP_HORIZONTAL;
     climb->can_hang = 0x00;
@@ -1357,7 +1364,7 @@ int Character_FreeFalling(struct entity_s *ent)
     }
 
     vec3_add(pos, pos, move);
-    Entity_FixPenetrations(ent, move, COLLISION_FILTER_CHARACTER);                                          // get horizontal collide
+    Entity_FixPenetrations(ent, move, COLLISION_FILTER_CHARACTER);              // get horizontal collide
 
     if(ent->character->height_info.ceiling_hit.hit && ent->speed[2] > 0.0)
     {
@@ -1809,11 +1816,12 @@ int Character_FindTraverse(struct entity_s *ch)
  * @param floor: floor height
  * @return 0x01: can traverse, 0x00 can not;
  */
-int Sector_AllowTraverse(struct room_sector_s *rs, float floor, struct engine_container_s *cont)
+int Sector_AllowTraverse(struct room_sector_s *rs, float floor)
 {
     float f0 = rs->floor_corners[0][2];
     if((rs->floor_corners[0][2] != f0) || (rs->floor_corners[1][2] != f0) ||
-       (rs->floor_corners[2][2] != f0) || (rs->floor_corners[3][2] != f0))
+       (rs->floor_corners[2][2] != f0) || (rs->floor_corners[3][2] != f0) ||
+       (rs->floor_penetration_config != TR_PENETRATION_CONFIG_SOLID))
     {
         return 0x00;
     }
@@ -1821,25 +1829,6 @@ int Sector_AllowTraverse(struct room_sector_s *rs, float floor, struct engine_co
     if((fabs(floor - f0) < 1.1) && (rs->ceiling - rs->floor >= TR_METERING_SECTORSIZE))
     {
         return 0x01;
-    }
-
-    float from[3], to[3];
-    collision_result_t cb;
-
-    to[0] = from[0] = rs->pos[0];
-    to[1] = from[1] = rs->pos[1];
-    from[2] = floor + TR_METERING_SECTORSIZE * 0.5;
-    to[2]   = floor - TR_METERING_SECTORSIZE * 0.5;
-
-    if(Physics_RayTest(&cb, from, to, cont, COLLISION_FILTER_HEIGHT_TEST))
-    {
-        if(fabs(cb.point[2] - floor) < 1.1)
-        {
-            if((cb.obj != NULL) && (cb.obj->object_type == OBJECT_ENTITY) && (((entity_p)cb.obj->object)->type_flags & ENTITY_TYPE_TRAVERSE_FLOOR))
-            {
-                return 0x01;
-            }
-        }
     }
 
     return 0x00;
@@ -1888,7 +1877,7 @@ int Character_CheckTraverse(struct entity_s *ch, struct entity_s *obj)
     }
 
     float floor = ch->transform[12 + 2];
-    if((ch_s->floor != obj_s->floor) || (Sector_AllowTraverse(ch_s, floor, ch->self) == 0x00) || (Sector_AllowTraverse(obj_s, floor, obj->self) == 0x00))
+    if((ch_s->floor != obj_s->floor) || (Sector_AllowTraverse(ch_s, floor) == 0x00) || (Sector_AllowTraverse(obj_s, floor) == 0x00))
     {
         return 0x00;
     }
@@ -1938,7 +1927,7 @@ int Character_CheckTraverse(struct entity_s *ch, struct entity_s *obj)
     }
 
     next_s = Sector_GetPortalSectorTargetRaw(next_s);
-    if((next_s != NULL) && (Sector_AllowTraverse(next_s, floor, ch->self) == 0x01))
+    if((next_s != NULL) && (Sector_AllowTraverse(next_s, floor) == 0x01))
     {
         from[0] = obj_s->pos[0];
         from[1] = obj_s->pos[1];
@@ -1947,7 +1936,7 @@ int Character_CheckTraverse(struct entity_s *ch, struct entity_s *obj)
         to[0] = next_s->pos[0];
         to[1] = next_s->pos[1];
         to[2] = from[2];
-        if(!Physics_SphereTest(NULL, from ,to, 0.48 * TR_METERING_SECTORSIZE, obj->self, COLLISION_FILTER_HEIGHT_TEST))
+        if(!Physics_SphereTest(NULL, from, to, 0.48 * TR_METERING_SECTORSIZE, obj->self, COLLISION_FILTER_HEIGHT_TEST))
         {
             ret |= 0x01;                                                        // can traverse forvard
         }
@@ -1981,7 +1970,7 @@ int Character_CheckTraverse(struct entity_s *ch, struct entity_s *obj)
     }
 
     next_s = Sector_GetPortalSectorTargetRaw(next_s);
-    if((next_s != NULL) && (Sector_AllowTraverse(next_s, floor, ch->self) == 0x01))
+    if((next_s != NULL) && (Sector_AllowTraverse(next_s, floor) == 0x01))
     {
         from[0] = ch_s->pos[0];
         from[1] = ch_s->pos[1];

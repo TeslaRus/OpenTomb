@@ -438,12 +438,12 @@ uint32_t World_SpawnEntity(uint32_t model_id, uint32_t room_id, float pos[3], fl
     if(global_world.entity_tree)
     {
         skeletal_model_p model = World_GetModelByID(model_id);
-        if(model != NULL)
+        if(model)
         {
             entity_p entity = World_GetEntityByID(id);
             RedBlackNode_p node = global_world.entity_tree->root;
 
-            if(entity != NULL)
+            if(entity)
             {
                 if(pos != NULL)
                 {
@@ -468,7 +468,6 @@ uint32_t World_SpawnEntity(uint32_t model_id, uint32_t room_id, float pos[3], fl
             }
 
             entity = Entity_Create();
-
             if(id < 0)
             {
                 entity->id = 0;
@@ -2319,6 +2318,7 @@ void World_GenEntities(class VT_Level *tr)
         entity->trigger_layout  = (tr_item->flags & 0x3E00) >> 9;               ///@FIXME: Ignore INVISIBLE and CLEAR BODY flags for a moment.
         entity->OCB             = tr_item->ocb;
         entity->timer           = 0.0;
+        entity->state_flags &= (tr_item->flags & 0x0100) ? (~ENTITY_STATE_VISIBLE) : (0xFFFF);
 
         entity->self->collision_group = COLLISION_GROUP_KINEMATIC;
         entity->self->collision_mask = COLLISION_MASK_ALL;
@@ -2478,8 +2478,9 @@ void World_GenEntities(class VT_Level *tr)
         World_AddEntity(entity);
         World_SetEntityModelProperties(entity);
         Physics_GenRigidBody(entity->physics, entity->bf);
+        Entity_UpdateRigidBody(entity, 1);
 
-        if(!(entity->state_flags & ENTITY_STATE_ENABLED) || (entity->self->collision_group == COLLISION_NONE))
+        if(!(entity->state_flags & ENTITY_STATE_ENABLED) || !(entity->state_flags & ENTITY_STATE_VISIBLE) || (entity->self->collision_group == COLLISION_NONE))
         {
             Entity_DisableCollision(entity);
         }
@@ -2734,10 +2735,8 @@ void World_MakeEntityItems(struct RedBlackNode_s *n)
                 entity_p ent = (entity_p)cont->object;
                 if(ent->bf->animations.model->id == item->world_model_id)
                 {
-                    char buf[64] = {0};
-                    snprintf(buf, 64, "if(entity_funcs[%d]==nil) then entity_funcs[%d]={} end", ent->id, ent->id);
-                    luaL_dostring(engine_lua, buf);
-                    snprintf(buf, 32, "pickup_init(%d, %d);", ent->id, item->id);
+                    char buf[128] = {0};
+                    snprintf(buf, 128, "if(entity_funcs[%d] == nil) then entity_funcs[%d] = {}; pickup_init(%d, %d); end", ent->id, ent->id, ent->id, item->id);
                     luaL_dostring(engine_lua, buf);
                     Entity_DisableCollision(ent);
                 }
