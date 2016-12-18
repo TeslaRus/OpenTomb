@@ -423,7 +423,7 @@ struct room_sector_s *Room_GetSectorRaw(struct room_s *room, float pos[3])
 }
 
 
-room_sector_p Room_GetSectorXYZ(room_p room, float pos[3])
+struct room_sector_s *Room_GetSectorXYZ(struct room_s *room, float pos[3])
 {
     room_sector_p ret = NULL;
     int x = (int)(pos[0] - room->transform[12]) / 1024;
@@ -677,6 +677,23 @@ struct room_sector_s *Sector_GetPortalSectorTargetRaw(struct room_sector_s *rs)
     if(rs && rs->portal_to_room)
     {
         room_p r = rs->portal_to_room;
+        int ind_x = (rs->pos[0] - r->transform[12 + 0]) / TR_METERING_SECTORSIZE;
+        int ind_y = (rs->pos[1] - r->transform[12 + 1]) / TR_METERING_SECTORSIZE;
+        if((ind_x >= 0) && (ind_x < r->sectors_x) && (ind_y >= 0) && (ind_y < r->sectors_y))
+        {
+            rs = r->sectors + (ind_x * r->sectors_y + ind_y);
+        }
+    }
+
+    return rs;
+}
+
+
+struct room_sector_s *Sector_GetPortalSectorTargetReal(struct room_sector_s *rs)
+{
+    if(rs && rs->portal_to_room)
+    {
+        room_p r = rs->portal_to_room->real_room;
         int ind_x = (rs->pos[0] - r->transform[12 + 0]) / TR_METERING_SECTORSIZE;
         int ind_y = (rs->pos[1] - r->transform[12 + 1]) / TR_METERING_SECTORSIZE;
         if((ind_x >= 0) && (ind_x < r->sectors_x) && (ind_y >= 0) && (ind_y < r->sectors_y))

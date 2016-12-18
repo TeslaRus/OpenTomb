@@ -1035,6 +1035,8 @@ void Character_LookAt(struct entity_s *ent, float target[3])
     const float head_target_limit[4] = {0.0f, 1.0f, 0.0f, 0.273f};
     ss_animation_p anim_head_track = SSBoneFrame_GetOverrideAnim(ent->bf, ANIM_TYPE_HEAD_TRACK);
     ss_animation_p  base_anim = &ent->bf->animations;
+    const uint16_t bone_head = 14;
+    const uint16_t bone_body = 7;
 
     base_anim->anim_ext_flags &= ~ANIM_EXT_TARGET_TO;
 
@@ -1044,7 +1046,7 @@ void Character_LookAt(struct entity_s *ent, float target[3])
     }
 
     anim_head_track->targeting_flags = 0x0000;
-    SSBoneFrame_SetTrget(anim_head_track, 14, target, bone_dir);
+    SSBoneFrame_SetTrget(anim_head_track, bone_head, target, bone_dir);
     SSBoneFrame_SetTargetingLimit(anim_head_track, head_target_limit);
 
     if(SSBoneFrame_CheckTargetBoneLimit(ent->bf, anim_head_track))
@@ -1052,11 +1054,11 @@ void Character_LookAt(struct entity_s *ent, float target[3])
         anim_head_track->anim_ext_flags |= ANIM_EXT_TARGET_TO;
         if((ent->move_type == MOVE_ON_FLOOR) || (ent->move_type == MOVE_FREE_FALLING))
         {
-            const float axis_mod[3] = {0.5f, 0.5f, 1.0f};
+            const float axis_mod[3] = {0.33f, 0.33f, 1.0f};
             const float target_limit[4] = {0.0f, 1.0f, 0.0f, 0.883f};
 
             base_anim->targeting_flags = 0x0000;
-            SSBoneFrame_SetTrget(base_anim, 7, target, bone_dir);
+            SSBoneFrame_SetTrget(base_anim, bone_body, target, bone_dir);
             SSBoneFrame_SetTargetingLimit(base_anim, target_limit);
             SSBoneFrame_SetTargetingAxisMod(base_anim, axis_mod);
             base_anim->anim_ext_flags |= ANIM_EXT_TARGET_TO;
@@ -1821,14 +1823,30 @@ int Sector_AllowTraverse(struct room_sector_s *rs, float floor)
     float f0 = rs->floor_corners[0][2];
     if((rs->floor_corners[0][2] != f0) || (rs->floor_corners[1][2] != f0) ||
        (rs->floor_corners[2][2] != f0) || (rs->floor_corners[3][2] != f0) ||
-       (rs->floor_penetration_config != TR_PENETRATION_CONFIG_SOLID))
+       (rs->floor_penetration_config != TR_PENETRATION_CONFIG_SOLID) ||
+       (rs->ceiling - floor < TR_METERING_SECTORSIZE))
     {
         return 0x00;
     }
 
-    if((fabs(floor - f0) < 1.1) && (rs->ceiling - rs->floor >= TR_METERING_SECTORSIZE))
+    if(fabs(f0 - floor) < 1.1f)
     {
         return 0x01;
+    }
+
+    for(engine_container_p cont = rs->owner_room->real_room->content->containers; cont; cont = cont->next)
+    {
+        if(cont->object_type == OBJECT_ENTITY)
+        {
+            entity_p ent = (entity_p)cont->object;
+            if((ent->type_flags & ENTITY_TYPE_TRAVERSE_FLOOR) &&
+               (fabs(ent->transform[12 + 2] + TR_METERING_SECTORSIZE - floor) < 1.1f) &&
+               (fabs(ent->transform[12 + 0] - rs->pos[0]) < 1.1f) &&
+               (fabs(ent->transform[12 + 1] - rs->pos[1]) < 1.1f))
+            {
+                return 0x01;
+            }
+        }
     }
 
     return 0x00;
@@ -1868,7 +1886,7 @@ int Character_CheckTraverse(struct entity_s *ch, struct entity_s *obj)
             float pos[] = {(float)(obj_s->pos[0]), (float)(obj_s->pos[1] + TR_METERING_SECTORSIZE), (float)0.0};
             ch_s = Room_GetSectorRaw(obj->self->room->real_room, pos);
         }
-        ch_s = Sector_GetPortalSectorTargetRaw(ch_s);
+        ch_s = Sector_GetPortalSectorTargetReal(ch_s);
     }
 
     if((ch_s == NULL) || (obj_s == NULL))
@@ -1877,29 +1895,29 @@ int Character_CheckTraverse(struct entity_s *ch, struct entity_s *obj)
     }
 
     float floor = ch->transform[12 + 2];
-    if((ch_s->floor != obj_s->floor) || (Sector_AllowTraverse(ch_s, floor) == 0x00) || (Sector_AllowTraverse(obj_s, floor) == 0x00))
+    if((Sector_AllowTraverse(ch_s, floor) == 0x00) || (Sector_AllowTraverse(obj_s, floor) == 0x00))
     {
         return 0x00;
     }
 
-    collision_result_t cb;
-    float from[3], to[3];
-
-    to[0] = from[0] = obj_s->pos[0];
-    to[1] = from[1] = obj_s->pos[1];
-    from[2] = floor + TR_METERING_SECTORSIZE * 0.5;
-    to[2] = floor + TR_METERING_SECTORSIZE * 2.5;
-    if(Physics_RayTest(&cb, from, to, obj->self, COLLISION_FILTER_HEIGHT_TEST))
+    for(engine_container_p cont = obj_s->owner_room->real_room->content->containers; cont; cont = cont->next)
     {
-        if((cb.obj != NULL) && (cb.obj->object_type == OBJECT_ENTITY) && (((entity_p)cb.obj->object)->type_flags & ENTITY_TYPE_TRAVERSE))
+        if(cont->object_type == OBJECT_ENTITY)
         {
-            return 0x00;
+            entity_p ent = (entity_p)cont->object;
+            if((ent->type_flags & (ENTITY_TYPE_TRAVERSE | ENTITY_TYPE_TRAVERSE_FLOOR)) &&
+               (fabs(ent->transform[12 + 2] - TR_METERING_SECTORSIZE - floor) < 1.1f) &&
+               (fabs(ent->transform[12 + 0] - obj_s->pos[0]) < 1.1f) &&
+               (fabs(ent->transform[12 + 1] - obj_s->pos[1]) < 1.1f))
+            {
+                return 0x00;
+            }
         }
     }
 
     int ret = 0x00;
     room_sector_p next_s = NULL;
-
+    const float r_test = 0.44f * TR_METERING_SECTORSIZE;
     /*
      * PUSH MOVE CHECK
      */
@@ -1926,9 +1944,10 @@ int Character_CheckTraverse(struct entity_s *ch, struct entity_s *obj)
         next_s = Room_GetSectorRaw(obj_s->owner_room->real_room, pos);
     }
 
-    next_s = Sector_GetPortalSectorTargetRaw(next_s);
+    next_s = Sector_GetPortalSectorTargetReal(next_s);
     if((next_s != NULL) && (Sector_AllowTraverse(next_s, floor) == 0x01))
     {
+        float from[3], to[3];
         from[0] = obj_s->pos[0];
         from[1] = obj_s->pos[1];
         from[2] = floor + 0.5 * TR_METERING_SECTORSIZE;
@@ -1936,7 +1955,7 @@ int Character_CheckTraverse(struct entity_s *ch, struct entity_s *obj)
         to[0] = next_s->pos[0];
         to[1] = next_s->pos[1];
         to[2] = from[2];
-        if(!Physics_SphereTest(NULL, from, to, 0.48 * TR_METERING_SECTORSIZE, obj->self, COLLISION_FILTER_HEIGHT_TEST))
+        if(!Physics_SphereTest(NULL, from, to, r_test, obj->self, COLLISION_FILTER_HEIGHT_TEST))
         {
             ret |= 0x01;                                                        // can traverse forvard
         }
@@ -1969,9 +1988,10 @@ int Character_CheckTraverse(struct entity_s *ch, struct entity_s *obj)
         next_s = Room_GetSectorRaw(ch_s->owner_room->real_room, pos);
     }
 
-    next_s = Sector_GetPortalSectorTargetRaw(next_s);
+    next_s = Sector_GetPortalSectorTargetReal(next_s);
     if((next_s != NULL) && (Sector_AllowTraverse(next_s, floor) == 0x01))
     {
+        float from[3], to[3];
         from[0] = ch_s->pos[0];
         from[1] = ch_s->pos[1];
         from[2] = floor + 0.5 * TR_METERING_SECTORSIZE;
@@ -1979,7 +1999,7 @@ int Character_CheckTraverse(struct entity_s *ch, struct entity_s *obj)
         to[0] = next_s->pos[0];
         to[1] = next_s->pos[1];
         to[2] = from[2];
-        if(!Physics_SphereTest(NULL, from ,to, 0.48 * TR_METERING_SECTORSIZE, ch->self, COLLISION_FILTER_HEIGHT_TEST))
+        if(!Physics_SphereTest(NULL, from ,to, r_test, ch->self, COLLISION_FILTER_HEIGHT_TEST))
         {
             ret |= 0x02;                                                        // can traverse backvard
         }
@@ -2011,6 +2031,7 @@ void Character_ApplyCommands(struct entity_s *ent)
         ent->character->state_func(ent, &ent->bf->animations);
     }
 
+    ent->no_fix_z = 0x00;
     switch(ent->move_type)
     {
         case MOVE_ON_FLOOR:
@@ -2018,6 +2039,7 @@ void Character_ApplyCommands(struct entity_s *ent)
             break;
 
         case MOVE_FREE_FALLING:
+            ent->no_fix_z = 0x01;
             Character_FreeFalling(ent);
             break;
 

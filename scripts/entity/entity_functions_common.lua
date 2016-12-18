@@ -168,7 +168,7 @@ function lever_switch_init(id)     -- Big switches (TR4) - lever
                 setEntityActivationDirection(id, 0.0, 1.0, 0.0);
                 setEntityActivationOffset(id, 0.0, -520.0, 0.0, 128);
             end;
-            setEntityCollision(id, 1);
+            setEntityCollision(id, true);
             return ENTITY_TRIGGERING_ACTIVATED;
         end;
         return ENTITY_TRIGGERING_NOT_READY;
@@ -262,7 +262,12 @@ end
 
 
 function pushable_init(id)
-    setEntityTypeFlag(id, ENTITY_TYPE_HEAVYTRIGGER_ACTIVATOR);
+    setEntityTypeFlag(id, ENTITY_TYPE_HEAVYTRIGGER_ACTIVATOR, 1);
+    setEntityTypeFlag(id, ENTITY_TYPE_TRAVERSE, 1);
+    if(getLevelVersion() < TR_IV) then
+        setEntityTypeFlag(id, ENTITY_TYPE_TRAVERSE_FLOOR, 1);
+    end;
+
     setEntityCollisionFlags(id, COLLISION_GROUP_STATIC_ROOM, nil, nil);
     setEntityCollisionGroup(id, COLLISION_GROUP_STATIC_ROOM);
 end
