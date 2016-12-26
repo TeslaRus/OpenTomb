@@ -6714,7 +6714,7 @@
 	"../alMain.h"
 	"../alThunk.h"
 
-1480172760 source:d:\dev\opentomb\src\anim_state_control.cpp
+1480241733 source:d:\dev\opentomb\src\anim_state_control.cpp
 	<stdlib.h>
 	<stdio.h>
 	"core/system.h"
@@ -6827,7 +6827,7 @@
 
 1466874828 d:\dev\opentomb\src\vt\tr_versions.h
 
-1479633990 d:\dev\opentomb\src\game.h
+1482145738 d:\dev\opentomb\src\game.h
 	<stdint.h>
 
 1437244868 d:\dev\opentomb\src\bullet\linearmath\btscalar.h
@@ -7377,7 +7377,7 @@
 	<SDL2/SDL_opengl.h>
 	<stdint.h>
 
-1482070894 d:\dev\opentomb\src\entity.h
+1482328980 d:\dev\opentomb\src\entity.h
 	<stdint.h>
 
 1433713936 d:\dev\opentomb\src\bullet\bulletcollision\collisiondispatch\btghostobject.h
@@ -7398,7 +7398,7 @@
 
 1466874828 d:\dev\opentomb\src\anim_state_control.h
 
-1481480298 d:\dev\opentomb\src\character_controller.h
+1482410727 d:\dev\opentomb\src\character_controller.h
 	<stdint.h>
 	"physics.h"
 
@@ -7440,7 +7440,7 @@
 	"world.h"
 	"trigger.h"
 
-1467383088 d:\dev\opentomb\src\gui.h
+1482135697 d:\dev\opentomb\src\gui.h
 	<stdint.h>
 	"core/gl_text.h"
 
@@ -9071,7 +9071,7 @@
 	"script.h"
 	"world.h"
 
-1480172828 source:d:\dev\opentomb\src\controls.cpp
+1480230553 source:d:\dev\opentomb\src\controls.cpp
 	<stdlib.h>
 	<SDL2/SDL.h>
 	<SDL2/SDL_platform.h>
@@ -10997,7 +10997,7 @@
 
 1466874828 d:\dev\opentomb\src\inventory.h
 
-1480172923 source:d:\dev\opentomb\src\gameflow.cpp
+1480230553 source:d:\dev\opentomb\src\gameflow.cpp
 	<lua.h>
 	<lualib.h>
 	<lauxlib.h>
@@ -16340,7 +16340,7 @@
 	<stdint.h>
 	"../core/vmath.h"
 
-1479547361 d:\dev\opentomb\src\skeletal_model.h
+1482602824 d:\dev\opentomb\src\skeletal_model.h
 	<stdint.h>
 
 1466874828 source:d:\dev\opentomb\src\mesh.c
@@ -22646,5 +22646,23 @@
 
 1472661737 d:\dev\opentomb\src\config-opentomb.h
 
-1480176791 d:\dev\opentomb\src\script\script.h
+1482673410 d:\dev\opentomb\src\script\script.h
+
+1481969029 source:d:\dev\opentomb\src\script\script_audio.cpp
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<lua.h>
+	<lualib.h>
+	<lauxlib.h>
+	<al.h>
+	<alc.h>
+	"script.h"
+	"../core/system.h"
+	"../core/gl_text.h"
+	"../core/console.h"
+	"../gameflow.h"
+	"../engine.h"
+	"../world.h"
+	"../audio.h"
 

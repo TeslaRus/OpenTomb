@@ -128,7 +128,7 @@ void World_GenSpritesBuffer();
 void World_GenRoomProperties(class VT_Level *tr);
 void World_GenRoomCollision();
 void World_FixRooms();
-void World_MakeEntityItems(struct RedBlackNode_s *n);            // Assign pickup functions to previously created base items.
+void World_MakeEntityPickable(struct RedBlackNode_s *n, entity_p ent, int *done);          // Assign pickup functions to previously created base items.
 
 
 void World_Prepare()
@@ -438,6 +438,7 @@ uint32_t World_SpawnEntity(uint32_t model_id, uint32_t room_id, float pos[3], fl
     if(global_world.entity_tree)
     {
         skeletal_model_p model = World_GetModelByID(model_id);
+        int done = 0;
         if(model)
         {
             entity_p entity = World_GetEntityByID(id);
@@ -447,7 +448,7 @@ uint32_t World_SpawnEntity(uint32_t model_id, uint32_t room_id, float pos[3], fl
             {
                 if(pos != NULL)
                 {
-                    vec3_copy(entity->transform+12, pos);
+                    vec3_copy(entity->transform + 12, pos);
                 }
                 if(ang != NULL)
                 {
@@ -456,13 +457,15 @@ uint32_t World_SpawnEntity(uint32_t model_id, uint32_t room_id, float pos[3], fl
                 }
                 if(room_id < global_world.rooms_count)
                 {
-                    entity->self->room = global_world.rooms + room_id;
-                    entity->current_sector = Room_GetSectorRaw(entity->self->room, entity->transform+12);
+                    Entity_MoveToRoom(entity, global_world.rooms + room_id);
+                    entity->current_sector = Room_GetSectorRaw(entity->self->room, entity->transform + 12);
                 }
                 else
                 {
+                    Room_RemoveObject(entity->self->room, entity->self);
                     entity->self->room = NULL;
                 }
+                World_MakeEntityPickable(global_world.items_tree->root, entity, &done);
 
                 return entity->id;
             }
@@ -484,7 +487,7 @@ uint32_t World_SpawnEntity(uint32_t model_id, uint32_t room_id, float pos[3], fl
 
             if(pos != NULL)
             {
-                vec3_copy(entity->transform+12, pos);
+                vec3_copy(entity->transform + 12, pos);
             }
             if(ang != NULL)
             {
@@ -494,6 +497,7 @@ uint32_t World_SpawnEntity(uint32_t model_id, uint32_t room_id, float pos[3], fl
             if(room_id < global_world.rooms_count)
             {
                 entity->self->room = global_world.rooms + room_id;
+                Room_AddObject(entity->self->room, entity->self);
                 entity->current_sector = Room_GetSectorRaw(entity->self->room, entity->transform + 12);
             }
             else
@@ -502,7 +506,7 @@ uint32_t World_SpawnEntity(uint32_t model_id, uint32_t room_id, float pos[3], fl
             }
 
             entity->type_flags     = ENTITY_TYPE_SPAWNED;
-            entity->state_flags    = ENTITY_STATE_ENABLED | ENTITY_STATE_ACTIVE | ENTITY_STATE_VISIBLE;
+            entity->state_flags    = ENTITY_STATE_ENABLED | ENTITY_STATE_ACTIVE | ENTITY_STATE_VISIBLE | ENTITY_STATE_COLLIDABLE;
             entity->trigger_layout = 0x00;
             entity->OCB            = 0x00;
             entity->timer          = 0.0;
@@ -524,12 +528,13 @@ uint32_t World_SpawnEntity(uint32_t model_id, uint32_t room_id, float pos[3], fl
                 Room_AddObject(entity->self->room, entity->self);
             }
             World_AddEntity(entity);
+            World_MakeEntityPickable(global_world.items_tree->root, entity, &done);
 
             return entity->id;
         }
     }
 
-    return 0xFFFFFFFF;
+    return ENTITY_ID_NONE;
 }
 
 
@@ -797,13 +802,14 @@ struct room_s *World_GetRoomByID(uint32_t id)
 
 struct room_s *World_FindRoomByPos(float pos[3])
 {
+    const float z_margin = TR_METERING_SECTORSIZE / 2.0f;
     room_p r = global_world.rooms;
     for(uint32_t i = 0; i < global_world.rooms_count; i++, r++)
     {
         if((r == r->real_room) &&
            (pos[0] >= r->bb_min[0]) && (pos[0] < r->bb_max[0]) &&
            (pos[1] >= r->bb_min[1]) && (pos[1] < r->bb_max[1]) &&
-           (pos[2] >= r->bb_min[2]) && (pos[2] < r->bb_max[2]))
+           (pos[2] >= r->bb_min[2] - z_margin) && (pos[2] < r->bb_max[2]))
         {
             room_sector_p orig_sector = Room_GetSectorRaw(r->real_room, pos);
             if(orig_sector && orig_sector->portal_to_room)
@@ -847,12 +853,13 @@ struct room_s *World_FindRoomByPosCogerrence(float pos[3], struct room_s *old_ro
         }
     }
 
+    const float z_margin = TR_METERING_SECTORSIZE / 2.0f;
     for(uint16_t i = 0; i < old_room->near_room_list_size; i++)
     {
         room_p r = old_room->near_room_list[i]->real_room;
-        if((pos[0] >= r->bb_min[0]) && (pos[0] < r->bb_max[0]) &&
-           (pos[1] >= r->bb_min[1]) && (pos[1] < r->bb_max[1]) &&
-           (pos[2] >= r->bb_min[2]) && (pos[2] < r->bb_max[2]))
+        if((pos[0] >= r->bb_min[0] + TR_METERING_SECTORSIZE) && (pos[0] < r->bb_max[0] - TR_METERING_SECTORSIZE) &&
+           (pos[1] >= r->bb_min[1] + TR_METERING_SECTORSIZE) && (pos[1] < r->bb_max[1] - TR_METERING_SECTORSIZE) &&
+           (pos[2] >= r->bb_min[2] - z_margin) && (pos[2] < r->bb_max[2]))
         {
             return r;
         }
@@ -2027,9 +2034,9 @@ void World_GenRoom(struct room_s *room, class VT_Level *tr)
         sector->index_x = i / room->sectors_y;
         sector->index_y = i % room->sectors_y;
 
-        sector->pos[0] = room->transform[12] + sector->index_x * TR_METERING_SECTORSIZE + 0.5 * TR_METERING_SECTORSIZE;
-        sector->pos[1] = room->transform[13] + sector->index_y * TR_METERING_SECTORSIZE + 0.5 * TR_METERING_SECTORSIZE;
-        sector->pos[2] = 0.5 * (tr_room->y_bottom + tr_room->y_top);
+        sector->pos[0] = room->transform[12] + sector->index_x * TR_METERING_SECTORSIZE + 0.5f * TR_METERING_SECTORSIZE;
+        sector->pos[1] = room->transform[13] + sector->index_y * TR_METERING_SECTORSIZE + 0.5f * TR_METERING_SECTORSIZE;
+        sector->pos[2] = 0.5f * (tr_room->y_bottom + tr_room->y_top);
 
         sector->owner_room = room;
         sector->trigger = NULL;
@@ -2159,43 +2166,43 @@ void World_GenRoom(struct room_s *room, class VT_Level *tr)
     {
         r_dest = global_world.rooms + tr_portal->adjoining_room;
         p->vertex_count = 4;                                                    // in original TR all portals are axis aligned rectangles
-        p->vertex = (float*)malloc(3*p->vertex_count*sizeof(float));
+        p->vertex = (float*)malloc(3 * p->vertex_count * sizeof(float));
         p->dest_room = r_dest;
-        TR_vertex_to_arr(p->vertex  , &tr_portal->vertices[3]);
-        vec3_add(p->vertex, p->vertex, room->transform+12);
-        TR_vertex_to_arr(p->vertex+3, &tr_portal->vertices[2]);
-        vec3_add(p->vertex+3, p->vertex+3, room->transform+12);
-        TR_vertex_to_arr(p->vertex+6, &tr_portal->vertices[1]);
-        vec3_add(p->vertex+6, p->vertex+6, room->transform+12);
-        TR_vertex_to_arr(p->vertex+9, &tr_portal->vertices[0]);
-        vec3_add(p->vertex+9, p->vertex+9, room->transform+12);
-        vec3_add(p->centre, p->vertex, p->vertex+3);
-        vec3_add(p->centre, p->centre, p->vertex+6);
-        vec3_add(p->centre, p->centre, p->vertex+9);
-        p->centre[0] /= 4.0;
-        p->centre[1] /= 4.0;
-        p->centre[2] /= 4.0;
+        TR_vertex_to_arr(p->vertex, &tr_portal->vertices[3]);
+        vec3_add(p->vertex, p->vertex, room->transform + 12);
+        TR_vertex_to_arr(p->vertex + 3, &tr_portal->vertices[2]);
+        vec3_add(p->vertex + 3, p->vertex + 3, room->transform + 12);
+        TR_vertex_to_arr(p->vertex + 6, &tr_portal->vertices[1]);
+        vec3_add(p->vertex + 6, p->vertex + 6, room->transform + 12);
+        TR_vertex_to_arr(p->vertex + 9, &tr_portal->vertices[0]);
+        vec3_add(p->vertex + 9, p->vertex + 9, room->transform + 12);
+        vec3_add(p->centre, p->vertex, p->vertex + 3);
+        vec3_add(p->centre, p->centre, p->vertex + 6);
+        vec3_add(p->centre, p->centre, p->vertex + 9);
+        p->centre[0] /= 4.0f;
+        p->centre[1] /= 4.0f;
+        p->centre[2] /= 4.0f;
         Portal_GenNormale(p);
 
         /*
          * Portal position fix...
          */
         // X_MIN
-        if((p->norm[0] > 0.999) && (((int)p->centre[0])%2))
+        if((p->norm[0] > 0.999) && (((int)p->centre[0]) % 2))
         {
             float pos[3] = {1.0, 0.0, 0.0};
             Portal_Move(p, pos);
         }
 
         // Y_MIN
-        if((p->norm[1] > 0.999) && (((int)p->centre[1])%2))
+        if((p->norm[1] > 0.999) && (((int)p->centre[1]) % 2))
         {
             float pos[3] = {0.0, 1.0, 0.0};
             Portal_Move(p, pos);
         }
 
         // Z_MAX
-        if((p->norm[2] <-0.999) && (((int)p->centre[2])%2))
+        if((p->norm[2] <-0.999) && (((int)p->centre[2]) % 2))
         {
             float pos[3] = {0.0, 0.0, -1.0};
             Portal_Move(p, pos);
@@ -2315,9 +2322,9 @@ void World_GenEntities(class VT_Level *tr)
         entity->state_flags &= (tr_item->flags & 0x0100) ? (~ENTITY_STATE_VISIBLE) : (0xFFFF);
 
         entity->self->collision_group = COLLISION_GROUP_KINEMATIC;
-        entity->self->collision_mask = COLLISION_MASK_ALL;
+        entity->self->collision_mask  = COLLISION_MASK_ALL;
         entity->self->collision_shape = COLLISION_SHAPE_TRIMESH;
-        entity->move_type          = MOVE_STATIC_POS;
+        entity->move_type             = MOVE_STATIC_POS;
 
         entity->bf->animations.model = World_GetModelByID(tr_item->object_id);
 
@@ -2456,7 +2463,10 @@ void World_GenEntities(class VT_Level *tr)
             }
             Entity_SetAnimation(global_world.Character, ANIM_TYPE_BASE, TR_ANIMATION_LARA_STAY_IDLE, 0);
             Physics_GenRigidBody(entity->physics, entity->bf);
+            Entity_UpdateRigidBody(entity, 1);
             Character_Create(entity);
+            Room_AddObject(entity->self->room, entity->self);
+
             entity->character->Height = 768.0;
             entity->character->state_func = State_Control_Lara;
             entity->character->height_info.leg_l_index = LEFT_LEG;
@@ -2488,7 +2498,18 @@ void World_GenBaseItems()
 
     if(global_world.items_tree && global_world.items_tree->root)
     {
-        World_MakeEntityItems(global_world.items_tree->root);
+        for(uint32_t i = 0; i < global_world.rooms_count; i++)
+        {
+            engine_container_p cont = global_world.rooms[i].content->containers;
+            for(; cont; cont = cont->next)
+            {
+                if(cont->object_type == OBJECT_ENTITY)
+                {
+                    int done = 0;
+                    World_MakeEntityPickable(global_world.items_tree->root, (entity_p)cont->object, &done);
+                }
+            }
+        }
     }
 }
 
@@ -2710,41 +2731,29 @@ void World_FixRooms()
 }
 
 
-void World_MakeEntityItems(struct RedBlackNode_s *n)
+void World_MakeEntityPickable(struct RedBlackNode_s *n, entity_p ent, int *done)
 {
     base_item_p item = (base_item_p)n->data;
 
-    if(item == NULL)
+    if(!*done && ent && ent->bf->animations.model)
     {
-        return;
-    }
-
-    for(uint32_t i = 0; i < global_world.rooms_count; i++)
-    {
-        engine_container_p cont = global_world.rooms[i].content->containers;
-        for(; cont; cont = cont->next)
+        if(item && (ent->bf->animations.model->id == item->world_model_id))
         {
-            if(cont->object_type == OBJECT_ENTITY)
-            {
-                entity_p ent = (entity_p)cont->object;
-                if(ent->bf->animations.model->id == item->world_model_id)
-                {
-                    char buf[128] = {0};
-                    snprintf(buf, 128, "if(entity_funcs[%d] == nil) then entity_funcs[%d] = {}; pickup_init(%d, %d); end", ent->id, ent->id, ent->id, item->id);
-                    luaL_dostring(engine_lua, buf);
-                    Entity_DisableCollision(ent);
-                }
-            }
+            char buf[128] = {0};
+            snprintf(buf, 128, "if(entity_funcs[%d] == nil) then entity_funcs[%d] = {}; pickup_init(%d, %d); end", ent->id, ent->id, ent->id, item->id);
+            luaL_dostring(engine_lua, buf);
+            Entity_DisableCollision(ent);
+            *done = 1;
+            return;
         }
-    }
 
-    if(n->right)
-    {
-        World_MakeEntityItems(n->right);
-    }
-
-    if(n->left)
-    {
-        World_MakeEntityItems(n->left);
+        if(n->right)
+        {
+            World_MakeEntityPickable(n->right, ent, done);
+        }
+        if(n->left)
+        {
+            World_MakeEntityPickable(n->left, ent, done);
+        }
     }
 }

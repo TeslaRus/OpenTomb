@@ -35,7 +35,7 @@ entity_p Entity_Create()
 
     ret->move_type = MOVE_ON_FLOOR;
     Mat4_E(ret->transform);
-    ret->state_flags = ENTITY_STATE_ENABLED | ENTITY_STATE_ACTIVE | ENTITY_STATE_VISIBLE;
+    ret->state_flags = ENTITY_STATE_ENABLED | ENTITY_STATE_ACTIVE | ENTITY_STATE_VISIBLE | ENTITY_STATE_COLLIDABLE;
     ret->type_flags = ENTITY_TYPE_GENERIC;
     ret->callback_flags = 0x00000000;               // no callbacks by default
 
@@ -203,22 +203,7 @@ void Entity_UpdateRoomPos(entity_p ent)
             new_room = new_sector->owner_room;
         }
 
-        if(!ent->character && (ent->self->room != new_room))
-        {
-            if((ent->self->room != NULL) && !Room_IsOverlapped(ent->self->room, new_room))
-            {
-                if(ent->self->room)
-                {
-                    Room_RemoveObject(ent->self->room, ent->self);
-                }
-                if(new_room)
-                {
-                    Room_AddObject(new_room, ent->self);
-                }
-            }
-        }
-
-        ent->self->room = new_room;
+        Entity_MoveToRoom(ent, new_room);
         ent->last_sector = ent->current_sector;
 
         if(ent->current_sector != new_sector)
@@ -226,6 +211,23 @@ void Entity_UpdateRoomPos(entity_p ent)
             ent->trigger_layout &= (uint8_t)(~ENTITY_TLAYOUT_SSTATUS);          // Reset sector status.
             ent->current_sector = new_sector;
         }
+    }
+}
+
+
+void Entity_MoveToRoom(entity_p entity, struct room_s *new_room)
+{
+    if(entity->self->room != new_room)
+    {
+        if(entity->self->room)
+        {
+            Room_RemoveObject(entity->self->room, entity->self);
+        }
+        if(new_room)
+        {
+            Room_AddObject(new_room, entity->self);
+        }
+        entity->self->room = new_room;
     }
 }
 
@@ -1090,10 +1092,6 @@ void Entity_Frame(entity_p entity, float time)
         }
 
         SSBoneFrame_Update(entity->bf, time);
-        if(entity->character != NULL)
-        {
-            Entity_FixPenetrations(entity, NULL, COLLISION_FILTER_CHARACTER);
-        }
     }
 }
 

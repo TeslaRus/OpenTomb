@@ -44,11 +44,19 @@ end;
 --------------------------------------------------------------------------------
 
 dofile(base_path .. "scripts/entity/entity_functions_common.lua");
+dofile(base_path .. "scripts/entity/entity_functions_switch.lua");
 dofile(base_path .. "scripts/entity/entity_functions_traps.lua");
 dofile(base_path .. "scripts/entity/entity_functions_unique.lua");
 dofile(base_path .. "scripts/entity/entity_functions_enemies.lua");
 dofile(base_path .. "scripts/entity/entity_functions_platforms.lua");
 
+
+function getEntitySaveData(id)
+    if((entity_funcs ~= nil) and (entity_funcs[id] ~= nil) and (entity_funcs[id].onSave ~= nil)) then
+        return entity_funcs[id].onSave();
+    end;
+    return "";
+end;
 
 function gen_soundsource_init(id)    -- Generic sound source (continous)
     setEntityTypeFlag(id, ENTITY_TYPE_GENERIC);
@@ -209,17 +217,3 @@ function fallceiling_init(id)  -- Falling ceiling (TR1-3)
     end
 end
 
-
-function baddie_init(id)    -- INVALID!
-
-    setEntityTypeFlag(id, ENTITY_TYPE_ACTOR);
-    disableEntity(id);
-    
-    entity_funcs[id].onActivate = function(object_id, activator_id)
-        if(not getEntityActivity(object_id)) then 
-            enableEntity(object_id) 
-        end;
-        return ENTITY_TRIGGERING_ACTIVATED;
-    end;
-    
-end

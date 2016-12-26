@@ -1293,11 +1293,11 @@
 		<Unit filename="scripts/entity/entity_functions_common.lua" />
 		<Unit filename="scripts/entity/entity_functions_enemies.lua" />
 		<Unit filename="scripts/entity/entity_functions_platforms.lua" />
+		<Unit filename="scripts/entity/entity_functions_switch.lua" />
 		<Unit filename="scripts/entity/entity_functions_traps.lua" />
 		<Unit filename="scripts/entity/entity_functions_unique.lua" />
 		<Unit filename="scripts/entity/entity_model_ID_override.lua" />
 		<Unit filename="scripts/entity/entity_properties.lua" />
-		<Unit filename="scripts/entity/script_switch.lua" />
 		<Unit filename="scripts/gameflow/TR1.lua">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
@@ -1340,11 +1340,13 @@
 		<Unit filename="scripts/level/tr1/GYM.lua" />
 		<Unit filename="scripts/level/tr1/LEVEL1.lua" />
 		<Unit filename="scripts/level/tr1/LEVEL10A.lua" />
+		<Unit filename="scripts/level/tr1/LEVEL10A_autoexec.lua" />
 		<Unit filename="scripts/level/tr1/LEVEL10B.lua" />
 		<Unit filename="scripts/level/tr1/LEVEL10B_autoexec.lua" />
 		<Unit filename="scripts/level/tr1/LEVEL10C.lua" />
 		<Unit filename="scripts/level/tr1/LEVEL10C_autoexec.lua" />
 		<Unit filename="scripts/level/tr1/LEVEL2.lua" />
+		<Unit filename="scripts/level/tr1/LEVEL2_autoexec.lua" />
 		<Unit filename="scripts/level/tr1/LEVEL3A.lua" />
 		<Unit filename="scripts/level/tr1/LEVEL3A_autoexec.lua" />
 		<Unit filename="scripts/level/tr1/LEVEL3B.lua" />

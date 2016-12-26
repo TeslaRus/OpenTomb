@@ -37,6 +37,23 @@ extern "C" {
 #include "../engine_string.h"
 
 
+void Script_DoFlipEffect(lua_State *lua, int id_effect, int param)
+{
+    int top = lua_gettop(lua);
+
+    lua_getglobal(lua, "doFlipEffect");
+    if(lua_isfunction(lua, -1))
+    {
+        lua_pushinteger(lua, id_effect);
+        lua_pushinteger(lua, param);
+        if(lua_pcall(lua, 2, 0, 0) == LUA_OK)
+        {
+           //
+        }
+    }
+    lua_settop(lua, top);
+}
+
 
 int lua_GetLevelVersion(lua_State *lua)
 {
@@ -491,7 +508,7 @@ int lua_GetLevel(lua_State *lua)
 
 int lua_SetLevel(lua_State *lua)
 {
-    if(lua_gettop(lua) != 1)
+    if(lua_gettop(lua) == 1)
     {
         int id  = lua_tointeger(lua, 1);
         Con_Notify("level was changed to %d", id);

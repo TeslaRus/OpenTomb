@@ -54,6 +54,26 @@ int Script_ExecEntity(lua_State *lua, int id_callback, int id_object, int id_act
 }
 
 
+size_t Script_GetEntitySaveData(lua_State *lua, int id_entity, char *buf, size_t buf_size)
+{
+    int top = lua_gettop(lua);
+    size_t ret = 0;
+
+    lua_getglobal(lua, "getEntitySaveData");
+    if(lua_isfunction(lua, -1))
+    {
+        lua_pushinteger(lua, id_entity);
+        if((lua_pcall(lua, 1, 1, 0) == LUA_OK) && lua_isstring(lua, -1))
+        {
+            strncpy(buf, lua_tolstring(lua, -1, &ret), buf_size);
+        }
+    }
+    lua_settop(lua, top);
+
+    return ret;
+}
+
+
 void Script_LoopEntity(lua_State *lua, int object_id)
 {
     entity_p ent = World_GetEntityByID(object_id);
@@ -172,71 +192,6 @@ int lua_DisableEntity(lua_State * lua)
     else
     {
         Con_Warning("disableEntity: Expecting arguments (entity_id)");
-    }
-
-    return 0;
-}
-
-
-int lua_SetEntityCollision(lua_State * lua)
-{
-    int top = lua_gettop(lua);
-
-    if(top >= 1)
-    {
-        entity_p ent = World_GetEntityByID(lua_tointeger(lua, 1));
-        if(ent)
-        {
-            if((top >= 2) && (lua_toboolean(lua, 2)))
-            {
-                Entity_EnableCollision(ent);
-            }
-            else
-            {
-                Entity_DisableCollision(ent);
-            }
-        }
-    }
-    else
-    {
-        Con_Warning("setEntityCollision: Expecting arguments (entity_id)");
-    }
-
-    return 0;
-}
-
-
-int lua_SetEntityGhostCollisionShape(lua_State * lua)
-{
-    if(lua_gettop(lua) >= 9)
-    {
-        entity_p ent = World_GetEntityByID(lua_tointeger(lua, 1));
-        if(ent)
-        {
-            uint16_t ghost_index = lua_tointeger(lua, 2);
-            base_mesh_p mesh = ent->bf->bone_tags[ghost_index].mesh_base;
-            ghost_shape_t shape;
-            shape.shape_id = lua_tointeger(lua, 3);
-            shape.bb_min[0] = (!lua_isnil(lua, 4) || !mesh) ? (lua_tonumber(lua, 4)) : (mesh->bb_min[0]);
-            shape.bb_min[1] = (!lua_isnil(lua, 5) || !mesh) ? (lua_tonumber(lua, 5)) : (mesh->bb_min[1]);
-            shape.bb_min[2] = (!lua_isnil(lua, 6) || !mesh) ? (lua_tonumber(lua, 6)) : (mesh->bb_min[2]);
-            shape.bb_max[0] = (!lua_isnil(lua, 7) || !mesh) ? (lua_tonumber(lua, 7)) : (mesh->bb_max[0]);
-            shape.bb_max[1] = (!lua_isnil(lua, 8) || !mesh) ? (lua_tonumber(lua, 8)) : (mesh->bb_max[1]);
-            shape.bb_max[2] = (!lua_isnil(lua, 9) || !mesh) ? (lua_tonumber(lua, 9)) : (mesh->bb_max[2]);
-            vec3_add(shape.offset, shape.bb_min, shape.bb_max);
-            shape.offset[0] *= 0.5f;
-            shape.offset[1] *= 0.5f;
-            shape.offset[2] *= 0.5f;
-            Physics_SetGhostCollisionShape(ent->physics, ent->bf, ghost_index, &shape);
-        }
-        else
-        {
-            Con_Warning("no entity with id = %d", lua_tointeger(lua, 1));
-        }
-    }
-    else
-    {
-        Con_Warning("setEntityGhostCollisionShape: expecting arguments (entity_id, shape_index, min_x, min_y, min_z, max_x, max_y, max_z)");
     }
 
     return 0;
@@ -456,6 +411,37 @@ int lua_GetEntityDirDot(lua_State * lua)
     else
     {
         Con_Warning("getEntityDirDot: expecting arguments (id1, id2)");
+    }
+
+    return 0;
+}
+
+
+int lua_GetEntityRoom(lua_State * lua)
+{
+    if(lua_gettop(lua) >= 1)
+    {
+        entity_p ent = World_GetEntityByID(lua_tointeger(lua, 1));
+        if(ent)
+        {
+            if(ent->self->room)
+            {
+                lua_pushinteger(lua, ent->self->room->id);
+            }
+            else
+            {
+                lua_pushnil(lua);
+            }
+            return 1;
+        }
+        else
+        {
+            Con_Warning("no entity with id = %d", lua_tointeger(lua, 1));
+        }
+    }
+    else
+    {
+        Con_Warning("getEntityRoom: expecting arguments (entity_id)");
     }
 
     return 0;
@@ -1700,11 +1686,7 @@ int lua_SetEntityRoomMove(lua_State * lua)
             room_p room = NULL;
             if(!lua_isnil(lua, 2) && (room = World_GetRoomByID(lua_tointeger(lua, 2))))
             {
-                if(ent == World_GetPlayer())
-                {
-                    ent->self->room = room;
-                }
-                else if(ent->self->room != room)
+                if(ent->self->room != room)
                 {
                     if(ent->self->room != NULL)
                     {
@@ -1740,6 +1722,71 @@ int lua_SetEntityRoomMove(lua_State * lua)
 /*
  * physics routine
  */
+int lua_SetEntityCollision(lua_State * lua)
+{
+    int top = lua_gettop(lua);
+
+    if(top >= 1)
+    {
+        entity_p ent = World_GetEntityByID(lua_tointeger(lua, 1));
+        if(ent)
+        {
+            if((top >= 2) && (lua_toboolean(lua, 2)))
+            {
+                Entity_EnableCollision(ent);
+            }
+            else
+            {
+                Entity_DisableCollision(ent);
+            }
+        }
+    }
+    else
+    {
+        Con_Warning("setEntityCollision: Expecting arguments (entity_id, val)");
+    }
+
+    return 0;
+}
+
+
+int lua_SetEntityGhostCollisionShape(lua_State * lua)
+{
+    if(lua_gettop(lua) >= 9)
+    {
+        entity_p ent = World_GetEntityByID(lua_tointeger(lua, 1));
+        if(ent)
+        {
+            uint16_t ghost_index = lua_tointeger(lua, 2);
+            base_mesh_p mesh = ent->bf->bone_tags[ghost_index].mesh_base;
+            ghost_shape_t shape;
+            shape.shape_id = lua_tointeger(lua, 3);
+            shape.bb_min[0] = (!lua_isnil(lua, 4) || !mesh) ? (lua_tonumber(lua, 4)) : (mesh->bb_min[0]);
+            shape.bb_min[1] = (!lua_isnil(lua, 5) || !mesh) ? (lua_tonumber(lua, 5)) : (mesh->bb_min[1]);
+            shape.bb_min[2] = (!lua_isnil(lua, 6) || !mesh) ? (lua_tonumber(lua, 6)) : (mesh->bb_min[2]);
+            shape.bb_max[0] = (!lua_isnil(lua, 7) || !mesh) ? (lua_tonumber(lua, 7)) : (mesh->bb_max[0]);
+            shape.bb_max[1] = (!lua_isnil(lua, 8) || !mesh) ? (lua_tonumber(lua, 8)) : (mesh->bb_max[1]);
+            shape.bb_max[2] = (!lua_isnil(lua, 9) || !mesh) ? (lua_tonumber(lua, 9)) : (mesh->bb_max[2]);
+            vec3_add(shape.offset, shape.bb_min, shape.bb_max);
+            shape.offset[0] *= 0.5f;
+            shape.offset[1] *= 0.5f;
+            shape.offset[2] *= 0.5f;
+            Physics_SetGhostCollisionShape(ent->physics, ent->bf, ghost_index, &shape);
+        }
+        else
+        {
+            Con_Warning("no entity with id = %d", lua_tointeger(lua, 1));
+        }
+    }
+    else
+    {
+        Con_Warning("setEntityGhostCollisionShape: expecting arguments (entity_id, shape_index, min_x, min_y, min_z, max_x, max_y, max_z)");
+    }
+
+    return 0;
+}
+
+
 int lua_SetEntityCollisionFlags(lua_State * lua)
 {
     if(lua_gettop(lua) >= 4)
@@ -2059,6 +2106,7 @@ int lua_DropEntity(lua_State * lua)
 
             Mat4_vec3_mul_macro(from, ent->transform, ent->bf->centre);
             vec3_add(to, from, move);
+            from[2] += 32.0f;
             to[2] -= (ent->bf->bb_max[2] - ent->bf->bb_min[2]);
 
             if(Physics_RayTest(&cb, from, to, ent->self, filter))
@@ -2226,6 +2274,7 @@ void Script_LuaRegisterEntityFuncs(lua_State *lua)
     lua_register(lua, "getEntityVector", lua_GetEntityVector);
     lua_register(lua, "getEntityDirDot", lua_GetEntityDirDot);
     lua_register(lua, "getEntityDistance", lua_GetEntityDistance);
+    lua_register(lua, "getEntityRoom", lua_GetEntityRoom);
     lua_register(lua, "getEntityPos", lua_GetEntityPosition);
     lua_register(lua, "setEntityPos", lua_SetEntityPosition);
     lua_register(lua, "getEntityAngles", lua_GetEntityAngles);
@@ -2236,8 +2285,6 @@ void Script_LuaRegisterEntityFuncs(lua_State *lua)
     lua_register(lua, "setEntitySpeed", lua_SetEntitySpeed);
     lua_register(lua, "setEntityLinearSpeed", lua_SetEntityLinearSpeed);
     lua_register(lua, "getEntitySpeedLinear", lua_GetEntitySpeedLinear);
-    lua_register(lua, "setEntityCollision", lua_SetEntityCollision);
-    lua_register(lua, "setEntityGhostCollisionShape", lua_SetEntityGhostCollisionShape);
     lua_register(lua, "setEntityBodyPartFlag", lua_SetEntityBodyPartFlag);
     lua_register(lua, "getEntityVisibility", lua_GetEntityVisibility);
     lua_register(lua, "setEntityVisibility", lua_SetEntityVisibility);
@@ -2279,6 +2326,8 @@ void Script_LuaRegisterEntityFuncs(lua_State *lua)
     lua_register(lua, "getEntitySectorFlags", lua_GetEntitySectorFlags);
     lua_register(lua, "getEntitySectorMaterial", lua_GetEntitySectorMaterial);
 
+    lua_register(lua, "setEntityCollision", lua_SetEntityCollision);
+    lua_register(lua, "setEntityGhostCollisionShape", lua_SetEntityGhostCollisionShape);
     lua_register(lua, "setEntityCollisionFlags", lua_SetEntityCollisionFlags);
     lua_register(lua, "setEntityCollisionGroup", lua_SetEntityCollisionGroup);
     lua_register(lua, "createGhosts", lua_CreateGhosts);

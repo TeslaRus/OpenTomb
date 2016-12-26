@@ -230,7 +230,7 @@ void CRender::UpdateAnimTextures()
  */
 void CRender::GenWorldList(struct camera_s *cam)
 {
-    this->CleanList();                                                          // clear old render list
+    this->CleanList();
     this->dynamicBSP->Reset(m_anim_sequences);
     this->frustumManager->Reset();
     cam->frustum->next = NULL;
@@ -325,12 +325,6 @@ void CRender::DrawList()
 
         m_active_texture = 0;
         this->DrawSkyBox(m_camera->gl_view_proj_mat);
-        entity_p player = World_GetPlayer();
-
-        if(player)
-        {
-            this->DrawEntity(player, m_camera->gl_view_mat, m_camera->gl_view_proj_mat);
-        }
 
         /*
          * room rendering
@@ -393,19 +387,6 @@ void CRender::DrawList()
             }
         }
 
-        if(player && (player->bf->animations.model->transparency_flags == MESH_HAS_TRANSPARENCY))
-        {
-            float tr[16];
-            for(uint16_t j = 0; j < player->bf->bone_tag_count; j++)
-            {
-                if(player->bf->bone_tags[j].mesh_base->transparency_polygons != NULL)
-                {
-                    Mat4_Mat4_mul(tr, player->transform, player->bf->bone_tags[j].full_transform);
-                    dynamicBSP->AddNewPolygonList(player->bf->bone_tags[j].mesh_base->transparency_polygons, tr, m_camera->frustum);
-                }
-            }
-        }
-
         if(dynamicBSP->m_root->polygons_front && (dynamicBSP->m_vbo != 0))
         {
             const unlit_tinted_shader_description *shader = shaderManager->getRoomShader(false, false);
@@ -439,11 +420,6 @@ void CRender::DrawListDebugLines()
     if(r_flags && m_camera)
     {
         debugDrawer->SetDrawFlags(r_flags);
-
-        if(World_GetPlayer())
-        {
-            debugDrawer->DrawEntityDebugLines(World_GetPlayer());
-        }
 
         /*
          * Render world debug information
@@ -930,7 +906,7 @@ void CRender::DrawRoom(struct room_s *room, const float modelViewMatrix[16], con
     {
         for(uint16_t i = 0; i < room->overlapped_room_list_size; i++)
         {
-            if(room->overlapped_room_list[i]->is_in_r_list)
+            if(room->overlapped_room_list[i]->real_room->is_in_r_list)
             {
                 need_stencil = true;
                 break;
@@ -1000,6 +976,13 @@ void CRender::DrawRoom(struct room_s *room, const float modelViewMatrix[16], con
         qglUniformMatrix4fvARB(shader->model_view_projection, 1, false, modelViewProjectionTransform);
         this->DrawMesh(room->content->mesh, NULL, NULL);
     }
+
+#if STENCIL_FRUSTUM
+    if(need_stencil)
+    {
+        qglDisable(GL_STENCIL_TEST);
+    }
+#endif
 
     if (room->content->static_mesh_count > 0)
     {
@@ -1089,13 +1072,6 @@ void CRender::DrawRoom(struct room_s *room, const float modelViewMatrix[16], con
             }
         }
     }
-
-#if STENCIL_FRUSTUM
-    if(need_stencil)
-    {
-        qglDisable(GL_STENCIL_TEST);
-    }
-#endif
 }
 
 

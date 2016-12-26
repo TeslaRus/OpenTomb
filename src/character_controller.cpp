@@ -80,6 +80,7 @@ void Character_Create(struct entity_s *ent)
             ret->parameters.param[i] = 0.0;
             ret->parameters.maximum[i] = 0.0;
         }
+        ret->parameters.maximum[PARAM_HIT_DAMAGE] = 9999.0;
 
         ret->sphere = CHARACTER_BASE_RADIUS;
         ret->climb_sensor = ent->character->climb_r;
@@ -109,6 +110,7 @@ void Character_Create(struct entity_s *ent)
         ret->traversed_object = NULL;
 
         ent->self->collision_group = COLLISION_GROUP_CHARACTERS;
+        Physics_SetCollisionGroup(ent->physics, COLLISION_GROUP_CHARACTERS);
         ent->self->collision_mask = COLLISION_GROUP_STATIC_ROOM | COLLISION_GROUP_STATIC_OBLECT | COLLISION_GROUP_KINEMATIC |
                                     COLLISION_GROUP_CHARACTERS | COLLISION_GROUP_DYNAMICS | COLLISION_GROUP_DYNAMICS_NI | COLLISION_GROUP_TRIGGERS;
         Physics_CreateGhosts(ent->physics, ent->bf, NULL);
@@ -147,6 +149,34 @@ void Character_Clean(struct entity_s *ent)
     free(ent->character);
     ent->character = NULL;
 }
+
+
+void Character_Update(struct entity_s *ent)
+{
+    const uint16_t mask = ENTITY_STATE_ENABLED | ENTITY_STATE_ACTIVE;
+    if(mask == (ent->state_flags & mask))
+    {
+        if(ent->character->cmd.action && (ent->type_flags & ENTITY_TYPE_TRIGGER_ACTIVATOR))
+        {
+            Entity_CheckActivators(ent);
+        }
+        if(Character_GetParam(ent, PARAM_HEALTH) <= 0.0)
+        {
+            ent->character->resp.kill = 1;                                      // Kill, if no HP.
+        }
+        Character_ApplyCommands(ent);
+
+        Entity_ProcessSector(ent);
+        Character_UpdateParams(ent);
+        Entity_CheckCollisionCallbacks(ent);
+
+        for(int h = 0; h < ent->character->hair_count; h++)
+        {
+            Hair_Update(ent->character->hairs[h], ent->physics);
+        }
+    }
+}
+
 
 /**
  * Calculates character speed, based on direction flag and anim linear speed
@@ -632,7 +662,7 @@ void Character_CheckClimbability(struct entity_s *ent, struct climb_info_s *clim
     if(ent->current_sector && ent->current_sector->room_above &&
        ent->current_sector->room_above->bb_min[2] < test_from[2] + 256.0f)
     {
-        ent->self->room = ent->current_sector->room_above->real_room;
+        Entity_MoveToRoom(ent, ent->current_sector->room_above->real_room);
     }
 
     climb->height_info = CHARACTER_STEP_HORIZONTAL;
@@ -2034,6 +2064,11 @@ void Character_ApplyCommands(struct entity_s *ent)
     ent->no_fix_z = 0x00;
     switch(ent->move_type)
     {
+        case MOVE_KINEMATIC:
+        case MOVE_STATIC_POS:
+            //Entity_FixPenetrations(ent, NULL, COLLISION_FILTER_CHARACTER);
+            break;
+
         case MOVE_ON_FLOOR:
             Character_MoveOnFloor(ent);
             break;
@@ -2063,12 +2098,15 @@ void Character_ApplyCommands(struct entity_s *ent)
             Character_MoveOnWater(ent);
             break;
 
+        case MOVE_FLY:
+            Entity_FixPenetrations(ent, NULL, COLLISION_FILTER_CHARACTER);
+            break;
+
         default:
             ent->move_type = MOVE_ON_FLOOR;
             break;
     };
 
-    Entity_UpdateRigidBody(ent, 1);
     Character_UpdatePlatformPostStep(ent);
 }
 
@@ -2174,12 +2212,12 @@ int Character_SetParam(struct entity_s *ent, int parameter, float value)
 
 float Character_GetParam(struct entity_s *ent, int parameter)
 {
-    if(!ent || !ent->character || (parameter >= PARAM_LASTINDEX))
+    if(ent && ent->character && (parameter < PARAM_LASTINDEX))
     {
-        return 0;
+        return ent->character->parameters.param[parameter];
     }
 
-    return ent->character->parameters.param[parameter];
+    return 0;
 }
 
 int Character_ChangeParam(struct entity_s *ent, int parameter, float value)
@@ -2212,6 +2250,52 @@ int Character_ChangeParam(struct entity_s *ent, int parameter, float value)
     }
 
     return 1;
+}
+
+
+int Character_IsTargetAccessible(struct entity_s *character, struct entity_s *target)
+{
+    collision_result_t cs;
+    float dir[3], t;
+    vec3_sub(dir, target->transform + 12, character->transform + 12);
+    vec3_norm(dir, t);
+    t = vec3_dot(character->transform + 4, dir);
+    return (t > 0.0f) && (!Physics_RayTest(&cs, character->obb->centre, target->obb->centre, character->self, COLLISION_FILTER_CHARACTER) || (cs.obj == target->self));
+}
+
+
+struct entity_s *Character_FindTarget(struct entity_s *ent)
+{
+    entity_p ret = NULL;
+    float max_dot = 0.0f;
+    collision_result_t cs;
+
+    for(int ri = -1; ri < ent->self->room->near_room_list_size; ++ri)
+    {
+        room_p r = (ri >= 0) ? (ent->self->room->near_room_list[ri]) : (ent->self->room);
+        for(engine_container_p cont = r->content->containers; cont; cont = cont->next)
+        {
+            if(cont->object_type == OBJECT_ENTITY)
+            {
+                entity_p target = (entity_p)cont->object;
+                if((target->type_flags & ENTITY_TYPE_ACTOR) && (target->state_flags & ENTITY_STATE_ACTIVE) &&
+                   (!target->character || (target->character->parameters.param[PARAM_HEALTH] > 0.0f)))
+                {
+                    float dir[3], t;
+                    vec3_sub(dir, target->transform + 12, ent->transform + 12);
+                    vec3_norm(dir, t);
+                    t = vec3_dot(ent->transform + 4, dir);
+                    if((t > max_dot) && (!Physics_RayTest(&cs, ent->obb->centre, target->obb->centre, ent->self, COLLISION_FILTER_CHARACTER) || (cs.obj == target->self)))
+                    {
+                        max_dot = t;
+                        ret = target;
+                    }
+                }
+            }
+        }
+    }
+
+    return ret;
 }
 
 
@@ -2564,6 +2648,11 @@ int Character_DoOneHandWeponFrame(struct entity_s *ent, struct  ss_animation_s *
                     }
                     else
                     {
+                        if(target)
+                        {
+                            ent->character->parameters.param[PARAM_HIT_DAMAGE] = 25.0f;
+                            Script_ExecEntity(engine_lua, ENTITY_CALLBACK_HIT, target->id, ent->id);
+                        }
                         ss_anim->frame_time = dt;
                         ss_anim->current_frame = 0;
                         ss_anim->next_frame = 1;
@@ -2822,6 +2911,11 @@ int Character_DoTwoHandWeponFrame(struct entity_s *ent, struct  ss_animation_s *
                     }
                     else
                     {
+                        if(target)
+                        {
+                            ent->character->parameters.param[PARAM_HIT_DAMAGE] = 180.0f;
+                            Script_ExecEntity(engine_lua, ENTITY_CALLBACK_HIT, target->id, ent->id);
+                        }
                         ss_anim->frame_time = dt;
                         ss_anim->current_frame = 0;
                         ss_anim->next_frame = 1;

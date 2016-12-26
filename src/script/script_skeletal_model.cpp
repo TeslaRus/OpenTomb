@@ -450,6 +450,7 @@ int lua_SetEntityAnim(lua_State * lua)
                     }
                 }
             }
+            SSBoneFrame_Update(ent->bf, 0.0f);
         }
         else
         {
@@ -494,6 +495,26 @@ int lua_GetEntityAnim(lua_State * lua)
     else
     {
         Con_Warning("getEntityAnim: expecting arguments (entity_id, anim_type_id)");
+    }
+
+    return 0;
+}
+
+
+int lua_EntitySSAnimCopy(lua_State * lua)
+{
+    if(lua_gettop(lua) >= 2)
+    {
+        entity_p ent_dest = World_GetEntityByID(lua_tointeger(lua, 1));
+        entity_p ent_src = World_GetEntityByID(lua_tointeger(lua, 2));
+        if(ent_dest && ent_src)
+        {
+            SSBoneFrame_Copy(ent_dest->bf, ent_src->bf);
+        }
+    }
+    else
+    {
+        Con_Warning("entitySSAnimCopy: expecting arguments (id_dest, id_src)");
     }
 
     return 0;
@@ -770,6 +791,7 @@ void Script_LuaRegisterAnimFuncs(lua_State *lua)
 
     lua_register(lua, "getEntityAnim", lua_GetEntityAnim);
     lua_register(lua, "setEntityAnim", lua_SetEntityAnim);
+    lua_register(lua, "entitySSAnimCopy", lua_EntitySSAnimCopy);
     lua_register(lua, "entitySSAnimEnsureExists", lua_EntitySSAnimEnsureExists);
     lua_register(lua, "entitySSAnimSetTarget", lua_EntitySSAnimSetTarget);
     lua_register(lua, "entitySSAnimSetAxisMod", lua_EntitySSAnimSetAxisMod);
