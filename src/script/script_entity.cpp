@@ -74,17 +74,33 @@ size_t Script_GetEntitySaveData(lua_State *lua, int id_entity, char *buf, size_t
 }
 
 
-void Script_LoopEntity(lua_State *lua, int object_id)
+void Script_LoopEntity(lua_State *lua, struct entity_s *ent)
 {
-    entity_p ent = World_GetEntityByID(object_id);
-    if((lua) && (ent->state_flags & ENTITY_STATE_ACTIVE))
+    if(lua && ent && (ent->state_flags & ENTITY_STATE_ACTIVE))
     {
         int top = lua_gettop(lua);
+        int tick_state = TICK_ACTIVE;
+
+        if(ent->timer > 0.0f)
+        {
+            ent->timer -= engine_frame_time;
+            if(ent->timer <= 0.0f)
+            {
+                ent->timer = 0.0f;
+                tick_state = TICK_STOPPED;
+            }
+        }
+        else
+        {
+            tick_state = TICK_IDLE;
+        }
+
         lua_getglobal(lua, "loopEntity");
         if(lua_isfunction(lua, -1))
         {
-            lua_pushinteger(lua, object_id);
-            lua_CallAndLog(lua, 1, 0, 0);
+            lua_pushinteger(lua, ent->id);
+            lua_pushinteger(lua, tick_state);
+            lua_CallAndLog(lua, 2, 0, 0);
         }
         lua_settop(lua, top);
     }
@@ -1826,15 +1842,22 @@ int lua_SetEntityCollisionFlags(lua_State * lua)
 }
 
 
-int lua_SetEntityCollisionGroup(lua_State * lua)
+int lua_SetEntityCollisionGroupAndMask(lua_State * lua)
 {
-    if(lua_gettop(lua) >= 2)
+    if(lua_gettop(lua) >= 3)
     {
         entity_p ent = World_GetEntityByID(lua_tointeger(lua, 1));
         if(ent)
         {
-            ent->self->collision_group = lua_tointeger(lua, 2);
-            Physics_SetCollisionGroup(ent->physics, ent->self->collision_group);
+            if(!lua_isnil(lua, 2))
+            {
+                ent->self->collision_group = lua_tointeger(lua, 2);
+            }
+            if(!lua_isnil(lua, 3))
+            {
+                ent->self->collision_mask = lua_tointeger(lua, 3);
+            }
+            Physics_SetCollisionGroupAndMask(ent->physics, ent->self->collision_group, ent->self->collision_mask);
         }
         else
         {
@@ -1843,7 +1866,7 @@ int lua_SetEntityCollisionGroup(lua_State * lua)
     }
     else
     {
-        Con_Warning("setEntityCollisionGroup: expecting arguments (entity_id, collision_group)");
+        Con_Warning("setEntityCollisionGroupAndMask: expecting arguments (entity_id, collision_group, collision_mask)");
     }
 
     return 0;
@@ -1916,7 +1939,7 @@ int lua_GetEntityCollisionFix(lua_State * lua)
         {
             int16_t filter = lua_tointeger(lua, 2);
             float reaction[3] = {0.0f, 0.0f, 0.0f};
-            Entity_GetPenetrationFixVector(ent, reaction, filter);
+            Entity_GetPenetrationFixVector(ent, reaction, NULL, filter);
 
             bool result = (reaction[0] != 0.0f) || (reaction[1] != 0.0f) || (reaction[2] != 0.0f);
             lua_pushboolean(lua, result);
@@ -2329,7 +2352,7 @@ void Script_LuaRegisterEntityFuncs(lua_State *lua)
     lua_register(lua, "setEntityCollision", lua_SetEntityCollision);
     lua_register(lua, "setEntityGhostCollisionShape", lua_SetEntityGhostCollisionShape);
     lua_register(lua, "setEntityCollisionFlags", lua_SetEntityCollisionFlags);
-    lua_register(lua, "setEntityCollisionGroup", lua_SetEntityCollisionGroup);
+    lua_register(lua, "setEntityCollisionGroupAndMask", lua_SetEntityCollisionGroupAndMask);
     lua_register(lua, "createGhosts", lua_CreateGhosts);
     lua_register(lua, "getEntityGlobalMove", lua_GetEntityGlobalMove);
     lua_register(lua, "getEntityCollisionFix", lua_GetEntityCollisionFix);

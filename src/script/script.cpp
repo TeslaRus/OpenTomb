@@ -27,11 +27,6 @@ extern "C" {
 #include "../character_controller.h"
 
 
-// Entity timer constants
-#define TICK_IDLE           (0)
-#define TICK_STOPPED        (1)
-#define TICK_ACTIVE         (2)
-
 #define LUA_EXPOSE(lua, x) do { lua_pushinteger(lua, x); lua_setglobal(lua, #x); } while(false)
 
 
@@ -920,6 +915,7 @@ void Script_LoadConstants(lua_State *lua)
 
         LUA_EXPOSE(lua, TRIGGER_OP_OR);
         LUA_EXPOSE(lua, TRIGGER_OP_XOR);
+        LUA_EXPOSE(lua, TRIGGER_OP_AND_INV);
 
         LUA_EXPOSE(lua, RESP_KILL);
         LUA_EXPOSE(lua, RESP_VERT_COLLIDE);
@@ -940,6 +936,7 @@ void Script_LoadConstants(lua_State *lua)
 
         LUA_EXPOSE(lua, COLLISION_NONE);
         LUA_EXPOSE(lua, COLLISION_GROUP_ALL);
+        LUA_EXPOSE(lua, COLLISION_MASK_ALL);
         LUA_EXPOSE(lua, COLLISION_GROUP_STATIC_ROOM);
         LUA_EXPOSE(lua, COLLISION_GROUP_STATIC_OBLECT);
         LUA_EXPOSE(lua, COLLISION_GROUP_KINEMATIC);

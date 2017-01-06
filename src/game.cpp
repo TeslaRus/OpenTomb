@@ -18,6 +18,7 @@ extern "C" {
 #include "render/frustum.h"
 #include "render/render.h"
 #include "script/script.h"
+#include "vt/tr_versions.h"
 #include "engine.h"
 #include "physics.h"
 #include "controls.h"
@@ -99,20 +100,6 @@ int lua_noclip(lua_State * lua)
 }
 
 
-int lua_debuginfo(lua_State * lua)
-{
-    if(lua_gettop(lua) == 0)
-    {
-        screen_info.debug_view_state++;
-    }
-    else
-    {
-        screen_info.debug_view_state = lua_tointeger(lua, 1);
-    }
-    return 0;
-}
-
-
 void Game_InitGlobals()
 {
     control_states.free_look_speed = 3000.0;
@@ -127,7 +114,6 @@ void Game_RegisterLuaFunctions(lua_State *lua)
 {
     if(lua != NULL)
     {
-        lua_register(lua, "debuginfo", lua_debuginfo);
         lua_register(lua, "mlook", lua_mlook);
         lua_register(lua, "freelook", lua_freelook);
         lua_register(lua, "cam_distance", lua_cam_distance);
@@ -306,7 +292,13 @@ void Save_Entity(FILE **f, entity_p ent)
                 ss_anim->current_mod[0], ss_anim->current_mod[1], ss_anim->current_mod[2], ss_anim->current_mod[3]);
             fprintf(*f, "\nentitySSAnimSetExtFlags(%d, %d, %d, %d, %d);", ent->id, ss_anim->type, ss_anim->enabled,
                 ss_anim->anim_ext_flags, ss_anim->targeting_flags);
+            fprintf(*f, "\nentitySSAnimSetEnable(%d, %d, %d);", ent->id, ss_anim->type, ss_anim->enabled);
         }
+    }
+
+    if(ent->no_fix_all)
+    {
+        fprintf(*f, "\nnoFixEntityCollision(%d);", ent->id);
     }
 }
 
@@ -358,6 +350,16 @@ int Game_Save(const char* name)
     {
         fprintf(f, "setFlipMap(%d, 0x%02X, 0);\n", i, flip_map[i]);
         fprintf(f, "setFlipState(%d, %d);\n", i, flip_state[i]);
+    }
+    if(World_GetVersion() < TR_IV)
+    {
+        fprintf(f, "setGlobalFlipState(%d);\n", (int)World_GetGlobalFlipState());
+    }
+
+    char save_buffer[32768] = {0};
+    if(Script_GetFlipEffectsSaveData(engine_lua, save_buffer, sizeof(save_buffer)) > 0)
+    {
+        fprintf(f, "\n%s\n", save_buffer);
     }
 
     Save_Entity(&f, World_GetPlayer());    // Save Lara.
@@ -476,6 +478,7 @@ void Game_ApplyControls(struct entity_s *ent)
         Entity_UpdateRoomPos(ent);
         Entity_UpdateRigidBody(ent, 1);
         Entity_GhostUpdate(ent);
+        Entity_FixPenetrations(ent, NULL, COLLISION_FILTER_CHARACTER);
     }
     else
     {
@@ -550,7 +553,7 @@ void Game_UpdateAllEntities(struct RedBlackNode_s *x)
         if(ent->state_flags & ENTITY_STATE_ENABLED)
         {
             Entity_ProcessSector(ent);
-            Script_LoopEntity(engine_lua, ent->id);
+            Script_LoopEntity(engine_lua, ent);
         }
         Entity_Frame(ent, engine_frame_time);
         Entity_UpdateRigidBody(ent, ent->character != NULL);
