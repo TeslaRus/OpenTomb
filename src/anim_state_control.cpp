@@ -1997,6 +1997,11 @@ int State_Control_Lara(struct entity_s *ent, struct ss_animation_s *ss_anim)
             }
             break;
 
+        case TR_STATE_LARA_ZIPLINE_RIDE:
+            ss_anim->next_state = (clean_action) ? (TR_STATE_LARA_ZIPLINE_RIDE) : (TR_STATE_LARA_JUMP_FORWARD);
+            ent->speed[2] = 0.0f;
+            break;
+
         case TR_STATE_LARA_LADDER_IDLE:
             cmd->rot[0] = 0;
             ent->dir_flag = ENT_STAY;
@@ -2145,7 +2150,7 @@ int State_Control_Lara(struct entity_s *ent, struct ss_animation_s *ss_anim)
             break;
 
         case TR_STATE_LARA_SHIMMY_LEFT:
-            ent->no_fix_skeletal_parts = BODY_PART_LEGS_3 | BODY_PART_HANDS_3 | BODY_PART_HEAD;
+            ent->no_fix_skeletal_parts = BODY_PART_LEGS_2 | BODY_PART_LEGS_3 | BODY_PART_HANDS_3 | BODY_PART_HEAD;
 
             cmd->rot[0] = 0;
             ent->dir_flag = ENT_MOVE_LEFT;
@@ -2220,7 +2225,7 @@ int State_Control_Lara(struct entity_s *ent, struct ss_animation_s *ss_anim)
             break;
 
         case TR_STATE_LARA_SHIMMY_RIGHT:
-            ent->no_fix_skeletal_parts = BODY_PART_LEGS_3 | BODY_PART_HANDS_3 | BODY_PART_HEAD;
+            ent->no_fix_skeletal_parts = BODY_PART_LEGS_2 | BODY_PART_LEGS_3 | BODY_PART_HANDS_3 | BODY_PART_HEAD;
 
             cmd->rot[0] = 0;
             ent->dir_flag = ENT_MOVE_RIGHT;

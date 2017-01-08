@@ -6714,7 +6714,7 @@
 	"../alMain.h"
 	"../alThunk.h"
 
-1480241733 source:d:\dev\opentomb\src\anim_state_control.cpp
+1483818621 source:d:\dev\opentomb\src\anim_state_control.cpp
 	<stdlib.h>
 	<stdio.h>
 	"core/system.h"
@@ -9024,7 +9024,7 @@
 	"camera.h"
 	"frustum.h"
 
-1480172807 source:d:\dev\opentomb\src\character_controller.cpp
+1483870336 source:d:\dev\opentomb\src\character_controller.cpp
 	<stdlib.h>
 	"core/vmath.h"
 	"core/console.h"
@@ -9071,7 +9071,7 @@
 	"script.h"
 	"world.h"
 
-1480230553 source:d:\dev\opentomb\src\controls.cpp
+1483621719 source:d:\dev\opentomb\src\controls.cpp
 	<stdlib.h>
 	<SDL2/SDL.h>
 	<SDL2/SDL_platform.h>
@@ -9193,7 +9193,7 @@
 	<stdlib.h>
 	"vmath.h"
 
-1480172855 source:d:\dev\opentomb\src\engine.cpp
+1483782795 source:d:\dev\opentomb\src\engine.cpp
 	<SDL2/SDL.h>
 	<SDL2/SDL_platform.h>
 	<SDL2/SDL_opengl.h>
@@ -9206,6 +9206,7 @@
 	<lauxlib.h>
 	<al.h>
 	<alc.h>
+	<GL/gl.h>
 	"core/system.h"
 	"core/gl_util.h"
 	"core/gl_font.h"
@@ -9234,6 +9235,7 @@
 	"trigger.h"
 	"character_controller.h"
 	"render/bsp_tree.h"
+	"render/shader_manager.h"
 	"image.h"
 
 1476704527 d:\dev\opentomb\src\gameflow.h
@@ -9313,7 +9315,7 @@
 	"engine.h"
 	"entity.h"
 
-1480172873 source:d:\dev\opentomb\src\entity.cpp
+1483888247 source:d:\dev\opentomb\src\entity.cpp
 	<stdlib.h>
 	<math.h>
 	<lua.h>
@@ -10963,7 +10965,7 @@
 	"render.h"
 	"world.h"
 
-1480172900 source:d:\dev\opentomb\src\game.cpp
+1483691461 source:d:\dev\opentomb\src\game.cpp
 	<stdlib.h>
 	<stdio.h>
 	<lua.h>
@@ -10979,6 +10981,7 @@
 	"render/frustum.h"
 	"render/render.h"
 	"script/script.h"
+	"vt/tr_versions.h"
 	"engine.h"
 	"physics.h"
 	"controls.h"
@@ -11449,7 +11452,7 @@
 	"shader_description.h"
 	"shader_manager.h"
 
-1479236203 source:d:\dev\opentomb\src\resource.cpp
+1483035563 source:d:\dev\opentomb\src\resource.cpp
 	<algorithm>
 	<assert.h>
 	<stdio.h>
@@ -11472,6 +11475,7 @@
 	"render/frustum.h"
 	"render/bordered_texture_atlas.h"
 	"render/shader_description.h"
+	"script/script.h"
 	"vt/vt_level.h"
 	"audio.h"
 	"room.h"
@@ -11480,7 +11484,6 @@
 	"skeletal_model.h"
 	"anim_state_control.h"
 	"character_controller.h"
-	"script.h"
 	"engine.h"
 	"physics.h"
 	"inventory.h"
@@ -11586,7 +11589,7 @@
 	"vt_level.h"
 	<ctype.h>
 
-1478936570 source:d:\dev\opentomb\src\world.cpp
+1483693927 source:d:\dev\opentomb\src\world.cpp
 	<stdio.h>
 	<stdlib.h>
 	<SDL2/SDL.h>
@@ -11605,6 +11608,7 @@
 	"render/frustum.h"
 	"render/render.h"
 	"render/bordered_texture_atlas.h"
+	"script/script.h"
 	"vt/vt_level.h"
 	"audio.h"
 	"room.h"
@@ -11616,7 +11620,6 @@
 	"anim_state_control.h"
 	"engine.h"
 	"physics.h"
-	"script.h"
 	"gui.h"
 	"gameflow.h"
 	"resource.h"
@@ -16479,7 +16482,7 @@
 1482931449 d:\dev\opentomb\src\physics.h
 	<stdint.h>
 
-1479484542 source:d:\dev\opentomb\src\trigger.cpp
+1482761378 source:d:\dev\opentomb\src\trigger.cpp
 	<stdio.h>
 	<stdlib.h>
 	<SDL2/SDL.h>
@@ -16490,9 +16493,9 @@
 	"core/system.h"
 	"core/console.h"
 	"core/vmath.h"
+	"script/script.h"
 	"room.h"
 	"trigger.h"
-	"script.h"
 	"gameflow.h"
 	"game.h"
 	"audio.h"
@@ -16502,7 +16505,7 @@
 	"anim_state_control.h"
 	"world.h"
 
-1480172965 source:d:\dev\opentomb\src\physics_bullet.cpp
+1483547606 source:d:\dev\opentomb\src\physics_bullet.cpp
 	<stdio.h>
 	<stdlib.h>
 	<lua.h>
@@ -22618,7 +22621,7 @@
 1467305130 d:\dev\opentomb\src\image.h
 	<stdint.h>
 
-1480011379 source:d:\dev\opentomb\src\game_camera.cpp
+1483373231 source:d:\dev\opentomb\src\game_camera.cpp
 	<stdlib.h>
 	<stdio.h>
 	"core/vmath.h"
@@ -22644,7 +22647,7 @@
 	<SDL2/SDL_pixels.h>
 	"image.h"
 
-1472661737 d:\dev\opentomb\src\config-opentomb.h
+1483889073 d:\dev\opentomb\src\config-opentomb.h
 
 1482918017 d:\dev\opentomb\src\script\script.h
 
@@ -22685,7 +22688,7 @@
 	"../character_controller.h"
 	"../gui.h"
 
-1482603085 source:d:\dev\opentomb\src\script\script_skeletal_model.cpp
+1483792447 source:d:\dev\opentomb\src\script\script_skeletal_model.cpp
 	<stdio.h>
 	<stdlib.h>
 	<string.h>
@@ -22700,4 +22703,82 @@
 	"../skeletal_model.h"
 	"../entity.h"
 	"../world.h"
+
+1482932606 source:d:\dev\opentomb\src\script\script.cpp
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<lua.h>
+	<lualib.h>
+	<lauxlib.h>
+	"script.h"
+	"../core/system.h"
+	"../core/gl_text.h"
+	"../core/console.h"
+	"../core/vmath.h"
+	"../render/camera.h"
+	"../render/render.h"
+	"../vt/tr_versions.h"
+	"../skeletal_model.h"
+	"../trigger.h"
+	"../entity.h"
+	"../engine.h"
+	"../controls.h"
+	"../game.h"
+	"../gameflow.h"
+	"../character_controller.h"
+
+1482917995 source:d:\dev\opentomb\src\script\script_world.cpp
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<lua.h>
+	<lualib.h>
+	<lauxlib.h>
+	"script.h"
+	"../core/system.h"
+	"../core/gl_text.h"
+	"../core/console.h"
+	"../core/vmath.h"
+	"../core/polygon.h"
+	"../render/camera.h"
+	"../render/render.h"
+	"../vt/tr_versions.h"
+	"../mesh.h"
+	"../skeletal_model.h"
+	"../inventory.h"
+	"../trigger.h"
+	"../room.h"
+	"../entity.h"
+	"../world.h"
+	"../engine.h"
+	"../physics.h"
+	"../controls.h"
+	"../game.h"
+	"../gameflow.h"
+	"../anim_state_control.h"
+	"../character_controller.h"
+	"../gui.h"
+	"../engine_string.h"
+
+1483818269 source:d:\dev\opentomb\src\script\script_entity.cpp
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<lua.h>
+	<lualib.h>
+	<lauxlib.h>
+	"script.h"
+	"../core/system.h"
+	"../core/gl_text.h"
+	"../core/console.h"
+	"../core/vmath.h"
+	"../mesh.h"
+	"../skeletal_model.h"
+	"../trigger.h"
+	"../room.h"
+	"../entity.h"
+	"../world.h"
+	"../engine.h"
+	"../physics.h"
 
