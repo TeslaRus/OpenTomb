@@ -442,7 +442,8 @@ int Entity_GetPenetrationFixVector(struct entity_s *ent, float reaction[3], floa
     {
         float tmp[3], orig_pos[3];
         float tr[16], ghost_tr[16];
-        float from0[3], from[3], to[3], curr[3], move[3], move_len;
+        float from[3], to[3], curr[3], move[3], move_len;
+        float from_parent[3], offset[3];
 
         vec3_copy(orig_pos, ent->transform + 12);
         for(uint16_t i = 0; i < ent->bf->bone_tag_count; i++)
@@ -456,12 +457,8 @@ int Entity_GetPenetrationFixVector(struct entity_s *ent, float reaction[3], floa
             }
 
             Mat4_Mat4_mul(tr, ent->transform, btag->full_transform);
-            if(i == 0)
-            {
-                vec3_copy(from0, tr + 12);
-            }
             // antitunneling condition for main body parts, needs only in move case
-            if((btag->parent == NULL) || ((btag->body_part & (BODY_PART_BODY_LOW | BODY_PART_BODY_UPPER))))
+            if(btag->parent == NULL)
             {
                 Physics_GetGhostWorldTransform(ent->physics, ghost_tr, m);
                 from[0] = ghost_tr[12 + 0] + ent->transform[12 + 0] - orig_pos[0];
@@ -476,21 +473,23 @@ int Entity_GetPenetrationFixVector(struct entity_s *ent, float reaction[3], floa
             }
             else
             {
-                float offset[3];
+                Mat4_vec3_mul(offset, btag->parent->full_transform, btag->parent->mesh_base->centre);
+                Mat4_vec3_mul(from_parent, ent->transform, offset);
+
                 vec3_copy_inv(offset, btag->mesh_base->centre);
                 Mat4_vec3_rot_macro(from, tr, offset);
-                vec3_add_to(from, from0);
+                vec3_add_to(from, from_parent);
             }
 
             vec3_copy(to, tr + 12)
             vec3_copy(curr, from);
             vec3_sub(move, to, from);
             move_len = vec3_abs(move);
-            if((i == 0) && (move_len > 1024.0))                                 ///@FIXME: magick const 1024.0!
+            if((i == 0) && (move_len > 1024.0f))                                ///@FIXME: magick const 1024.0!
             {
                 break;
             }
-            int iter = (float)(2.0 * move_len / btag->mesh_base->R) + 1;        ///@FIXME (not a critical): magick const 2.0!
+            int iter = (float)(2.0f * move_len / btag->mesh_base->radius) + 1;  ///@FIXME (not a critical): magick const 2.0!
             move[0] /= (float)iter;
             move[1] /= (float)iter;
             move[2] /= (float)iter;
@@ -1012,9 +1011,6 @@ void Entity_SetAnimation(entity_p entity, int anim_type, int animation, int fram
                     Mat4_vec3_rot_macro(r1, entity->transform, move);
                     vec3_sub(move, r0, r1);
                     vec3_add(entity->transform + 12, entity->transform + 12, move);
-
-                    Entity_GhostUpdate(entity);
-                    Entity_FixPenetrations(entity, move, COLLISION_FILTER_CHARACTER);
                 }
                 else
                 {
@@ -1024,9 +1020,9 @@ void Entity_SetAnimation(entity_p entity, int anim_type, int animation, int fram
                     {
                         Mat4_Copy(entity->transform, new_transform);
                     }
-                    Entity_GhostUpdate(entity);
-                    Entity_FixPenetrations(entity, NULL, COLLISION_FILTER_CHARACTER);
                 }
+                Entity_GhostUpdate(entity);
+                Entity_FixPenetrations(entity, NULL, COLLISION_FILTER_CHARACTER);
                 entity->anim_linear_speed = entity->bf->animations.model->animations[animation].speed_x;
                 Entity_UpdateRigidBody(entity, 1);
             }
