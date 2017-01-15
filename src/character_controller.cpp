@@ -32,7 +32,6 @@ void Character_Create(struct entity_s *ent)
         const collision_result_t zero_result = {0};
 
         ret = (character_p)malloc(sizeof(character_t));
-        //ret->platform = NULL;
         ret->state_func = NULL;
         ret->inventory = NULL;
         ret->ent = ent;
@@ -53,6 +52,7 @@ void Character_Create(struct entity_s *ent)
         ret->resp.kill = 0x00;
         ret->resp.burn = 0x00;
         ret->resp.slide = 0x00;
+        ret->resp.step_z = 0x00;
 
         ret->cmd.action = 0x00;
         ret->cmd.crouch = 0x00;
@@ -273,77 +273,6 @@ void Character_UpdateCurrentHeight(struct entity_s *ent)
         vec3_copy(hi->hand_r_floor.point, from);
     }
 }
-
-/*
- * Move character to the point where to platfom mowes
- */
-void Character_UpdatePlatformPreStep(struct entity_s *ent)
-{
-#if 0
-    if(ent->character->platform)
-    {
-        engine_container_p cont = (engine_container_p)ent->character->platform->getUserPointer();
-        if(cont && (cont->object_type == OBJECT_ENTITY/* || cont->object_type == OBJECT_BULLET_MISC*/))
-        {
-            float trpl[16];
-            ent->character->platform->getWorldTransform().getOpenGLMatrix(trpl);
-#if 0
-            Mat4_Mat4_mul(new_tr, trpl, ent->character->local_platform);
-            vec3_copy(ent->transform + 12, new_tr + 12);
-#else
-            ///make something with platform rotation
-            Mat4_Mat4_mul(ent->transform, trpl, ent->character->local_platform);
-#endif
-        }
-    }
-#endif
-}
-
-/*
- * Get local character transform relative platfom
- */
-void Character_UpdatePlatformPostStep(struct entity_s *ent)
-{
-#if 0
-    switch(ent->move_type)
-    {
-        case MOVE_ON_FLOOR:
-            if(ent->character->height_info.floor_hit)
-            {
-                ent->character->platform = ent->character->height_info.floor_obj;
-            }
-            break;
-
-        case MOVE_CLIMBING:
-            if(ent->character->climb.edge_hit)
-            {
-                ent->character->platform = ent->character->climb.edge_obj;
-            }
-            break;
-
-        default:
-            ent->character->platform = NULL;
-            break;
-    };
-
-    if(ent->character->platform)
-    {
-        engine_container_p cont = (engine_container_p)ent->character->platform->getUserPointer();
-        if(cont && (cont->object_type == OBJECT_ENTITY/* || cont->object_type == OBJECT_BULLET_MISC*/))
-        {
-            float trpl[16];
-            ent->character->platform->getWorldTransform().getOpenGLMatrix(trpl);
-            /* local_platform = (global_platform ^ -1) x (global_entity); */
-            Mat4_inv_Mat4_affine_mul(ent->character->local_platform, trpl, ent->transform);
-        }
-        else
-        {
-            ent->character->platform = NULL;
-        }
-    }
-#endif
-}
-
 
 /**
  * Start position are taken from ent->transform
@@ -968,6 +897,7 @@ void Character_SetToJump(struct entity_s *ent, float v_vertical, float v_horizon
 
     ent->character->resp.vertical_collide = 0x00;
     ent->character->resp.slide = 0x00;
+    ent->character->resp.step_z = 0x00;
 
     // Apply vertical speed.
     ent->speed[2] = v_vertical * ent->character->linear_speed_mult;
@@ -1115,6 +1045,7 @@ int Character_MoveOnFloor(struct entity_s *ent)
      */
     ent->character->resp.horizontal_collide = 0x00;
     ent->character->resp.vertical_collide = 0x00;
+    ent->character->resp.step_z = 0x00;
     /*
      * check move type
      */
@@ -1249,37 +1180,25 @@ int Character_MoveOnFloor(struct entity_s *ent)
     Entity_GhostUpdate(ent);
     vec3_add(pos, pos, move);
     Entity_FixPenetrations(ent, move, COLLISION_FILTER_CHARACTER);
-    if(ent->character->height_info.floor_hit.hit)
+    Character_UpdateCurrentHeight(ent);
+    if(ent->character->height_info.floor_hit.hit && (ent->character->height_info.floor_hit.point[2] > pos[2] - ent->character->fall_down_height))
     {
-        if(ent->character->height_info.floor_hit.point[2] + ent->character->fall_down_height > pos[2])
-        {
-            float dz_to_land = engine_frame_time * 2400.0;                      ///@FIXME: magick
-            if(pos[2] > ent->character->height_info.floor_hit.point[2] + dz_to_land)
-            {
-                pos[2] -= dz_to_land;
-                Entity_FixPenetrations(ent, NULL, COLLISION_FILTER_CHARACTER);
-            }
-            else if(pos[2] > ent->character->height_info.floor_hit.point[2])
-            {
-                pos[2] = ent->character->height_info.floor_hit.point[2];
-                Entity_FixPenetrations(ent, NULL, COLLISION_FILTER_CHARACTER);
-            }
-        }
-        else
-        {
-            ent->move_type = MOVE_FREE_FALLING;
-            ent->speed[2] = 0.0;
-            Entity_UpdateRoomPos(ent);
-            return 2;
-        }
-        if((pos[2] < ent->character->height_info.floor_hit.point[2]) && (ent->no_fix_all == 0x00))
+        t = pos[2] - ent->character->height_info.floor_hit.point[2];
+        if(t < 0.0f)
         {
             pos[2] = ent->character->height_info.floor_hit.point[2];
             Entity_FixPenetrations(ent, NULL, COLLISION_FILTER_CHARACTER);
             ent->character->resp.vertical_collide |= 0x01;
+            ent->character->resp.step_z = (t < -ent->character->min_step_up_height) ? (0x01) : (0x00);
+            pos[2] = ent->character->height_info.floor_hit.point[2];
+        }
+        else if(t > 0.0f)
+        {
+            ent->character->resp.step_z = (t > ent->character->min_step_up_height) ? (0x02) : (0x00);
+            pos[2] -= engine_frame_time * 2400.0;                               ///@FIXME: magick
         }
     }
-    else if(!(ent->character->resp.vertical_collide & 0x01))
+    else
     {
         ent->move_type = MOVE_FREE_FALLING;
         ent->speed[2] = 0.0;
@@ -2017,7 +1936,6 @@ void Character_ApplyCommands(struct entity_s *ent)
     }
 
     Character_UpdateCurrentHeight(ent);
-    Character_UpdatePlatformPreStep(ent);
 
     if((ent->character->cmd.ready_weapon != 0x00) && (ent->character->current_weapon > 0) && (ent->character->weapon_current_state == WEAPON_STATE_HIDE))
     {
@@ -2074,8 +1992,6 @@ void Character_ApplyCommands(struct entity_s *ent)
             ent->move_type = MOVE_ON_FLOOR;
             break;
     };
-
-    Character_UpdatePlatformPostStep(ent);
 }
 
 void Character_UpdateParams(struct entity_s *ent)

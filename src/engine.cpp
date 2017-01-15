@@ -80,7 +80,7 @@ enum debug_view_state_e
     no_debug = 0,
     player_anim,
     sector_info,
-    room_entities,
+    room_objects,
     bsp_info,
     model_view,
     debug_states_count
@@ -967,7 +967,7 @@ void ShowModelView()
         float subModelView[16], subModelViewProjection[16];
         float *cam_pos = engine_camera.gl_transform + 12;
         animation_frame_p af = sm->animations + test_model.animations.current_animation;
-        const int current_light_number = 1;
+        const int current_light_number = 0;
         const lit_shader_description *shader = renderer.shaderManager->getEntityShader(current_light_number);
 
         if(control_states.look_right || control_states.move_right)
@@ -1031,15 +1031,7 @@ void ShowModelView()
 
         {
             GLfloat ambient_component[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-            GLfloat colors[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-            GLfloat positions[3] = {16384.0f, 16384.0f, 16384.0f};
-            GLfloat innerRadiuses = 128.0f;
-            GLfloat outerRadiuses = 32768.0f;
             qglUniform4fvARB(shader->light_ambient, 1, ambient_component);
-            qglUniform4fvARB(shader->light_color, current_light_number, colors);
-            qglUniform3fvARB(shader->light_position, current_light_number, positions);
-            qglUniform1fvARB(shader->light_inner_radius, current_light_number, &innerRadiuses);
-            qglUniform1fvARB(shader->light_outer_radius, current_light_number, &outerRadiuses);
         }
         renderer.DrawSkeletalModel(shader, &test_model, subModelView, subModelViewProjection);
         renderer.debugDrawer->DrawAxis(4096.0f, tr);
@@ -1219,13 +1211,14 @@ void ShowDebugInfo()
             }
             break;
 
-        case debug_view_state_e::room_entities:
+        case debug_view_state_e::room_objects:
             {
                 entity_p ent = World_GetPlayer();
-                GLText_OutTextXY(30.0f, y += dy, "VIEW: Room entities");
+                GLText_OutTextXY(30.0f, y += dy, "VIEW: Room objects");
                 if(ent && ent->self->room)
                 {
-                    for(engine_container_p cont = ent->self->room->content->containers; cont; cont = cont->next)
+                    room_p r = ent->self->room;
+                    for(engine_container_p cont = r->content->containers; cont; cont = cont->next)
                     {
                         if(cont->object_type == OBJECT_ENTITY)
                         {
@@ -1235,6 +1228,16 @@ void ShowDebugInfo()
                             {
                                 text->x_align = GLTEXT_ALIGN_CENTER;
                             }
+                        }
+                    }
+
+                    for(uint32_t i = 0; i < r->content->static_mesh_count; ++i)
+                    {
+                        static_mesh_p sm = r->content->static_mesh + i;
+                        gl_text_line_p text = renderer.OutTextXYZ(sm->pos[0], sm->pos[1], sm->pos[2], "(static[0x%X])", sm->object_id);
+                        if(text)
+                        {
+                            text->x_align = GLTEXT_ALIGN_CENTER;
                         }
                     }
                 }

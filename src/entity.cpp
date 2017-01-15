@@ -432,7 +432,6 @@ void Entity_GhostUpdate(struct entity_s *ent)
 }
 
 
-///@TODO: make experiment with convexSweepTest with spheres: no more iterative cycles;
 int Entity_GetPenetrationFixVector(struct entity_s *ent, float reaction[3], float ent_move[3], int16_t filter)
 {
     int ret = 0;
@@ -494,7 +493,7 @@ int Entity_GetPenetrationFixVector(struct entity_s *ent, float reaction[3], floa
             move[1] /= (float)iter;
             move[2] /= (float)iter;
 
-            for(int j = 0; j < iter; j++)
+            for(int j = 0; j <= iter; j++)
             {
                 vec3_copy(tr + 12, curr);
                 Physics_SetGhostWorldTransform(ent->physics, tr, m);
