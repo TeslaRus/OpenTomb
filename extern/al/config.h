@@ -34,12 +34,12 @@
 /* Define if we have the strtof function */
 #define HAVE_STRTOF 1
 
-/* Define if we have GCC's destructor attribute 
+/* Define if we have GCC's destructor attribute
  CHECK_C_SOURCE_COMPILES("int foo() __attribute__((destructor));
                              int main() {return 0;}" HAVE_GCC_DESTRUCTOR)*/
 #define HAVE_GCC_DESTRUCTOR 1
 
-/* Define if we have GCC's format attribute 
+/* Define if we have GCC's format attribute
  CHECK_C_SOURCE_COMPILES("int foo(const char *str, ...) __attribute__((format(printf, 1, 2)));
                          int main() {return 0;}" HAVE_GCC_FORMAT)*/
 //#define HAVE_GCC_FORMAT 1
@@ -52,6 +52,8 @@
 
 /* Define if we have malloc.h */
 #define HAVE_MALLOC_H 1
+
+//#define HAVE_ALLOCA_H 1
 
 /* Define if we have cpuid.h */
 #define HAVE_CPUID_H 1

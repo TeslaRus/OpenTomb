@@ -174,7 +174,7 @@ int almtx_init(almtx_t *mtx, int type)
 
         if(type == almtx_recursive)
         {
-            ret = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+            ret = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
 #ifdef HAVE_PTHREAD_MUTEXATTR_SETKIND_NP
             if(ret != 0)
                 ret = pthread_mutexattr_setkind_np(&attr, PTHREAD_MUTEX_RECURSIVE);
@@ -287,7 +287,7 @@ int altimespec_get(struct timespec *ts, int base)
     if(base == AL_TIME_UTC)
     {
         int ret;
-#if _POSIX_TIMERS > 0
+#if __USE_POSIX199309
         ret = clock_gettime(CLOCK_REALTIME, ts);
         if(ret == 0) return base;
 #else /* _POSIX_TIMERS > 0 */
