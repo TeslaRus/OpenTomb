@@ -1903,10 +1903,8 @@
 		<Unit filename="src/gameflow.h">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
-		<Unit filename="src/gui.cpp" />
-		<Unit filename="src/gui.h">
-			<Option target="&lt;{~None~}&gt;" />
-		</Unit>
+		<Unit filename="src/gui/gui.cpp" />
+		<Unit filename="src/gui/gui.h" />
 		<Unit filename="src/image.cpp" />
 		<Unit filename="src/image.h" />
 		<Unit filename="src/inventory.cpp" />
