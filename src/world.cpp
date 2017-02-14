@@ -22,7 +22,7 @@ extern "C" {
 #include "render/render.h"
 #include "render/bordered_texture_atlas.h"
 #include "script/script.h"
-#include "state_control/state_control_Lara.h"
+#include "state_control/state_control.h"
 #include "gui/gui.h"
 #include "vt/vt_level.h"
 #include "audio.h"
@@ -2288,7 +2288,7 @@ void World_GenEntities(class VT_Level *tr)
                 entity->bf->bone_tags[j].mesh_skin = entity->bf->animations.model->mesh_tree[j].mesh_skin;
                 entity->bf->bone_tags[j].mesh_slot = NULL;
             }
-            Entity_SetAnimation(global_world.Character, ANIM_TYPE_BASE, TR_ANIMATION_LARA_STAY_IDLE, 0);
+            Entity_SetAnimation(global_world.Character, ANIM_TYPE_BASE, 103, 0);
             Physics_GenRigidBody(entity->physics, entity->bf);
             Entity_UpdateRigidBody(entity, 1);
             Character_Create(entity);

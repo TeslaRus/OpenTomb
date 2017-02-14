@@ -19,6 +19,7 @@
 #include "../entity.h"
 #include "../character_controller.h"
 #include "state_control_Lara.h"
+#include "state_control.h"
 
 /*
  * WALL CLIMB:
