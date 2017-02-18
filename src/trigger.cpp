@@ -14,6 +14,7 @@ extern "C" {
 #include "core/console.h"
 #include "core/vmath.h"
 #include "script/script.h"
+#include "render/camera.h"
 #include "room.h"
 #include "trigger.h"
 #include "gameflow.h"
@@ -100,6 +101,10 @@ end
 ///@TODO: move here TickEntity with Inversing entity state... see carefully heavy irregular cases
 void Trigger_DoCommands(trigger_header_p trigger, struct entity_s *entity_activator)
 {
+    if(entity_activator && entity_activator->character)
+    {
+        entity_activator->character->state.uw_current = 0x00;
+    }
     if(trigger && entity_activator)
     {
         bool has_non_continuos_triggers = false;
@@ -109,14 +114,17 @@ void Trigger_DoCommands(trigger_header_p trigger, struct entity_s *entity_activa
             switch(command->function)
             {
                 case TR_FD_TRIGFUNC_UWCURRENT:
-                    if((entity_activator->move_type == MOVE_ON_WATER) && entity_activator->character)
+                    if(entity_activator->character)
                     {
-                        ///@TODO: do force dive here!
-                        Entity_MoveToSink(entity_activator, command->operands);
-                    }
-                    else if(entity_activator->move_type == MOVE_UNDERWATER)
-                    {
-                        Entity_MoveToSink(entity_activator, command->operands);
+                        static_camera_sink_p sink = World_GetstaticCameraSink(command->operands);
+                        if(sink && (entity_activator->current_sector != Room_GetSectorRaw(entity_activator->self->room, sink->pos)))
+                        {
+                            if(entity_activator->move_type == MOVE_UNDERWATER)
+                            {
+                                Entity_MoveToSink(entity_activator, sink);
+                            }
+                            entity_activator->character->state.uw_current = 0x01;
+                        }
                     }
                     break;
 
