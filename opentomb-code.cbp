@@ -1811,10 +1811,6 @@
 		<Unit filename="shaders/text.vsh">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
-		<Unit filename="src/anim_state_control.cpp" />
-		<Unit filename="src/anim_state_control.h">
-			<Option target="&lt;{~None~}&gt;" />
-		</Unit>
 		<Unit filename="src/audio.cpp" />
 		<Unit filename="src/audio.h">
 			<Option target="&lt;{~None~}&gt;" />
@@ -1955,6 +1951,14 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/skeletal_model.h" />
+		<Unit filename="src/state_control/state_control.cpp" />
+		<Unit filename="src/state_control/state_control.h" />
+		<Unit filename="src/state_control/state_control_Lara.cpp" />
+		<Unit filename="src/state_control/state_control_Lara.h" />
+		<Unit filename="src/state_control/state_control_bat.cpp" />
+		<Unit filename="src/state_control/state_control_bat.h" />
+		<Unit filename="src/state_control/state_control_wolf.cpp" />
+		<Unit filename="src/state_control/state_control_wolf.h" />
 		<Unit filename="src/trigger.cpp" />
 		<Unit filename="src/trigger.h" />
 		<Unit filename="src/vt/l_common.cpp" />
