@@ -57,7 +57,7 @@ int StateControl_Wolf(struct entity_s *ent, struct ss_animation_s *ss_anim)
             }
             else if(cmd->move[0] > 0)
             {
-                ss_anim->next_state = (cmd->shift) ? (TR_STATE_WOLF_WALK) : (TR_STATE_WOLF_CROUCH);
+                ss_anim->next_state = TR_STATE_WOLF_WALK;
                 ent->dir_flag = ENT_MOVE_FORWARD;
             }
             else if(cmd->action)
@@ -95,10 +95,14 @@ int StateControl_Wolf(struct entity_s *ent, struct ss_animation_s *ss_anim)
                 cmd->rot[0] = 0;
                 ss_anim->next_state = TR_STATE_WOLF_WOOOO;
             }
+            else if(cmd->shift)
+            {
+                ss_anim->next_state = TR_STATE_WOLF_STAY_CROUCH;
+            }
             else
             {
                 ent->dir_flag = ENT_MOVE_FORWARD;
-                ss_anim->next_state = TR_STATE_WOLF_IDLE;
+                ss_anim->next_state = TR_STATE_WOLF_STAY;
             }
             break;
 
@@ -133,6 +137,11 @@ int StateControl_Wolf(struct entity_s *ent, struct ss_animation_s *ss_anim)
                 ent->dir_flag = ENT_MOVE_FORWARD;
                 ss_anim->next_state = (cmd->shift) ? (TR_STATE_WOLF_RUN) : (TR_STATE_WOLF_CROUCH);
             }
+            else if(cmd->roll)
+            {
+                ent->dir_flag = ENT_MOVE_FORWARD;
+                ss_anim->next_state = TR_STATE_WOLF_RUN_RIGHT;
+            }
             else
             {
                 ent->dir_flag = ENT_MOVE_FORWARD;
@@ -154,7 +163,7 @@ int StateControl_Wolf(struct entity_s *ent, struct ss_animation_s *ss_anim)
             else if(cmd->move[0] > 0)
             {
                 ent->dir_flag = ENT_MOVE_FORWARD;
-                ss_anim->next_state = (cmd->shift) ? (TR_STATE_WOLF_RUN) : (TR_STATE_WOLF_CROUCH);
+                ss_anim->next_state = (cmd->shift) ? (TR_STATE_WOLF_CROUCH) : (TR_STATE_WOLF_RUN);
             }
             else
             {
@@ -176,7 +185,7 @@ int StateControl_Wolf(struct entity_s *ent, struct ss_animation_s *ss_anim)
             }
             else
             {
-                ss_anim->next_state = TR_ANIMATION_WOLF_WALK;
+                ss_anim->next_state = TR_STATE_WOLF_RUN;
             }
             break;
 
@@ -201,7 +210,7 @@ int StateControl_Wolf(struct entity_s *ent, struct ss_animation_s *ss_anim)
             }
             break;
 
-        case TR_STATE_WOLF_RUN_LEFT:// 10
+        case TR_STATE_WOLF_RUN_RIGHT:// 10
             if(state->dead)
             {
                 Entity_SetAnimation(ent, ANIM_TYPE_BASE, TR_ANIMATION_WOLF_DEAD2, 0, NULL);
