@@ -56,8 +56,8 @@ tr1_entity_tbl[17] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_S
 tr1_entity_tbl[18] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "trex"};                        -- T-Rex
 tr1_entity_tbl[19] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "raptor"};                      -- Raptor
 tr1_entity_tbl[20] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "winged_mutant"};               -- Winged mutant
-tr1_entity_tbl[21] = {coll = COLLISION_NONE,           shape = COLLISION_SHAPE_TRIMESH_CONVEX, hide = 0x01};         -- (RESPAWN POINT?)
-tr1_entity_tbl[22] = {coll = COLLISION_NONE,           shape = COLLISION_SHAPE_TRIMESH_CONVEX, hide = 0x01};         -- (AI TARGET?)
+tr1_entity_tbl[21] = {coll = COLLISION_NONE,                 shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "mutant_spawner", hide = 0x01}; -- mutant spawner
+tr1_entity_tbl[22] = {coll = COLLISION_NONE,                 shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "mummy_spawner", hide = 0x01};  -- mummy spawner
 tr1_entity_tbl[23] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "centaur"};                     -- Centaur
 tr1_entity_tbl[24] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX};                      -- Mummy
 tr1_entity_tbl[25] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX};                      -- DinoWarrior (UNUSED!)
@@ -65,9 +65,9 @@ tr1_entity_tbl[26] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_S
 tr1_entity_tbl[27] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "Larson"};                      -- Larson
 tr1_entity_tbl[28] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "Pierre"};                      -- Pierre
 tr1_entity_tbl[29] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX};                      -- Skateboard
-tr1_entity_tbl[30] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "baddie"};                      -- Skateboard Kid
-tr1_entity_tbl[31] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "baddie"};                      -- Cowboy
-tr1_entity_tbl[32] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "baddie"};                      -- Mr. T
+tr1_entity_tbl[30] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "skateboardist"};               -- Skateboard Kid
+tr1_entity_tbl[31] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "cowboy"};                      -- Cowboy
+tr1_entity_tbl[32] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "MrT"};                         -- Mr. T
 tr1_entity_tbl[33] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "baddie"};                      -- Natla (winged)
 tr1_entity_tbl[34] = {coll = COLLISION_GROUP_CHARACTERS,     shape = COLLISION_SHAPE_TRIMESH_CONVEX, func = "TorsoBoss"};                   -- Torso Boss
 

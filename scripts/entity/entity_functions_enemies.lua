@@ -477,6 +477,95 @@ function Pierre_init(id)
 end;
 
 
+function cowboy_init(id)
+    baddie_init(id);
+
+    setCharacterParam(id, PARAM_HEALTH, 300, 300);
+    setEntityGhostCollisionShape(id, 0,  COLLISION_SHAPE_SPHERE, -60.0, nil, 0, 60.0, nil, 16.0);   -- base
+    setEntityGhostCollisionShape(id, 7,  COLLISION_SHAPE_BOX, nil, nil, nil, nil, nil, nil);        -- torso
+    setEntityGhostCollisionShape(id, 8,  COLLISION_SHAPE_SPHERE, nil, nil, nil, nil, nil, nil);     -- head
+    setEntityGhostCollisionShape(id, 1,  COLLISION_SHAPE_BOX, nil, nil, nil, nil, nil, nil);        -- leg
+    setEntityGhostCollisionShape(id, 4,  COLLISION_SHAPE_BOX, nil, nil, nil, nil, nil, nil);        -- leg
+    setCharacterStateControlFunctions(id, STATE_FUNCTIONS_COWBOY);
+
+    entity_funcs[id].onHit = function(object_id, activator_id)
+        changeCharacterParam(object_id, PARAM_HEALTH, -getCharacterParam(activator_id, PARAM_HIT_DAMAGE));
+        if(getCharacterParam(object_id, PARAM_HEALTH) == 0) then
+            setCharacterTarget(activator_id, nil);
+            setEntityCollision(object_id, false);
+        end;
+    end;
+end
+
+
+function MrT_init(id)
+    baddie_init(id);
+
+    setCharacterParam(id, PARAM_HEALTH, 300, 300);
+    setEntityGhostCollisionShape(id, 0,  COLLISION_SHAPE_SPHERE, -60.0, nil, 0, 60.0, nil, 16.0);   -- base
+    setEntityGhostCollisionShape(id, 7,  COLLISION_SHAPE_BOX, nil, nil, nil, nil, nil, nil);        -- torso
+    setEntityGhostCollisionShape(id, 8,  COLLISION_SHAPE_SPHERE, nil, nil, nil, nil, nil, nil);     -- head
+    setEntityGhostCollisionShape(id, 1,  COLLISION_SHAPE_BOX, nil, nil, nil, nil, nil, nil);        -- leg
+    setEntityGhostCollisionShape(id, 4,  COLLISION_SHAPE_BOX, nil, nil, nil, nil, nil, nil);        -- leg
+    setCharacterStateControlFunctions(id, STATE_FUNCTIONS_MRT);
+
+    entity_funcs[id].onHit = function(object_id, activator_id)
+        changeCharacterParam(object_id, PARAM_HEALTH, -getCharacterParam(activator_id, PARAM_HIT_DAMAGE));
+        if(getCharacterParam(object_id, PARAM_HEALTH) == 0) then
+            setCharacterTarget(activator_id, nil);
+            setEntityCollision(object_id, false);
+        end;
+    end;
+end
+
+
+function skateboardist_init(id)
+    baddie_init(id);
+    setEntityAnim(id, ANIM_TYPE_BASE, 7, 0);
+    entity_funcs[id].skate_id = nil;
+
+    setCharacterParam(id, PARAM_HEALTH, 300, 300);
+    setEntityGhostCollisionShape(id, 0,  COLLISION_SHAPE_SPHERE, -60.0, nil, 0, 60.0, nil, 16.0);   -- base
+    setEntityGhostCollisionShape(id, 7,  COLLISION_SHAPE_BOX, nil, nil, nil, nil, nil, nil);        -- torso
+    setEntityGhostCollisionShape(id, 8,  COLLISION_SHAPE_SPHERE, nil, nil, nil, nil, nil, nil);     -- head
+    setEntityGhostCollisionShape(id, 1,  COLLISION_SHAPE_BOX, nil, nil, nil, nil, nil, nil);        -- leg
+    setEntityGhostCollisionShape(id, 4,  COLLISION_SHAPE_BOX, nil, nil, nil, nil, nil, nil);        -- leg
+    setCharacterStateControlFunctions(id, STATE_FUNCTIONS_SKATEBOARDIST);
+
+    entity_funcs[id].onSave = function()
+        if(entity_funcs[id].skate_id ~= nil) then
+            return "entity_funcs[" .. id .. "].skate_id = " .. entity_funcs[id].skate_id .. ";\n";
+        end;
+    end;
+
+    entity_funcs[id].onActivate = function(object_id, activator_id)
+        if((getCharacterParam(object_id, PARAM_HEALTH) > 0) and (not getEntityActivity(object_id))) then 
+            enableEntity(object_id);
+            entity_funcs[object_id].skate_id = spawnEntity(29, getEntityRoom(object_id), getEntityPos(object_id));
+            setEntityCollision(entity_funcs[object_id].skate_id, false);
+            setEntityActivity(entity_funcs[object_id].skate_id, true);
+            --print("skate = " .. entity_funcs[object_id].skate_id);
+        end;
+        return ENTITY_TRIGGERING_ACTIVATED;
+    end;
+
+    entity_funcs[id].onHit = function(object_id, activator_id)
+        changeCharacterParam(object_id, PARAM_HEALTH, -getCharacterParam(activator_id, PARAM_HIT_DAMAGE));
+        if(getCharacterParam(object_id, PARAM_HEALTH) == 0) then
+            setCharacterTarget(activator_id, nil);
+            setEntityCollision(object_id, false);
+        end;
+    end;
+
+    entity_funcs[id].onLoop = function(object_id, tick_state)
+        local a, f = getEntityAnim(object_id, ANIM_TYPE_BASE);
+        setEntityAnim(entity_funcs[object_id].skate_id, ANIM_TYPE_BASE, a, f);
+        entitySSAnimCopy(entity_funcs[object_id].skate_id, object_id);
+        setEntityPos(entity_funcs[object_id].skate_id, getEntityPos(object_id));
+    end;
+end
+
+
 function TorsoBoss_init(id)
     baddie_init(id);
     setCharacterParam(id, PARAM_HEALTH, 500, 500);
@@ -508,6 +597,60 @@ function TorsoBoss_init(id)
         end;
     end;
 end;
+
+
+function mummy_init(id)
+    winged_mutant_init(id);
+    setEntityGhostCollisionShape(id,  15,  COLLISION_SHAPE_BOX, 0, 0, 0, 0, 0, 0);  -- wing
+    setEntityGhostCollisionShape(id,  18,  COLLISION_SHAPE_BOX, 0, 0, 0, 0, 0, 0);  -- wing
+    --TODO: delete wings!!!
+end
+
+
+function mummy_spawner_init(id)
+    entity_funcs[id].spawned_id = nil;
+    
+    entity_funcs[id].onSave = function()
+        if(entity_funcs[id].spawned_id ~= nil) then
+            return "entity_funcs[" .. id .. "].spawned_id = " .. entity_funcs[id].spawned_id .. ";\n";
+        end;
+    end;
+
+    entity_funcs[id].onActivate = function(object_id, activator_id)
+        if(entity_funcs[object_id].spawned_id == nil) then
+            entity_funcs[object_id].spawned_id = spawnEntity(20, getEntityRoom(object_id), getEntityPos(object_id));
+            mummy_init(entity_funcs[object_id].spawned_id);
+            entity_funcs[entity_funcs[object_id].spawned_id].onSave = function()
+                return "mummy_init(" .. entity_funcs[object_id].spawned_id .. ");\n";
+            end;
+            enableEntity(entity_funcs[object_id].spawned_id);
+        end;
+        return ENTITY_TRIGGERING_ACTIVATED;
+    end;
+end
+
+
+function mutant_spawner_init(id)
+    entity_funcs[id].spawned_id = nil;
+    
+    entity_funcs[id].onSave = function()
+        if(entity_funcs[id].spawned_id ~= nil) then
+            return "entity_funcs[" .. id .. "] = " .. entity_funcs[id].spawned_id .. ";\n";
+        end;
+    end;
+
+    entity_funcs[id].onActivate = function(object_id, activator_id)
+        if(entity_funcs[object_id].spawned_id == nil) then
+            entity_funcs[object_id].spawned_id = spawnEntity(20, getEntityRoom(object_id), getEntityPos(object_id));
+            winged_mutant_init(entity_funcs[object_id].spawned_id);
+            entity_funcs[entity_funcs[object_id].spawned_id].onSave = function()
+                return "winged_mutant_init(" .. entity_funcs[object_id].spawned_id .. ");\n";
+            end;
+            enableEntity(entity_funcs[object_id].spawned_id);
+        end;
+        return ENTITY_TRIGGERING_ACTIVATED;
+    end;
+end
 
 
 function MutantEgg_init(id)
