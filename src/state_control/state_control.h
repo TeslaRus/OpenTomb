@@ -25,6 +25,9 @@ struct entity_s;
 
 #define TR_STATE_CURRENT (-1)
 
+#define ANIMATION_KEY_INIT          (0)
+#define ANIMATION_KEY_DEAD          (1)
+
 void StateControl_SetStateFunctions(struct entity_s *ent, int functions_id);
 
 #endif
