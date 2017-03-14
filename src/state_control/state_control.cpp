@@ -58,6 +58,13 @@ void StateControl_MrTSetKeyAnim(struct entity_s *ent, struct ss_animation_s *ss_
 int StateControl_Skateboardist(struct entity_s *ent, struct ss_animation_s *ss_anim);
 void StateControl_SkateboardistSetKeyAnim(struct entity_s *ent, struct ss_animation_s *ss_anim, int key_anim);
 
+int StateControl_TorsoBoss(struct entity_s *ent, struct ss_animation_s *ss_anim);
+void StateControl_TorsoBossSetKeyAnim(struct entity_s *ent, struct ss_animation_s *ss_anim, int key_anim);
+
+int StateControl_Natla(struct entity_s *ent, struct ss_animation_s *ss_anim);
+void StateControl_NatlaSetKeyAnim(struct entity_s *ent, struct ss_animation_s *ss_anim, int key_anim);
+
+
 void StateControl_SetStateFunctions(struct entity_s *ent, int functions_id)
 {
     if(ent && ent->character)
@@ -153,6 +160,16 @@ void StateControl_SetStateFunctions(struct entity_s *ent, int functions_id)
             case STATE_FUNCTIONS_SKATEBOARDIST:
                 ent->character->state_func = StateControl_Skateboardist;
                 ent->character->set_key_anim_func = StateControl_SkateboardistSetKeyAnim;
+                break;
+                
+            case STATE_FUNCTIONS_TORSO_BOSS:
+                ent->character->state_func = StateControl_TorsoBoss;
+                ent->character->set_key_anim_func = StateControl_TorsoBossSetKeyAnim;
+                break;
+                
+            case STATE_FUNCTIONS_NATLA:
+                ent->character->state_func = StateControl_Natla;
+                ent->character->set_key_anim_func = StateControl_NatlaSetKeyAnim;
                 break;
         }
     }

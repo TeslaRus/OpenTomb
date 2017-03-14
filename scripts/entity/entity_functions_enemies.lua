@@ -568,8 +568,9 @@ end
 
 function TorsoBoss_init(id)
     baddie_init(id);
-    setCharacterParam(id, PARAM_HEALTH, 500, 500);
+    setCharacterParam(id, PARAM_HEALTH, 1500, 1500);
     setEntityGhostCollisionShape(id, 0,  COLLISION_SHAPE_SPHERE, nil, nil, 128, nil, nil, 768);     -- base
+    setCharacterStateControlFunctions(id, STATE_FUNCTIONS_TORSO_BOSS);
 
     enableEntity(id);
     setEntityAnim(id, ANIM_TYPE_BASE, 1, 0);
@@ -597,6 +598,33 @@ function TorsoBoss_init(id)
         end;
     end;
 end;
+
+
+function Natla_init(id)
+    baddie_init(id);
+    setCharacterParam(id, PARAM_HEALTH, 600, 600);
+    setEntityGhostCollisionShape(id,  0,  COLLISION_SHAPE_BOX, nil, nil, nil, nil, nil, nil);
+    setEntityGhostCollisionShape(id,  1,  COLLISION_SHAPE_BOX, nil, nil, nil, nil, nil, nil);
+    setEntityGhostCollisionShape(id,  2,  COLLISION_SHAPE_BOX, nil, nil, nil, nil, nil, nil);
+    setEntityGhostCollisionShape(id,  18,  COLLISION_SHAPE_BOX, nil, nil, nil, nil, nil, nil);  -- leg
+    setCharacterStateControlFunctions(id, STATE_FUNCTIONS_NATLA);
+
+    entity_funcs[id].onHit = function(object_id, activator_id)
+        changeCharacterParam(object_id, PARAM_HEALTH, -getCharacterParam(activator_id, PARAM_HIT_DAMAGE));
+        if(getCharacterParam(object_id, PARAM_HEALTH) == 0) then
+            setCharacterTarget(activator_id, nil);
+            setEntityCollision(object_id, false);
+        end;
+    end;
+
+    --entity_funcs[id].onLoop = function(object_id, tick_state)
+        --if(getCharacterParam(object_id, PARAM_HEALTH) == 0) then
+            --local a, f, c = getEntityAnim(object_id, ANIM_TYPE_BASE);
+            --if(f + 1 >= c) then
+            --end;
+        --end;
+    --end;
+end
 
 
 function mummy_init(id)
@@ -635,7 +663,7 @@ function mutant_spawner_init(id)
     
     entity_funcs[id].onSave = function()
         if(entity_funcs[id].spawned_id ~= nil) then
-            return "entity_funcs[" .. id .. "] = " .. entity_funcs[id].spawned_id .. ";\n";
+            return "entity_funcs[" .. id .. "].spawned_id = " .. entity_funcs[id].spawned_id .. ";\n";
         end;
     end;
 
