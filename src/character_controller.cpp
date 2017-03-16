@@ -52,6 +52,7 @@ void Character_Create(struct entity_s *ent)
         ret->state.step_z = 0x00;
         ret->state.uw_current = 0x00;
         ret->state.dead = 0x00;
+        ret->state.ragdoll = 0x00;
         ret->state.burn = 0x00;
         ret->state.crouch = 0x00;
         ret->state.sprint = 0x00;

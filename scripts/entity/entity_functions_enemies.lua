@@ -634,7 +634,7 @@ function skateboardist_init(id, is_spawned)
             if(is_spawned ~= nil) then
                 sp_save = "skateboardist_init(" .. id .. ", true);\n";
             end;
-            return = sp_save .. "entity_funcs[" .. id .. "].skate_id = " .. entity_funcs[id].skate_id .. ";\n";
+            return sp_save .. "entity_funcs[" .. id .. "].skate_id = " .. entity_funcs[id].skate_id .. ";\n";
         end;
     end;
 

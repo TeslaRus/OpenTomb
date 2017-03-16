@@ -2550,26 +2550,22 @@ void World_FixRooms()
 
 void World_MakeEntityPickable(struct RedBlackNode_s *n, entity_p ent, int *done)
 {
-    base_item_p item = (base_item_p)n->data;
-
-    if(!*done && ent && ent->bf->animations.model)
+    if(n)
     {
-        if(item && (ent->bf->animations.model->id == item->world_model_id))
+        base_item_p item = (base_item_p)n->data;
+        if(!*done && ent && ent->bf->animations.model)
         {
-            char buf[128] = {0};
-            snprintf(buf, 128, "if(entity_funcs[%d] == nil) then entity_funcs[%d] = {}; pickup_init(%d, %d); end", ent->id, ent->id, ent->id, item->id);
-            luaL_dostring(engine_lua, buf);
-            Entity_DisableCollision(ent);
-            *done = 1;
-            return;
-        }
+            if(item && (ent->bf->animations.model->id == item->world_model_id))
+            {
+                char buf[128] = {0};
+                snprintf(buf, 128, "if(entity_funcs[%d] == nil) then entity_funcs[%d] = {}; pickup_init(%d, %d); end", ent->id, ent->id, ent->id, item->id);
+                luaL_dostring(engine_lua, buf);
+                Entity_DisableCollision(ent);
+                *done = 1;
+                return;
+            }
 
-        if(n->right)
-        {
             World_MakeEntityPickable(n->right, ent, done);
-        }
-        if(n->left)
-        {
             World_MakeEntityPickable(n->left, ent, done);
         }
     }
