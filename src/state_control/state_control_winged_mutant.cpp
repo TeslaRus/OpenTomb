@@ -55,7 +55,6 @@ int StateControl_WingedMutant(struct entity_s *ent, struct ss_animation_s *ss_an
     ss_anim->anim_frame_flags = ANIM_NORMAL_CONTROL;
 
     state->sprint = 0x00;
-    state->crouch = 0x00;
 
     switch(current_state)
     {
