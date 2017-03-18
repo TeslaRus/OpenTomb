@@ -146,7 +146,7 @@ int StateControl_WingedMutant(struct entity_s *ent, struct ss_animation_s *ss_an
 
         case TR_STATE_WINGED_MUTANT_FLY:
             ent->move_type = MOVE_FLY;
-            if((cmd->move[0] < 0) && hi->floor_hit.hit && (pos[2] < hi->floor_hit.point[2] + 256.0f))
+            if(cmd->crouch && hi->floor_hit.hit && (pos[2] < hi->floor_hit.point[2] + 256.0f))
             {
                 ent->move_type = MOVE_FREE_FALLING;
                 ss_anim->next_state = TR_STATE_WINGED_MUTANT_STAY;
@@ -157,6 +157,17 @@ int StateControl_WingedMutant(struct entity_s *ent, struct ss_animation_s *ss_an
             }
             break;
     };
+
+    if(state->slide == CHARACTER_SLIDE_BACK)
+    {
+        ent->dir_flag = ENT_MOVE_BACKWARD;
+        ent->anim_linear_speed = 64;
+    }
+    else if(state->slide == CHARACTER_SLIDE_FRONT)
+    {
+        ent->dir_flag = ENT_MOVE_FORWARD;
+        ent->anim_linear_speed = 64;
+    }
 
     return 0;
 }
