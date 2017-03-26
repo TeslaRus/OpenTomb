@@ -798,16 +798,24 @@ function mutant_egg_init(id)
     end;
 
     entity_funcs[id].onLoop = function(object_id, tick_state)
-        local a, f, c = getEntityAnim(object_id, ANIM_TYPE_BASE);
-        if(f + 1 >= c) then
-            setEntityCollision(object_id, false);
-            local spawned_id = spawnEntity(20, getEntityRoom(object_id), getEntityPos(object_id));
-            moveEntityLocal(spawned_id, -512.0, 512.0, 0.0);
-            winged_mutant_init(spawned_id);
-            enableEntity(spawned_id);
+        if(getEntityEvent(object_id) ~= 0) then
+            local a, f, c = getEntityAnim(object_id, ANIM_TYPE_BASE);
+            if((a == 1) and (f + 1 >= c)) then
+                setEntityCollision(object_id, false);
+                local spawned_id = spawnEntity(20, getEntityRoom(object_id), getEntityPos(object_id));
+                moveEntityLocal(spawned_id, -512.0, 512.0, 0.0);
+                winged_mutant_init(spawned_id);
+                enableEntity(spawned_id);
 
-            setEntityActivity(object_id, false);
-            entity_funcs[object_id].onLoop = nil;
+                local i = 1;
+                while(i < 25) do
+                    setEntityBoneVisibility(object_id, i, false);
+                    i = i + 1;
+                end;
+
+                setEntityActivity(object_id, false);
+                entity_funcs[object_id].onLoop = nil;
+            end;
         end;
     end;
 end;
@@ -827,14 +835,22 @@ function mutant_boss_egg_init(id)
         end;
 
         entity_funcs[id].onLoop = function(object_id, tick_state)
-            local a, f, c = getEntityAnim(object_id, ANIM_TYPE_BASE);
-            if(f + 1 >= c) then
-                local spawned_id = spawnEntity(34, getEntityRoom(object_id), getEntityPos(object_id));
-                moveEntityLocal(spawned_id, -512.0, 512.0, -4096.0);
-                TorsoBoss_init(spawned_id);
+            if(getEntityEvent(object_id) ~= 0) then
+                local a, f, c = getEntityAnim(object_id, ANIM_TYPE_BASE);
+                if((a == 1) and (f + 1 >= c)) then
+                    local spawned_id = spawnEntity(34, getEntityRoom(object_id), getEntityPos(object_id));
+                    moveEntityLocal(spawned_id, -512.0, 512.0, -4096.0);
+                    TorsoBoss_init(spawned_id);
 
-                setEntityActivity(object_id, false);
-                entity_funcs[object_id].onLoop = nil;
+                    local i = 1;
+                    while(i < 25) do
+                        setEntityBoneVisibility(object_id, i, false);
+                        i = i + 1;
+                    end;
+
+                    setEntityActivity(object_id, false);
+                    entity_funcs[object_id].onLoop = nil;
+                end;
             end;
         end;
     end;
