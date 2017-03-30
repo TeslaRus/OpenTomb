@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 
-#include "physics.h"
+#include "physics/physics.h"
 
 /*------ Lara's model-------
              .=.

@@ -40,6 +40,7 @@ typedef struct collision_result_s
 typedef struct ghost_shape_s
 {
     uint32_t    shape_id;
+    float       radius;
     float       bb_min[3];
     float       bb_max[3];
     float       offset[3];
@@ -74,6 +75,7 @@ void Physics_GetBodyWorldTransform(struct physics_data_s *physics, float tr[16],
 void Physics_SetBodyWorldTransform(struct physics_data_s *physics, float tr[16], uint16_t index);
 void Physics_GetGhostWorldTransform(struct physics_data_s *physics, float tr[16], uint16_t index);
 void Physics_SetGhostWorldTransform(struct physics_data_s *physics, float tr[16], uint16_t index);
+ghost_shape_p Physics_GetGhostShapeInfo(struct physics_data_s *physics, uint16_t index);
 int  Physics_GetGhostPenetrationFixVector(struct physics_data_s *physics, uint16_t index, int16_t filter, float correction[3]);
 
 // Bullet entity rigid body generating.

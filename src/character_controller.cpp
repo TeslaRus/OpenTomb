@@ -14,7 +14,6 @@
 #include "world.h"
 #include "character_controller.h"
 #include "engine.h"
-#include "physics.h"
 #include "entity.h"
 #include "skeletal_model.h"
 #include "resource.h"

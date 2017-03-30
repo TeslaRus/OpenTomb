@@ -12,6 +12,7 @@
 #include "../core/polygon.h"
 #include "../core/obb.h"
 #include "../script/script.h"
+#include "../physics/physics.h"
 #include "../vt/tr_versions.h"
 #include "camera.h"
 #include "render.h"
@@ -26,7 +27,6 @@
 #include "../entity.h"
 #include "../character_controller.h"
 #include "../engine.h"
-#include "../physics.h"
 
 CRender renderer;
 
