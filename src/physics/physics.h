@@ -112,9 +112,6 @@ struct rd_setup_s;
 bool Ragdoll_Create(struct physics_data_s *physics, struct ss_bone_frame_s *bf, struct rd_setup_s *setup);
 bool Ragdoll_Delete(struct physics_data_s *physics);
 
-struct rd_setup_s *Ragdoll_GetSetup(struct lua_State *lua, int ragdoll_index);
-void Ragdoll_DeleteSetup(struct rd_setup_s *setup);
-
 
 /* Hair interface */
 #define HAIR_TR1       0

@@ -433,6 +433,23 @@ void Physics_DeletePhysicsData(struct physics_data_s *physics)
             physics->bt_info = NULL;
         }
 
+        if(physics->bt_joints)
+        {
+            for(uint32_t i = 0; i < physics->bt_joint_count; i++)
+            {
+                if(physics->bt_joints[i])
+                {
+                    bt_engine_dynamicsWorld->removeConstraint(physics->bt_joints[i]);
+                    delete physics->bt_joints[i];
+                    physics->bt_joints[i] = NULL;
+                }
+            }
+
+            free(physics->bt_joints);
+            physics->bt_joints = NULL;
+            physics->bt_joint_count = 0;
+        }
+        
         if(physics->ghost_objects)
         {
             for(int i = 0; i < physics->objects_count; i++)

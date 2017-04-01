@@ -276,7 +276,10 @@ int StateControl_Lara(struct entity_s *ent, struct ss_animation_s *ss_anim)
             if(is_last_frame)
             {
                 state->ragdoll = 0x01;
-                //addEntityRagdoll(player, RD_TYPE_LARA);
+                if(ent->character->ragdoll)
+                {
+                    Ragdoll_Create(ent->physics, ent->bf, ent->character->ragdoll);
+                }
             }
             break;
 

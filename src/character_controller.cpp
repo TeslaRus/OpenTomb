@@ -20,6 +20,7 @@
 #include "engine_string.h"
 #include "game.h"
 #include "controls.h"
+#include "physics/ragdoll.h"
 
 void Character_Create(struct entity_s *ent)
 {
@@ -40,6 +41,7 @@ void Character_Create(struct entity_s *ent)
         ret->target_id = ENTITY_ID_NONE;
         ret->hair_count = 0;
         ret->hairs = NULL;
+        ret->ragdoll = NULL;
 
         ret->weapon_current_state = 0x00;
         ret->current_weapon = 0;
@@ -142,6 +144,12 @@ void Character_Clean(struct entity_s *ent)
         free(actor->hairs);
         actor->hairs = NULL;
         actor->hair_count = 0;
+    }
+    
+    if(actor->ragdoll)
+    {
+        Ragdoll_DeleteSetup(actor->ragdoll);
+        actor->ragdoll = NULL;
     }
 
     actor->height_info.water = 0x00;
@@ -1942,7 +1950,6 @@ void Character_ApplyCommands(struct entity_s *ent)
         ent->character->state_func(ent, &ent->bf->animations);
     }
 
-    ent->no_fix_z = 0x00;
     switch(ent->move_type)
     {
         case MOVE_KINEMATIC:
@@ -1955,7 +1962,6 @@ void Character_ApplyCommands(struct entity_s *ent)
             break;
 
         case MOVE_FREE_FALLING:
-            ent->no_fix_z = 0x01;
             Character_FreeFalling(ent);
             break;
 
