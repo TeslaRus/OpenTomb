@@ -824,7 +824,7 @@ void CRender::DrawSkeletalModel(const lit_shader_description *shader, struct ss_
         {
             Mat4_Mat4_mul(mvTransform, mvMatrix, btag->full_transform);
             qglUniformMatrix4fvARB(shader->model_view, 1, false, mvTransform);
-            
+
             Mat4_Mat4_mul(mvpTransform, mvpMatrix, btag->full_transform);
             qglUniformMatrix4fvARB(shader->model_view_projection, 1, false, mvpTransform);
 
