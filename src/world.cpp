@@ -271,8 +271,7 @@ void World_Clear()
     /* entity empty must be done before rooms destroy */
     for(std::pair<const uint32_t, entity_p> &it : global_world.entity_tree)
     {
-        Entity_Clear(it.second);
-        free(it.second);
+        Entity_Delete(it.second);
         it.second = NULL;
     }
     global_world.entity_tree.clear();
@@ -339,8 +338,7 @@ void World_Clear()
     /*items empty*/
     for(std::pair<const uint32_t, base_item_p> &it : global_world.items_tree)
     {
-        BaseItem_Clear(it.second);
-        free(it.second);
+        BaseItem_Delete(it.second);
         it.second = NULL;
     }
     global_world.items_tree.clear();
@@ -658,8 +656,7 @@ int World_AddEntity(struct entity_s *entity)
 int World_DeleteEntity(struct entity_s *entity)
 {
     global_world.entity_tree.erase(entity->id);
-    Entity_Clear(entity);
-    free(entity);
+    Entity_Delete(entity);
 
     return 1;
 }
@@ -693,8 +690,7 @@ int World_DeleteItem(uint32_t item_id)
 
     if(it != global_world.items_tree.end())
     {
-        BaseItem_Clear(it->second);
-        free(it->second);
+        BaseItem_Delete(it->second);
         it->second = NULL;
         global_world.items_tree.erase(it);
     }
@@ -1372,8 +1368,8 @@ void World_GenAnimTextures(class VT_Level *tr)
             seq->frame_lock        = false; // by default anim is playing
             seq->uvrotate          = false; // by default uvrotate
             seq->reverse_direction = false; // Needed for proper reverse-type start-up.
-            seq->frame_rate        = 0.05;  // Should be passed as 1 / FPS.
-            seq->frame_time        = 0.0;   // Reset frame time to initial state.
+            seq->frame_rate        = 0.05f; // Should be passed as 1 / FPS.
+            seq->frame_time        = 0.0f;  // Reset frame time to initial state.
             seq->current_frame     = 0;     // Reset current frame to zero.
 
             for(uint16_t j = 0; j < seq->frames_count; j++)
@@ -1394,7 +1390,7 @@ void World_GenAnimTextures(class VT_Level *tr)
             if((i < num_uvrotates) && (seq->frames_count <= 2))
             {
                 seq->uvrotate   = true;
-                seq->frame_rate = 0.05 * 16;
+                seq->frame_rate = 0.05f * 16;
             }
             seq->frames = (tex_frame_p)calloc(seq->frames_count, sizeof(tex_frame_t));
             global_world.tex_atlas->getCoordinates(&p0, seq->frame_list[0], false);
@@ -2135,16 +2131,8 @@ void World_GenEntities(class VT_Level *tr)
                 rsp->pos[2] = entity->transform[14];
             }
 
-            Entity_Clear(entity);
-            free(entity);
+            Entity_Delete(entity);
             continue;                                                           // that entity has no model. may be it is a some trigger or look at object
-        }
-
-        if(tr->game_version < TR_II && tr_item->object_id == 83)                ///@FIXME: brutal magick hardcode! ;-)
-        {
-            Entity_Clear(entity);                                               // skip PSX save model
-            free(entity);
-            continue;
         }
 
         SSBoneFrame_CreateFromModel(entity->bf, entity->bf->animations.model);
@@ -2164,7 +2152,7 @@ void World_GenEntities(class VT_Level *tr)
             switch(tr->game_version)
             {
                 case TR_I:
-                    if(gameflow.getCurrentLevelID() == 0)
+                    if(Gameflow_GetCurrentLevelID() == 0)
                     {
                         LM = World_GetModelByID(TR_ITEM_LARA_SKIN_ALTERNATE_TR1);
                         if(LM)
