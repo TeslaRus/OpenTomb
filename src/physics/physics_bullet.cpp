@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include <btBulletCollisionCommon.h>
 #include <btBulletDynamicsCommon.h>
@@ -15,6 +16,7 @@
 #include "../core/gl_font.h"
 #include "../core/gl_text.h"
 #include "../core/console.h"
+#include "../core/vmath.h"
 #include "../core/obb.h"
 #include "../render/render.h"
 #include "../script/script.h"
