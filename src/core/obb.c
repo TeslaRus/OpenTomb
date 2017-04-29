@@ -29,15 +29,16 @@ obb_p OBB_Create()
 }
 
 
-void OBB_Clear(obb_p obb)
+void OBB_Delete(obb_p obb)
 {
-    if(obb != NULL)
+    if(obb)
     {
         for(int i = 0; i < 6; i++)
         {
             Polygon_Clear(obb->polygons + i);
             Polygon_Clear(obb->base_polygons + i);
         }
+        free(obb);
     }
 }
 
@@ -48,10 +49,10 @@ void OBB_Rebuild(obb_p obb, float bb_min[3], float bb_max[3])
     vertex_p v;
 
     vec3_sub(obb->extent, bb_max, bb_min);
-    vec3_mul_scalar(obb->extent, obb->extent, 0.5);
+    vec3_mul_scalar(obb->extent, obb->extent, 0.5f);
 
     vec3_add(obb->base_centre, bb_min, bb_max);
-    vec3_mul_scalar(obb->base_centre, obb->base_centre, 0.5);
+    vec3_mul_scalar(obb->base_centre, obb->base_centre, 0.5f);
     obb->radius = vec3_abs(obb->extent);
 
     p = obb->base_polygons;
@@ -121,9 +122,9 @@ void OBB_Rebuild(obb_p obb, float bb_min[3], float bb_max[3])
     v->position[1] = bb_max[1];
     v->position[2] = bb_min[2];
 
-    p->plane[0] = 0.0;
-    p->plane[1] = 0.0;
-    p->plane[2] =-1.0;
+    p->plane[0] = 0.0f;
+    p->plane[1] = 0.0f;
+    p->plane[2] =-1.0f;
     p->plane[3] = bb_min[2];
     p++;
 
@@ -134,9 +135,9 @@ void OBB_Rebuild(obb_p obb, float bb_min[3], float bb_max[3])
     vec3_copy(v[2].position, p_down->vertices[1].position);                     // 1 0  down
     vec3_copy(v[3].position, p_down->vertices[0].position);                     // 0 1  down
 
-    p->plane[0] = 1.0;
-    p->plane[1] = 0.0;
-    p->plane[2] = 0.0;
+    p->plane[0] = 1.0f;
+    p->plane[1] = 0.0f;
+    p->plane[2] = 0.0f;
     p->plane[3] =-bb_max[0];
     p++;
 
@@ -148,9 +149,9 @@ void OBB_Rebuild(obb_p obb, float bb_min[3], float bb_max[3])
     vec3_copy(v[2].position, p_down->vertices[2].position);                     // 1 0  down
     vec3_copy(v[1].position, p_down->vertices[3].position);                     // 0 1  down
 
-    p->plane[0] =-1.0;
-    p->plane[1] = 0.0;
-    p->plane[2] = 0.0;
+    p->plane[0] =-1.0f;
+    p->plane[1] = 0.0f;
+    p->plane[2] = 0.0f;
     p->plane[3] = bb_min[0];
     p++;
 
@@ -162,9 +163,9 @@ void OBB_Rebuild(obb_p obb, float bb_min[3], float bb_max[3])
     vec3_copy(v[2].position, p_down->vertices[3].position);                     // 1 0  down
     vec3_copy(v[1].position, p_down->vertices[0].position);                     // 0 1  down
 
-    p->plane[0] = 0.0;
-    p->plane[1] = 1.0;
-    p->plane[2] = 0.0;
+    p->plane[0] = 0.0f;
+    p->plane[1] = 1.0f;
+    p->plane[2] = 0.0f;
     p->plane[3] =-bb_max[1];
     p++;
 
@@ -175,9 +176,9 @@ void OBB_Rebuild(obb_p obb, float bb_min[3], float bb_max[3])
     vec3_copy(v[2].position, p_down->vertices[2].position);                     // 1 0  down
     vec3_copy(v[3].position, p_down->vertices[1].position);                     // 0 1  down
 
-    p->plane[0] = 0.0;
-    p->plane[1] =-1.0;
-    p->plane[2] = 0.0;
+    p->plane[0] = 0.0f;
+    p->plane[1] =-1.0f;
+    p->plane[2] = 0.0f;
     p->plane[3] = bb_min[1];
 }
 
