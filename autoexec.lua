@@ -18,4 +18,5 @@ freelook(0);
 cam_distance(1024.0);
 noclip(0);
 --loadMap("data/newlevel.tr4");
-dofile(base_path .. "save/qsave.lua");
+--dofile(base_path .. "save/qsave.lua");
+setgamef(1, 4);
