@@ -101,7 +101,7 @@ void Entity_Delete(entity_p entity)
 {
     if(entity)
     {
-        if(entity->self->room && (entity != World_GetPlayer()))
+        if(entity->self->room)
         {
             Room_RemoveObject(entity->self->room, entity->self);
         }
@@ -1267,10 +1267,10 @@ int  Entity_CanTrigger(entity_p activator, entity_p trigger)
 
 void Entity_RotateToTriggerZ(entity_p activator, entity_p trigger)
 {
-    if(activator && trigger && trigger->activation_point && (activator != trigger))
+    if(activator && trigger && (activator != trigger))
     {
         float dir[4];
-        if(vec3_sqabs(trigger->activation_point->direction) > 0.001f)
+        if(trigger->activation_point && (vec3_sqabs(trigger->activation_point->direction) > 0.001f))
         {
             Mat4_vec3_rot_macro(dir, trigger->transform, trigger->activation_point->direction);
         }
@@ -1287,10 +1287,10 @@ void Entity_RotateToTriggerZ(entity_p activator, entity_p trigger)
 
 void Entity_RotateToTrigger(entity_p activator, entity_p trigger)
 {
-    if(activator && trigger && trigger->activation_point && (activator != trigger))
+    if(activator && trigger && (activator != trigger))
     {
         float dir[4], q[4], qt[4];
-        if(vec3_sqabs(trigger->activation_point->direction) > 0.001f)
+        if(trigger->activation_point && (vec3_sqabs(trigger->activation_point->direction) > 0.001f))
         {
             Mat4_vec3_rot_macro(dir, trigger->transform, trigger->activation_point->direction);
         }

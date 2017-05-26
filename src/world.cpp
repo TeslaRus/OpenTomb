@@ -653,10 +653,15 @@ int World_AddEntity(struct entity_s *entity)
 }
 
 
-int World_DeleteEntity(struct entity_s *entity)
+int World_DeleteEntity(uint32_t id)
 {
-    global_world.entity_tree.erase(entity->id);
-    Entity_Delete(entity);
+    std::map<uint32_t, entity_p>::iterator it = global_world.entity_tree.find(id);
+
+    if(it != global_world.entity_tree.end())
+    {
+        Entity_Delete(it->second);
+        global_world.entity_tree.erase(it);
+    }
 
     return 1;
 }
