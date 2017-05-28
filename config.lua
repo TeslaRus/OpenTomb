@@ -3,8 +3,8 @@ screen =
 {
     x = 50;
     y = 20;
-    width = 1200;
-    height = 800;
+    width = 1024;
+    height = 640;
     fov = 75.0;
     debug_view_state = 0;
     fullscreen = 0;

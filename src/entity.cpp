@@ -1285,7 +1285,7 @@ void Entity_RotateToTriggerZ(entity_p activator, entity_p trigger)
 }
 
 
-void Entity_RotateToTrigger(entity_p activator, entity_p trigger)
+void Entity_RotateToTrigger(entity_p activator, entity_p trigger, int bone_to)
 {
     if(activator && trigger && (activator != trigger))
     {
@@ -1296,7 +1296,15 @@ void Entity_RotateToTrigger(entity_p activator, entity_p trigger)
         }
         else
         {
-            vec3_sub(dir, trigger->transform + 12, activator->transform + 12);
+            if((0 <= bone_to) && (bone_to < trigger->bf->bone_tag_count))
+            {
+                Mat4_vec3_mul(dir, trigger->transform, trigger->bf->bone_tags[bone_to].full_transform + 12);
+                vec3_sub(dir, dir, activator->transform + 12);
+            }
+            else
+            {
+                vec3_sub(dir, trigger->transform + 12, activator->transform + 12);
+            }
             vec3_norm(dir, dir[3]);
         }
         vec4_GetQuaternionRotation(q, activator->transform + 4, dir);

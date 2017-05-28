@@ -13,7 +13,7 @@ cvars.free_look_speed = 2500;
 setLanguage("english");
 
 setGravity(0, 0, -5700.0);
-mlook(1);
+mlook(0);
 freelook(0);
 cam_distance(1024.0);
 noclip(0);
