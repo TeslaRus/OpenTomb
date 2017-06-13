@@ -1,4 +1,4 @@
-OpenTomb — TODO list for high-priority bugs / tasks
+OpenTomb â€” TODO list for high-priority bugs / tasks
 ---------------------------------------------------
 
 ### Table of contents ###
@@ -22,8 +22,8 @@ First we need to implement TR1 gameplay, so TR1/2/3 functions tasks have higher 
 2. Build configuration
 ----------------------
 * Todo:
-	* Add lua and SDLImage to _extern_ _(TeslaRus task)_
-	* Add build extern libs script ( -> *.a), update C::B project _(TeslaRus task)_
+	* Update internal image lib
+	* Reduce number of dependecies
 	* Make good autobuild system
 	  
 3. Git/GitHub workflow
@@ -55,39 +55,48 @@ First we need to implement TR1 gameplay, so TR1/2/3 functions tasks have higher 
 ---------------
 * Todo:
 	* `game.cpp`: many different logics in one place, needs to be refactored
-	* make some modules (not all!) interface more abstract (hide internal realisation, like `physics.h`/`physics_bullet.cpp`) 
+	* make some modules (not all!) interface more abstract (hide internal realisation, like `physics.h`/`physics_bullet.cpp`)
 
-5. Collision system
+5. Engine
+-------------------
+* Current situation:
+	* Implemented entity spawning and safety deleting, projectiles, player switching...
+
+* Todo:
+	* Add activation callbacks for inventory items (no more `read-only` for inventory)
+	* Reduce globals using (shared between modules globals)
+	* Move out the console.c rendering code 
+	* Make alt-room state savable in cases where there's a chain of 3 or more alt-rooms
+
+6. Collision system
 -------------------
 * Current situation:
 	* Fixed back/front-facing polygons orientation for physics geometry, now the engine has a working _Filtered Ray Test_ (skips back-faced polygons)
 	* Collision margin is zero, otherwise normals in near edges become smooth and Lara slides down or stops in places she should not
-
+	* Refactored collision callbacks implementation that allow to register hit damage and any other collisions
+  
 * Todo:
 	* Fix moving after landing on sloped surface:
 		* Find body parts that stop Lara
 		* Tune collision form, or disable collision checking for them
 		* Bind with 3
-	* Make ghost body parts meshes tunable by config (no more hardcoded boxes)
+	* Make rigid body parts shapes tunable by config
 	* For future optimazation, add switchable single ghost object for character
 	* Add _Long Ray Test_ (pierces rooms portals and builds room list for collisional checking) - needed for long range shooting and AI
-	* Make refactoring of `Physics_GetCurrentCollisions(...)` (mem managment)
-	* Fix moving in some floor slant cases in `Character_FixPosByFloorInfoUnderLegs(...)`
+	* Re-implement Character_FixPosByFloorInfoUnderLegs(...) it has been deleted
 	* Check room tween butterfly normals
-	* Wrong fail check climbability in TR3, level 1, acute edge (side view like <>) and some other instances of such geometry
 
-6. Character controller
+7. Character controller
 -----------------------
 * Todo:
+	* Base AI, path finding, boxes...
 	* Weapon control system needs to be refactored/fixed (2-handed weapon model switches in wrong frame)
 	* Add auto weapon hiding in water environment e.t.c. (simple task)
 	* Fix usage of weapons while crouching
 
-7. Animation control
+8. Animation control
 --------------------
 * Todo:
-	* Fix state change missing with low fps
-	* Skeletal model `ss_anim` control: implement a functional interface to control it, instead of a complex direct access to flags and structures
 	* Update documentation about `ss_animation` structure and functions
 	* Fix incorrect smoothing if there are _move_ or _rotate_ anim commands
 	* Fix dive-rolls:
@@ -99,23 +108,23 @@ First we need to implement TR1 gameplay, so TR1/2/3 functions tasks have higher 
 		* Climbability distance threshold too high when jumping (i.e. reaching heights that shouldn't be reached)
 		* Reduce height correction when Lara lets go the hold on an edge (let go hold button)
 
-8. Camera control
+9. Camera control
 -----------------
 * Todo:
 	* Fix camera targeting to correct body part or OBB center (add special function to get targeting pos by target entity id)
 	* Implement camera flags and their function (e.g. "flyby", "once")
 	* Add special `camera_entity`, store it in world module, access by `entity_p World_GetCameraEntity();` - needed for heavy triggers
 
-9. Scripting
+10. Scripting
 ------------
 * Current situation:
+	* SEE TRIGGERS_tasks.md
 	* Scripts update EVERY game frame! Use the global engine frame time inside time depended scripts!
 * Todo:
 	* Add function like `lua_SaveTable(...)` that recursively print to file/buffer/clay tablets lua code with table content (i.e. `table_name = { red = 1; green = 0; blue = 0; name = "name"; is_u = true; in_tbl = { p1 = "inner"; val = 32.45 } }`)
 	* In all scripts that may change game state, data must be stored in special global table (that will be saved in save game) - needed for game save/load functions to correctly work
-	* `Activate_Entity` script function must returns state (no duplication of activation e.t.c. + better state control)
 
-10. Audio
+11. Audio
 ---------
 * Current situation:
 	* Sound tracks playing was disabled

@@ -426,7 +426,7 @@ void Game_ApplyControls(struct entity_s *ent)
         }
 
         Cam_SetRotation(&engine_camera, control_states.cam_angles);
-        float dist = (control_states.state_walk)?(control_states.free_look_speed * engine_frame_time * 0.3):(control_states.free_look_speed * engine_frame_time);
+        float dist = (control_states.state_walk) ? (control_states.free_look_speed * engine_frame_time * 0.3f) : (control_states.free_look_speed * engine_frame_time);
         Cam_MoveAlong(&engine_camera, dist * move_logic[0]);
         Cam_MoveStrafe(&engine_camera, dist * move_logic[1]);
         Cam_MoveVertical(&engine_camera, dist * move_logic[2]);
@@ -456,7 +456,7 @@ void Game_ApplyControls(struct entity_s *ent)
 
     if((control_states.free_look != 0) || !ent || !ent->character)
     {
-        float dist = (control_states.state_walk)?(control_states.free_look_speed * engine_frame_time * 0.3):(control_states.free_look_speed * engine_frame_time);
+        float dist = (control_states.state_walk) ? (control_states.free_look_speed * engine_frame_time * 0.3f) : (control_states.free_look_speed * engine_frame_time);
         Cam_SetRotation(&engine_camera, control_states.cam_angles);
         Cam_MoveAlong(&engine_camera, dist * move_logic[0]);
         Cam_MoveStrafe(&engine_camera, dist * move_logic[1]);
@@ -466,7 +466,7 @@ void Game_ApplyControls(struct entity_s *ent)
     else if(control_states.noclip)
     {
         float pos[3];
-        float dist = (control_states.state_walk)?(control_states.free_look_speed * engine_frame_time * 0.3):(control_states.free_look_speed * engine_frame_time);
+        float dist = (control_states.state_walk) ? (control_states.free_look_speed * engine_frame_time * 0.3f) : (control_states.free_look_speed * engine_frame_time);
         Cam_SetRotation(&engine_camera, control_states.cam_angles);
         Cam_MoveAlong(&engine_camera, dist * move_logic[0]);
         Cam_MoveStrafe(&engine_camera, dist * move_logic[1]);
@@ -522,7 +522,7 @@ void Game_ApplyControls(struct entity_s *ent)
             control_states.use_big_medi = !control_states.use_big_medi;
         }
 
-        if((control_mapper.use_joy == 1) && (control_mapper.joy_move_x != 0 ))
+        if((control_mapper.use_joy == 1) && (control_mapper.joy_move_x != 0))
         {
             ent->character->cmd.rot[0] = (control_mapper.joy_move_x > 0) ? (-1) : (1);
         }
@@ -573,19 +573,6 @@ int Game_UpdateEntity(entity_p ent, void *data)
 }
 
 
-void Game_UpdateAI()
-{
-    entity_p ent = NULL;
-    //for(ALL CHARACTERS, EXCEPT PLAYER)
-    {
-        if(ent)
-        {
-            // UPDATE AI commands
-        }
-    }
-}
-
-
 void Game_Frame(float time)
 {
     entity_p player = World_GetPlayer();
@@ -613,7 +600,6 @@ void Game_Frame(float time)
 
     // In game mode
     Script_DoTasks(engine_lua, time);
-    Game_UpdateAI();
 
     // This must be called EVERY frame to max out smoothness.
     // Includes animations, camera movement, and so on.
