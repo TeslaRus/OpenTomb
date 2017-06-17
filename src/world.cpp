@@ -1532,16 +1532,46 @@ void World_GenBoxes(class VT_Level *tr)
         global_world.room_boxes = (room_box_p)malloc(global_world.room_boxes_count * sizeof(room_box_t));
         for(uint32_t i = 0; i < global_world.room_boxes_count; i++)
         {
-            global_world.room_boxes[i].overlap = NULL;
+            room_box_p r_box = global_world.room_boxes + i;
+            r_box->overlap = NULL;
             if((tr->boxes[i].overlap_index >= 0) && (tr->boxes[i].overlap_index < global_world.overlaps_count))
             {
-                global_world.room_boxes[i].overlap = global_world.overlaps + tr->boxes[i].overlap_index;
+                r_box->overlap = global_world.overlaps + tr->boxes[i].overlap_index;
             }
-            global_world.room_boxes[i].true_floor =-tr->boxes[i].true_floor;
-            global_world.room_boxes[i].x_min = tr->boxes[i].xmin;
-            global_world.room_boxes[i].x_max = tr->boxes[i].xmax;
-            global_world.room_boxes[i].y_min =-tr->boxes[i].zmax;
-            global_world.room_boxes[i].y_max =-tr->boxes[i].zmin;
+            r_box->true_floor =-tr->boxes[i].true_floor;
+            r_box->x_min = tr->boxes[i].xmin;
+            r_box->x_max = tr->boxes[i].xmax;
+            r_box->y_min =-tr->boxes[i].zmax;
+            r_box->y_max =-tr->boxes[i].zmin;
+            memset(&r_box->zone, 0x00, sizeof(r_box->zone));
+            if(global_world.version < TR_II)
+            {
+                int16_t *zone = tr->zones + i * 6;
+                r_box->zone.GroundZone1_Normal = *zone++;
+                r_box->zone.GroundZone2_Normal = *zone++;
+                r_box->zone.GroundZone3_Normal = -1;
+                r_box->zone.GroundZone4_Normal = -1;
+                r_box->zone.FlyZone_Normal = *zone++;
+                r_box->zone.GroundZone1_Alternate = *zone++;
+                r_box->zone.GroundZone2_Alternate = *zone++;
+                r_box->zone.GroundZone3_Alternate = -1;
+                r_box->zone.GroundZone4_Alternate = -1;
+                r_box->zone.FlyZone_Alternate = *zone;
+            }
+            else
+            {
+                int16_t *zone = tr->zones + i * 10;
+                r_box->zone.GroundZone1_Normal = *zone++;
+                r_box->zone.GroundZone2_Normal = *zone++;
+                r_box->zone.GroundZone3_Normal = *zone++;
+                r_box->zone.GroundZone4_Normal = *zone++;
+                r_box->zone.FlyZone_Normal = *zone++;
+                r_box->zone.GroundZone1_Alternate = *zone++;
+                r_box->zone.GroundZone2_Alternate = *zone++;
+                r_box->zone.GroundZone3_Alternate = *zone++;
+                r_box->zone.GroundZone4_Alternate = *zone++;
+                r_box->zone.FlyZone_Alternate = *zone;
+            }
         }
     }
 }
