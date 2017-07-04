@@ -325,7 +325,7 @@ void Physics_Init()
 
     bt_engine_dynamicsWorld = new btDiscreteDynamicsWorld(bt_engine_dispatcher, bt_engine_overlappingPairCache, bt_engine_solver, bt_engine_collisionConfiguration);
     bt_engine_dynamicsWorld->getPairCache()->setOverlapFilterCallback(&bt_engine_overlap_filter_callback);
-    bt_engine_dynamicsWorld->setGravity(btVector3(0, 0, -4500.0));
+    bt_engine_dynamicsWorld->setGravity(btVector3(0.0f, 0.0f, -4500.0f));
 
     bt_debug_drawer.setDebugMode(btIDebugDraw::DBG_DrawWireframe | btIDebugDraw::DBG_DrawConstraints);
     bt_engine_dynamicsWorld->setDebugDrawer(&bt_debug_drawer);

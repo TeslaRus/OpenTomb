@@ -17,6 +17,6 @@ mlook(0);
 freelook(0);
 cam_distance(1024.0);
 noclip(0);
---loadMap("data/newlevel.tr4");
+loadMap("tests/altroom3/LEVEL1.PHD");
 --dofile(base_path .. "save/qsave.lua");
-setgamef(1, 4);
+--setgamef(1, 4);

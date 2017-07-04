@@ -53,7 +53,7 @@ extern "C" {
     uint32_t                        room_boxes_count;
     struct room_box_s              *room_boxes;
 
-    uint16_t                       *overlaps;
+    struct box_overlap_s           *overlaps;
     uint32_t                        overlaps_count;
 
     uint32_t                        flip_count;             // Number of flips
@@ -120,7 +120,8 @@ void World_GenSpritesBuffer();
 void World_GenRoomProperties(class VT_Level *tr);
 void World_GenRoomCollision();
 void World_FixRooms();
-
+void World_BuildNearRoomsList(struct room_s *room);
+void World_BuildOverlappedRoomsList(struct room_s *room);
 
 void World_Prepare()
 {
@@ -897,6 +898,17 @@ struct room_sector_s *World_GetRoomSector(int room_id, int x, int y)
 }
 
 
+struct room_box_s *World_GetRoomBoxByID(uint32_t id)
+{
+    if(id < global_world.room_boxes_count)
+    {
+        return global_world.room_boxes + id;
+    }
+
+    return NULL;
+}
+
+
 void World_BuildNearRoomsList(struct room_s *room)
 {
     room->content->near_room_list_size = 0;
@@ -1520,8 +1532,13 @@ void World_GenBoxes(class VT_Level *tr)
 
     if(global_world.overlaps_count)
     {
-        global_world.overlaps = (uint16_t*)malloc(global_world.overlaps_count * sizeof(uint16_t));
-        memcpy(global_world.overlaps, tr->overlaps, global_world.overlaps_count * sizeof(uint16_t));
+        global_world.overlaps = (box_overlap_p)malloc(global_world.overlaps_count * sizeof(box_overlap_t));
+        for(uint32_t i = 0; i < global_world.overlaps_count; i++)
+        {
+            global_world.overlaps[i].box = tr->overlaps[i] & 0x7FFF;
+            global_world.overlaps[i].end = (tr->overlaps[i] & 0x8000) ? (1) : (0);
+        }
+        global_world.overlaps[global_world.overlaps_count - 1].end = 1;         // never believe user data
     }
 
     global_world.room_boxes = NULL;
@@ -1533,12 +1550,12 @@ void World_GenBoxes(class VT_Level *tr)
         for(uint32_t i = 0; i < global_world.room_boxes_count; i++)
         {
             room_box_p r_box = global_world.room_boxes + i;
-            r_box->overlap = NULL;
+            r_box->overlaps = NULL;
             if((tr->boxes[i].overlap_index >= 0) && (tr->boxes[i].overlap_index < global_world.overlaps_count))
             {
-                r_box->overlap = global_world.overlaps + tr->boxes[i].overlap_index;
+                r_box->overlaps = global_world.overlaps + tr->boxes[i].overlap_index;
             }
-            r_box->true_floor =-tr->boxes[i].true_floor;
+            r_box->true_floor = tr->boxes[i].true_floor;
             r_box->x_min = tr->boxes[i].xmin;
             r_box->x_max = tr->boxes[i].xmax;
             r_box->y_min =-tr->boxes[i].zmax;
@@ -1572,7 +1589,7 @@ void World_GenCameras(class VT_Level *tr)
             global_world.cameras_sinks[i].pos[0]              =  tr->cameras[i].x;
             global_world.cameras_sinks[i].pos[1]              =  tr->cameras[i].z;
             global_world.cameras_sinks[i].pos[2]              = -tr->cameras[i].y;
-            global_world.cameras_sinks[i].locked              = 0;
+            global_world.cameras_sinks[i].locked              =  0;
             global_world.cameras_sinks[i].room_or_strength    =  tr->cameras[i].room;
             global_world.cameras_sinks[i].flag_or_zone        =  tr->cameras[i].unknown1;
         }
@@ -1658,9 +1675,9 @@ void World_GenRoom(struct room_s *room, class VT_Level *tr)
     room->is_swapped = 0;
 
     Mat4_E_macro(room->transform);
-    room->transform[12] = tr->rooms[room->id].offset.x;                         // x = x;
-    room->transform[13] =-tr->rooms[room->id].offset.z;                         // y =-z;
-    room->transform[14] = tr->rooms[room->id].offset.y;                         // z = y;
+    room->transform[12 + 0] = tr->rooms[room->id].offset.x;                     // x = x;
+    room->transform[12 + 1] =-tr->rooms[room->id].offset.z;                     // y =-z;
+    room->transform[12 + 2] = tr->rooms[room->id].offset.y;                     // z = y;
 
     room->self = (engine_container_p)malloc(sizeof(engine_container_t));
     room->self->next = NULL;
@@ -1837,8 +1854,8 @@ void World_GenRoom(struct room_s *room, class VT_Level *tr)
         sector->index_x = i / room->sectors_y;
         sector->index_y = i % room->sectors_y;
 
-        sector->pos[0] = room->transform[12] + sector->index_x * TR_METERING_SECTORSIZE + 0.5f * TR_METERING_SECTORSIZE;
-        sector->pos[1] = room->transform[13] + sector->index_y * TR_METERING_SECTORSIZE + 0.5f * TR_METERING_SECTORSIZE;
+        sector->pos[0] = room->transform[12 + 0] + sector->index_x * TR_METERING_SECTORSIZE + 0.5f * TR_METERING_SECTORSIZE;
+        sector->pos[1] = room->transform[12 + 1] + sector->index_y * TR_METERING_SECTORSIZE + 0.5f * TR_METERING_SECTORSIZE;
         sector->pos[2] = 0.5f * (tr_room->y_bottom + tr_room->y_top);
 
         sector->owner_room = room;
@@ -2024,10 +2041,10 @@ void World_GenRoom(struct room_s *room, class VT_Level *tr)
     room->bb_min[2] = tr_room->y_bottom;
     room->bb_max[2] = tr_room->y_top;
 
-    room->bb_min[0] = room->transform[12] + TR_METERING_SECTORSIZE;
-    room->bb_min[1] = room->transform[13] + TR_METERING_SECTORSIZE;
-    room->bb_max[0] = room->transform[12] + TR_METERING_SECTORSIZE * room->sectors_x - TR_METERING_SECTORSIZE;
-    room->bb_max[1] = room->transform[13] + TR_METERING_SECTORSIZE * room->sectors_y - TR_METERING_SECTORSIZE;
+    room->bb_min[0] = room->transform[12 + 0] + TR_METERING_SECTORSIZE;
+    room->bb_min[1] = room->transform[12 + 1] + TR_METERING_SECTORSIZE;
+    room->bb_max[0] = room->transform[12 + 0] + TR_METERING_SECTORSIZE * room->sectors_x - TR_METERING_SECTORSIZE;
+    room->bb_max[1] = room->transform[12 + 1] + TR_METERING_SECTORSIZE * room->sectors_y - TR_METERING_SECTORSIZE;
 
     room->obb = OBB_Create();
     room->obb->transform = room->transform;
@@ -2106,9 +2123,9 @@ void World_GenEntities(class VT_Level *tr)
         tr_item = &tr->items[i];
         entity = Entity_Create();
         entity->id = i;
-        entity->transform[12] = tr_item->pos.x;
-        entity->transform[13] =-tr_item->pos.z;
-        entity->transform[14] = tr_item->pos.y;
+        entity->transform[12 + 0] = tr_item->pos.x;
+        entity->transform[12 + 1] =-tr_item->pos.z;
+        entity->transform[12 + 2] = tr_item->pos.y;
         entity->angles[0] = tr_item->rotation;
         entity->angles[1] = 0.0f;
         entity->angles[2] = 0.0f;
@@ -2163,9 +2180,9 @@ void World_GenEntities(class VT_Level *tr)
                 entity->self->room->content->sprites = (room_sprite_p)realloc(entity->self->room->content->sprites, sz * sizeof(room_sprite_t));
                 rsp = entity->self->room->content->sprites + sz - 1;
                 rsp->sprite = sp;
-                rsp->pos[0] = entity->transform[12];
-                rsp->pos[1] = entity->transform[13];
-                rsp->pos[2] = entity->transform[14];
+                rsp->pos[0] = entity->transform[12 + 0];
+                rsp->pos[1] = entity->transform[12 + 1];
+                rsp->pos[2] = entity->transform[12 + 2];
             }
 
             Entity_Delete(entity);
