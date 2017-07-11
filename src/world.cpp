@@ -11,6 +11,7 @@ extern "C" {
 }
 
 #include <map>
+#include <list>
 
 #include "core/gl_util.h"
 #include "core/console.h"
@@ -554,12 +555,21 @@ struct entity_s *World_GetPlayer()
 
 void World_IterateAllEntities(int (*iterator)(struct entity_s *ent, void *data), void *data)
 {
+    std::list<uint32_t> delete_list;
     for(std::pair<const uint32_t, entity_p> &it : global_world.entity_tree)
     {
         if(iterator(it.second, data))
         {
-            break;;
+            break;
         }
+        if(it.second->state_flags & ENTITY_STATE_DELETED)
+        {
+            delete_list.push_back(it.first);
+        }
+    }
+    for(uint32_t id : delete_list)
+    {
+        World_DeleteEntity(id);
     }
 }
 
@@ -895,6 +905,12 @@ struct room_sector_s *World_GetRoomSector(int room_id, int x, int y)
     }
 
     return NULL;
+}
+
+
+uint32_t World_GetRoomBoxesCount()
+{
+    return global_world.room_boxes_count;
 }
 
 
@@ -1551,15 +1567,19 @@ void World_GenBoxes(class VT_Level *tr)
         {
             room_box_p r_box = global_world.room_boxes + i;
             r_box->overlaps = NULL;
+            r_box->path_parent = NULL;
+            r_box->path_distance = 0;
             if((tr->boxes[i].overlap_index >= 0) && (tr->boxes[i].overlap_index < global_world.overlaps_count))
             {
                 r_box->overlaps = global_world.overlaps + tr->boxes[i].overlap_index;
             }
-            r_box->true_floor = tr->boxes[i].true_floor;
-            r_box->x_min = tr->boxes[i].xmin;
-            r_box->x_max = tr->boxes[i].xmax;
-            r_box->y_min =-tr->boxes[i].zmax;
-            r_box->y_max =-tr->boxes[i].zmin;
+            r_box->id = i;
+            r_box->bb_min[0] = tr->boxes[i].xmin;
+            r_box->bb_min[1] =-tr->boxes[i].zmax;
+            r_box->bb_min[2] = tr->boxes[i].true_floor;
+            r_box->bb_max[0] = tr->boxes[i].xmax;
+            r_box->bb_max[1] =-tr->boxes[i].zmin;
+            r_box->bb_max[2] = tr->boxes[i].true_floor + TR_METERING_SECTORSIZE;
 
             r_box->zone.GroundZone1_Normal = tr->zones[i].GroundZone1_Normal;
             r_box->zone.GroundZone2_Normal = tr->zones[i].GroundZone2_Normal;

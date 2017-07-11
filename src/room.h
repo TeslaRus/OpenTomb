@@ -137,12 +137,14 @@ typedef struct box_overlap_s
 
 typedef struct room_box_s
 {
-    int32_t                 x_min;
-    int32_t                 x_max;
-    int32_t                 y_min;
-    int32_t                 y_max;
-    int32_t                 true_floor;
+    uint32_t                id;
+    float                   bb_min[3];
+    float                   bb_max[3];
     struct box_overlap_s   *overlaps;
+    
+    int32_t                 path_distance;
+    struct room_box_s      *path_parent;
+    
     struct room_zone_s      zone;
 }room_box_t, *room_box_p;
 
@@ -296,9 +298,6 @@ int  Room_IsInNearRoomsList(struct room_s *r0, struct room_s *r1);
 int  Room_IsInOverlappedRoomsList(struct room_s *r0, struct room_s *r1);
 void Room_MoveActiveItems(struct room_s *room_to, struct room_s *room_from);
 
-// NOTE: Functions which take native TR level structures as argument will have
-// additional _TR_ prefix. Functions which doesn't use specific TR structures
-// should NOT use such prefix!
 void Room_GenSpritesBuffer(struct room_s *room);
 
 struct room_sector_s *Sector_GetPortalSectorTargetRaw(struct room_sector_s *rs);
@@ -307,11 +306,12 @@ struct room_sector_s *Sector_GetPortalSectorTargetReal(struct room_sector_s *rs)
 struct room_sector_s *Sector_GetLowest(struct room_sector_s *sector);
 struct room_sector_s *Sector_GetHighest(struct room_sector_s *sector);
 
-
 void Sector_HighestFloorCorner(room_sector_p rs, float v[3]);
 void Sector_LowestCeilingCorner(room_sector_p rs, float v[3]);
 
 int Sectors_SimilarFloor(room_sector_p s1, room_sector_p s2, int ignore_doors);
 int Sectors_SimilarCeiling(room_sector_p s1, room_sector_p s2, int ignore_doors);
+
+int  Room_FindPath(room_box_p path_buf, uint32_t max_boxes, room_sector_p from, room_sector_p to, int zone);
 
 #endif //ROOM_H

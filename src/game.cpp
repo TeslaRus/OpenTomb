@@ -1,7 +1,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <list>
 
 extern "C" {
 #include <lua.h>
@@ -140,9 +139,9 @@ int Game_Load(const char* name)
     if(local)
     {
         char save_path[1024];
-        strncpy(save_path, Engine_GetBasePath(), 1024);
-        strncat(save_path, "save/", 1024);
-        strncat(save_path, name, 1024);
+        strncpy(save_path, Engine_GetBasePath(), sizeof(save_path));
+        strncat(save_path, "save/", sizeof(save_path));
+        strncat(save_path, name, sizeof(save_path));
         if(!Sys_FileFound(save_path, 0))
         {
             Sys_extWarn("Can not read file \"%s\"", save_path);
@@ -332,9 +331,9 @@ int Game_Save(const char* name)
     if(local)
     {
         char save_path[1024];
-        strncpy(save_path, Engine_GetBasePath(), 1024);
-        strncat(save_path, "save/", 1024);
-        strncat(save_path, name, 1024);
+        strncpy(save_path, Engine_GetBasePath(), sizeof(save_path));
+        strncat(save_path, "save/", sizeof(save_path));
+        strncat(save_path, name, sizeof(save_path));
         f = fopen(save_path, "wb");
     }
     else
@@ -572,12 +571,6 @@ int Game_UpdateEntity(entity_p ent, void *data)
         Entity_Frame(ent, engine_frame_time);
         Entity_UpdateRigidBody(ent, ent->character != NULL);
         Entity_UpdateRoomPos(ent);
-
-        if(ent->state_flags & ENTITY_STATE_DELETED)
-        {
-            std::list<uint32_t> *delete_list = (std::list<uint32_t>*)data;
-            delete_list->push_back(ent->id);
-        }
     }
 
     return 0;
@@ -669,12 +662,7 @@ void Game_Frame(float time)
         }
     }
 
-    std::list<uint32_t> delete_list;
-    World_IterateAllEntities(Game_UpdateEntity, &delete_list);
-    for(uint32_t id : delete_list)
-    {
-        World_DeleteEntity(id);
-    }
+    World_IterateAllEntities(Game_UpdateEntity, NULL);
 
     Physics_StepSimulation(time);
 
