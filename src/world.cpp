@@ -558,13 +558,13 @@ void World_IterateAllEntities(int (*iterator)(struct entity_s *ent, void *data),
     std::list<uint32_t> delete_list;
     for(std::pair<const uint32_t, entity_p> &it : global_world.entity_tree)
     {
-        if(iterator(it.second, data))
-        {
-            break;
-        }
         if(it.second->state_flags & ENTITY_STATE_DELETED)
         {
             delete_list.push_back(it.first);
+        }
+        if(iterator(it.second, data))
+        {
+            break;
         }
     }
     for(uint32_t id : delete_list)
@@ -1566,10 +1566,15 @@ void World_GenBoxes(class VT_Level *tr)
         for(uint32_t i = 0; i < global_world.room_boxes_count; i++)
         {
             room_box_p r_box = global_world.room_boxes + i;
+            int ov_index = 0x7FFF & tr->boxes[i].overlap_index;
             r_box->overlaps = NULL;
-            if((tr->boxes[i].overlap_index >= 0) && (tr->boxes[i].overlap_index < global_world.overlaps_count))
+            if((tr->boxes[i].overlap_index >= 0) && (ov_index < global_world.overlaps_count))
             {
-                r_box->overlaps = global_world.overlaps + tr->boxes[i].overlap_index;
+                r_box->overlaps = global_world.overlaps + ov_index;
+            }
+            else
+            {
+                Con_Printf("box = %d, bad overlap index = %d", i, ov_index);
             }
             r_box->id = i;
             r_box->bb_min[0] = tr->boxes[i].xmin;

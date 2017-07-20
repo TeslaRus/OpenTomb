@@ -310,7 +310,7 @@ int Sectors_SimilarFloor(room_sector_p s1, room_sector_p s2, int ignore_doors);
 int Sectors_SimilarCeiling(room_sector_p s1, room_sector_p s2, int ignore_doors);
 
 int  Room_IsInBox(room_box_p box, float pos[3]);
-int  Room_FindPath(room_box_p *path_buf, uint32_t max_boxes, room_sector_p from, room_sector_p to, int max_step);
+int  Room_FindPath(room_box_p *path_buf, uint32_t max_boxes, room_sector_p from, room_sector_p to, int max_step, int zone);
 void Room_GetOverlapCenter(room_box_p b1, room_box_p b2, float pos[3]);
 
 #endif //ROOM_H
