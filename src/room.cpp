@@ -800,7 +800,7 @@ int Sectors_SimilarCeiling(room_sector_p s1, room_sector_p s2, int ignore_doors)
 /////////////////////////////////////////
 static bool Room_IsBoxForPath(room_box_p curr_box, room_box_p next_box, int max_step, int zone)
 {
-    if(next_box)
+    if(next_box && !next_box->is_blocked)
     {
         return (fabs(curr_box->bb_min[2] - next_box->bb_min[2]) < max_step + 1.0f) && 
                ((next_box->zone.GroundZone1_Normal == zone) || 
