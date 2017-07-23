@@ -269,7 +269,9 @@ function wolf_init(id)
     setEntityAnimState(id, ANIM_TYPE_BASE, 1);
     setCharacterStateControlFunctions(id, STATE_FUNCTIONS_WOLF);
     setCharacterKeyAnim(id, ANIM_TYPE_BASE, ANIMATION_KEY_INIT);
-    setCharacterAIParams(id, 4);
+    setCharacterAIParams(id, 15, ZONE_TYPE_1);
+    setCharacterBones(id, 3, 1, nil, nil, nil, nil);  --head, torso, l_hand_first, l_hand_last, r_hand_first, r_hand_last
+    setCharacterMoveSizes(id, 512.0, 256.0, 256.0, 256, 256); -- height, min_step_up_height, max_step_up_height, max_climb_height, fall_down_height
 
     setCharacterParam(id, PARAM_HEALTH, 200, 200);
     setEntityGhostCollisionShape(id,  1,  COLLISION_SHAPE_BOX, nil, nil, nil, nil, nil, nil);

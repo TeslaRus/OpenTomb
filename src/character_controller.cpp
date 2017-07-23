@@ -49,6 +49,7 @@ void Character_Create(struct entity_s *ent)
         ret->hairs = NULL;
         ret->ragdoll = NULL;
         ret->ai_zone = 0;
+        ret->ai_zone_type = ZONE_TYPE_ALL;
 
         ret->bone_head = 0x00;
         ret->bone_torso = 0x00;
@@ -209,8 +210,13 @@ void Character_UpdatePath(struct entity_s *ent, struct room_sector_s *target)
     {
         const int buf_size = sizeof(room_box_p) * World_GetRoomBoxesCount();
         room_box_p *path = (room_box_p*)Sys_GetTempMem(buf_size);
-        int max_step = (ent->move_type == MOVE_FLY) ? (16384.0f) : (TR_METERING_STEP);
-        int dist = Room_FindPath(path, World_GetRoomBoxesCount(), ent->current_sector, target, max_step, ent->character->ai_zone);
+        box_validition_options_t op;
+        op.zone = ent->character->ai_zone;
+        op.zone_type = (ent->move_type == MOVE_FLY) ? (ZONE_TYPE_FLY) : (ent->character->ai_zone_type);
+        op.zone_alt = ent->self->room->is_swapped;
+        op.step_up = (ent->character->max_step_up_height > ent->character->max_climb_height) ? (ent->character->max_step_up_height) : (ent->character->max_climb_height);
+        op.step_down = ent->character->fall_down_height;
+        int dist = Room_FindPath(path, World_GetRoomBoxesCount(), ent->current_sector, target, &op);
         const int max_dist = sizeof(ent->character->path) / sizeof(ent->character->path[0]);
         ent->character->path_dist = (dist > max_dist) ? (max_dist) : dist;
         
