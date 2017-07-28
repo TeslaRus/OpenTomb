@@ -1272,7 +1272,7 @@ void ShowDebugInfo()
                             break;
                         }
                     }
-                    
+
                     float tr[16];
                     Mat4_E_macro(tr);
                     renderer.debugDrawer->DrawBBox(box->bb_min, box->bb_max, tr);
@@ -1467,6 +1467,10 @@ int Engine_LoadMap(const char *name)
 
     Game_StopFlyBy();
     engine_camera.current_room = NULL;
+    engine_camera_state.state = CAMERA_STATE_NORMAL;
+    engine_camera_state.time = 0.0f;
+    engine_camera_state.sink = NULL;
+    engine_camera_state.target_id = ENTITY_ID_NONE;
     renderer.ResetWorld(NULL, 0, NULL, 0);
     Gui_DrawLoadScreen(0);
 
@@ -1545,7 +1549,7 @@ extern "C" int Engine_ExecCmd(char *ch)
             Con_AddLine("free_look - switch camera mode\0", FONTSTYLE_CONSOLE_NOTIFY);
             Con_AddLine("r_crosshair - switch crosshair visibility\0", FONTSTYLE_CONSOLE_NOTIFY);
             Con_AddLine("cam_distance - camera distance to actor\0", FONTSTYLE_CONSOLE_NOTIFY);
-            Con_AddLine("r_wireframe, r_portals, r_frustums, r_room_boxes, r_boxes, r_normals, r_skip_room, r_flyby, r_triggers, r_ai_boxes - render modes\0", FONTSTYLE_CONSOLE_NOTIFY);
+            Con_AddLine("r_wireframe, r_portals, r_frustums, r_room_boxes, r_boxes, r_normals, r_skip_room, r_flyby, r_triggers, r_ai_boxes, r_cameras - render modes\0", FONTSTYLE_CONSOLE_NOTIFY);
             Con_AddLine("playsound(id) - play specified sound\0", FONTSTYLE_CONSOLE_NOTIFY);
             Con_AddLine("stopsound(id) - stop specified sound\0", FONTSTYLE_CONSOLE_NOTIFY);
             Con_AddLine("Watch out for case sensitive commands!\0", FONTSTYLE_CONSOLE_WARNING);
@@ -1674,6 +1678,11 @@ extern "C" int Engine_ExecCmd(char *ch)
         else if(!strcmp(token, "r_flyby"))
         {
             renderer.r_flags ^= R_DRAW_FLYBY;
+            return 1;
+        }
+        else if(!strcmp(token, "r_cameras"))
+        {
+            renderer.r_flags ^= R_DRAW_CAMERAS;
             return 1;
         }
         else if(!strcmp(token, "r_triggers"))
