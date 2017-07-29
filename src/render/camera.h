@@ -47,7 +47,6 @@ typedef struct camera_flags_s
 
 typedef struct camera_state_s
 {
-    float                           pos[3];
     uint32_t                        state;
     uint32_t                        target_id;
     struct flyby_camera_sequence_s *flyby;
@@ -142,6 +141,7 @@ void Cam_MoveStrafe(camera_p cam, GLfloat dist);
 void Cam_MoveVertical(camera_p cam, GLfloat dist);
 void Cam_DeltaRotation(camera_p cam, GLfloat angles[3]);           // rotate camera around current camera coordinate system
 void Cam_SetRotation(camera_p cam, GLfloat angles[3]);             // set orientation by angles
+void Cam_MoveTo(camera_p cam, GLfloat to[3], GLfloat max_dist);
 void Cam_LookTo(camera_p cam, GLfloat to[3]);
 void Cam_RecalcClipPlanes(camera_p cam);                           // recalculation of camera frustum clipplanes
 
