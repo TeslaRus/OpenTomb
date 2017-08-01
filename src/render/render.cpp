@@ -512,8 +512,8 @@ void CRender::DrawListDebugLines()
         m_active_texture = 0;
         BindWhiteTexture();
         qglBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
-        qglPointSize( 6.0f );
-        qglLineWidth( 3.0f );
+        qglPointSize(6.0f);
+        qglLineWidth(3.0f);
         debugDrawer->Render();
     }
     debugDrawer->Reset();
