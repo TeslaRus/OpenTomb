@@ -39,9 +39,9 @@ end
 function enableModelAnimReplaceFlags(m_id, copy_meshes_back)
     local meshes_count = getModelMeshCount(m_id);
     local m = 0;
+
     while(m < meshes_count) do
         setModelAnimReplaceFlag(m_id, m, 0x01);
-        -- for performanse it will be better to use condition outside the cycle
         if(copy_meshes_back) then
             copyMeshFromModelToModel(m_id, 0, m, m);
         end;

@@ -486,7 +486,7 @@ void Game_ApplyControls(struct entity_s *ent)
         ent->angles[0] = 180.0 * control_states.cam_angles[0] / M_PI;
         pos[0] = engine_camera.gl_transform[12 + 0] + engine_camera.gl_transform[8 + 0] * control_states.cam_distance;
         pos[1] = engine_camera.gl_transform[12 + 1] + engine_camera.gl_transform[8 + 1] * control_states.cam_distance;
-        pos[2] = engine_camera.gl_transform[12 + 2] + engine_camera.gl_transform[8 + 2] * control_states.cam_distance - 512.0;
+        pos[2] = engine_camera.gl_transform[12 + 2] + engine_camera.gl_transform[8 + 2] * control_states.cam_distance - 512.0f;
         vec3_copy(ent->transform + 12, pos);
         Entity_UpdateTransform(ent);
         Entity_UpdateRoomPos(ent);
@@ -674,7 +674,7 @@ void Game_Frame(float time)
                     }
                     else
                     {
-                        vec3_copy(pos, target->obb->centre);
+                        vec3_copy(pos, target->transform + 12);
                     }
                     Cam_LookTo(&engine_camera, pos);
                 }
@@ -686,8 +686,8 @@ void Game_Frame(float time)
                 Cam_FollowEntity(&engine_camera, &engine_camera_state, player);
                 if(target && (engine_camera_state.state == CAMERA_STATE_LOOK_AT))
                 {
-                    Character_LookAt(player, target->obb->centre);
-                    Cam_LookTo(&engine_camera, target->obb->centre);
+                    Character_LookAt(player, target->transform + 12);
+                    Cam_LookTo(&engine_camera, target->transform + 12);
                 }
                 else
                 {
@@ -747,6 +747,11 @@ void Game_Prepare()
         player->character->statistics.saves_used     = 0;
         player->character->statistics.secrets_game   = 0;
         player->character->statistics.secrets_level  = 0;
+        
+        vec3_copy(engine_camera.gl_transform + 12, player->transform + 12);
+        engine_camera.gl_transform[12 + 2] += player->character->height;
+        engine_camera.ang[0] = player->angles[0] + 180.0f;
+        engine_camera.current_room = player->self->room;
     }
     else
     {
