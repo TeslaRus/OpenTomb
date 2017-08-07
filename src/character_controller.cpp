@@ -1818,7 +1818,7 @@ int Character_FindTraverse(struct entity_s *ch)
 
     if(obj_s != NULL)
     {
-        obj_s = Sector_GetPortalSectorTargetReal(obj_s);
+        obj_s = Sector_GetPortalSectorTargetRaw(obj_s);
         for(engine_container_p cont = obj_s->owner_room->containers; cont; cont = cont->next)
         {
             if(cont->object_type == OBJECT_ENTITY)
@@ -1961,7 +1961,7 @@ int Character_CheckTraverse(struct entity_s *ch, struct entity_s *obj)
         next_s = Room_GetSectorRaw(obj_s->owner_room->real_room, pos);
     }
 
-    next_s = Sector_GetPortalSectorTargetReal(next_s);
+    next_s = Sector_GetPortalSectorTargetRaw(next_s);
     if((next_s != NULL) && (Sector_AllowTraverse(next_s, floor) == 0x01))
     {
         float from[3], to[3];
@@ -2005,7 +2005,7 @@ int Character_CheckTraverse(struct entity_s *ch, struct entity_s *obj)
         next_s = Room_GetSectorRaw(ch_s->owner_room->real_room, pos);
     }
 
-    next_s = Sector_GetPortalSectorTargetReal(next_s);
+    next_s = Sector_GetPortalSectorTargetRaw(next_s);
     if((next_s != NULL) && (Sector_AllowTraverse(next_s, floor) == 0x01))
     {
         float from[3], to[3];
