@@ -95,9 +95,17 @@ engine_container_p Container_Create()
     ret->collision_mask = COLLISION_MASK_ALL;
     ret->next = NULL;
     ret->object = NULL;
+    ret->room = NULL;
+    ret->sector = NULL;
     ret->object_type = 0;
     return ret;
 }
+
+void Container_Delete(engine_container_p cont)
+{
+    free(cont);
+}
+
 
 extern "C" int  Engine_ExecCmd(char *ch);
 
@@ -678,8 +686,8 @@ void Engine_PollSDLEvents()
                 {
                     if(mouse_setup)                                             // it is not perfect way, but cursor
                     {                                                           // every engine start is in one place
-                        control_states.look_axis_x = event.motion.xrel * control_mapper.mouse_sensitivity * 0.01;
-                        control_states.look_axis_y = event.motion.yrel * control_mapper.mouse_sensitivity * 0.01;
+                        control_states.look_axis_x = event.motion.xrel * control_mapper.mouse_sensitivity_x;
+                        control_states.look_axis_y = event.motion.yrel * control_mapper.mouse_sensitivity_y;
                     }
 
                     if((event.motion.x < ((screen_info.w / 2) - (screen_info.w / 4))) ||
@@ -1258,9 +1266,9 @@ void ShowDebugInfo()
             {
                 entity_p ent = World_GetPlayer();
                 GLText_OutTextXY(30.0f, y += dy, "VIEW: AI boxes");
-                if(ent && ent->current_sector && ent->current_sector->box)
+                if(ent && ent->self->sector && ent->self->sector->box)
                 {
-                    room_box_p box = ent->current_sector->box;
+                    room_box_p box = ent->self->sector->box;
                     GLText_OutTextXY(30.0f, y += dy, "box = %d, floor = %d", (int)box->id, (int)box->bb_min[2]);
                     GLText_OutTextXY(30.0f, y += dy, "blockable = %d, blocked = %d", (int)box->is_blockable, (int)box->is_blocked);
                     GLText_OutTextXY(30.0f, y += dy, "fly = %d", (int)box->zone.FlyZone_Normal);
@@ -1280,9 +1288,9 @@ void ShowDebugInfo()
                     if(ent->character && last_cont && (last_cont->object_type == OBJECT_ENTITY))
                     {
                         entity_p foe = (entity_p)last_cont->object;
-                        if(foe->character && foe->current_sector)
+                        if(foe->character && foe->self->sector)
                         {
-                            Character_UpdatePath(foe, ent->current_sector);
+                            Character_UpdatePath(foe, ent->self->sector);
                             if(foe->character->path_dist > 0)
                             {
                                 renderer.debugDrawer->SetColor(0.0f, 0.0f, 0.0f);
@@ -1293,7 +1301,7 @@ void ShowDebugInfo()
 
                                 GLfloat red[3] = {1.0f, 0.0f, 0.0f};
                                 GLfloat from[3], to[3];
-                                vec3_copy(from, foe->current_sector->pos);
+                                vec3_copy(from, foe->self->sector->pos);
                                 from[2] = foe->transform[12 + 2] + TR_METERING_STEP;
                                 for(int i = 1; i < foe->character->path_dist; ++i)
                                 {
@@ -1301,7 +1309,7 @@ void ShowDebugInfo()
                                     renderer.debugDrawer->DrawLine(from, to, red, red);
                                     vec3_copy(from, to);
                                 }
-                                vec3_copy(to, ent->current_sector->pos);
+                                vec3_copy(to, ent->self->sector->pos);
                                 to[2] = ent->transform[12 + 2] + TR_METERING_STEP;
                                 renderer.debugDrawer->DrawLine(from, to, red, red);
                             }

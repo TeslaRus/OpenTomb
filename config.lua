@@ -35,7 +35,8 @@ render =
 
 controls =
 {
-    mouse_sensitivity = 25.0;
+    mouse_sensitivity_x = 0.25;                 -- to inverse mouse axis use negative values
+    mouse_sensitivity_y = 0.25;
 
     use_joy = 0;                                -- Use joystick - yes (1) or no (0)
     joy_number = 0;                             -- If you have one joystick in system, it will be 0.
@@ -74,7 +75,7 @@ console =
 -- coded as joystick buttons. Instead, they have unique names: JOY_TRIGGERLEFT and
 -- JOY_TRIGGERRIGHT.
 
-dofile("scripts/config/control_constants.lua");
+dofile(base_path .. "scripts/config/control_constants.lua");
 
 bind(act.jump, KEY_SPACE, JOY_3);
 bind(act.action, KEY_LCTRL, JOY_1);
