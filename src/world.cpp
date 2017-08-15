@@ -937,30 +937,15 @@ void World_BuildNearRoomsList(struct room_s *room)
         {
             Room_AddToNearRoomsList(room, rs->portal_to_room->real_room);
         }
-
-        if(rs->room_above)
-        {
-            Room_AddToNearRoomsList(room, rs->room_above->real_room);
-        }
-
-        if(rs->room_below)
-        {
-            Room_AddToNearRoomsList(room, rs->room_below->real_room);
-        }
     }
-    
+
     uint32_t list_1_size = room->content->near_room_list_size;
-    for(uint32_t j = 0; j < list_1_size; j++)
+    for(uint32_t j = -1; j < list_1_size; j++)
     {
-        room_p r = room->content->near_room_list[j];
+        room_p r = (j < 0) ? room : room->content->near_room_list[j];
         rs = r->content->sectors;
         for(uint32_t i = 0; i < r->sectors_count; i++, rs++)
         {
-            if(rs->portal_to_room)
-            {
-                Room_AddToNearRoomsList(room, rs->portal_to_room->real_room);
-            }
-
             if(rs->room_above)
             {
                 Room_AddToNearRoomsList(room, rs->room_above->real_room);
@@ -972,7 +957,7 @@ void World_BuildNearRoomsList(struct room_s *room)
             }
         }
     }
-    
+
     if(room->content->near_room_list_size > 0)
     {
         room_t **p = (room_t**)malloc(room->content->near_room_list_size * sizeof(room_t*));
@@ -1793,7 +1778,7 @@ void World_GenRoom(struct room_s *room, class VT_Level *tr)
         r_static->self->collision_mask = COLLISION_MASK_ALL;
         r_static->object_id = tr_room->static_meshes[i].object_id;
         r_static->mesh = global_world.meshes + tr->mesh_indices[tr_static->mesh];
-        
+
         r_static->rot[0] = tr_room->static_meshes[i].rotation;
         r_static->rot[1] = 0.0;
         r_static->rot[2] = 0.0;
@@ -2398,7 +2383,7 @@ void World_GenRoomProperties(class VT_Level *tr)
         // Basic sector calculations.
         Res_RoomSectorsCalculate(global_world.rooms, global_world.rooms_count, i, tr);
     }
-    
+
     for(uint32_t i = 0; i < global_world.rooms_count; i++)
     {
         // Generate links to the overlapped rooms.

@@ -1191,6 +1191,14 @@ void ShowDebugInfo()
                         renderer.debugDrawer->DrawSectorDebugLines(rs);
                         GLText_OutTextXY(30.0f, y += dy, "room = (id = %d, sx = %d, sy = %d)", room->id, rs->index_x, rs->index_y);
                         GLText_OutTextXY(30.0f, y += dy, "room_below = %d, room_above = %d", (rs->room_below) ? (rs->room_below->id) : (-1), (rs->room_above) ? (rs->room_above->id) : (-1));
+                        for(int i = 0; i < room->content->overlapped_room_list_size; ++i)
+                        {
+                            GLText_OutTextXY(30.0f, y += dy, "overlapped room (id = %d)", room->content->overlapped_room_list[i]->id);
+                        }
+                        for(int i = 0; i < room->content->near_room_list_size; ++i)
+                        {
+                            GLText_OutTextXY(30.0f, y += dy, "near room (id = %d)", room->content->near_room_list[i]->id);
+                        }
                         if(rs->trigger)
                         {
                             char trig_type[64];

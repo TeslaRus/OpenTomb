@@ -431,7 +431,7 @@ struct room_sector_s *Room_GetSectorXYZ(struct room_s *room, float pos[3])
 
 
 void Room_AddToNearRoomsList(struct room_s *room, struct room_s *r)
-{   
+{
     if(room && r && (r->real_room->id != room->real_room->id) &&
        (room->bb_min[0] <= r->bb_max[0] && room->bb_max[0] >= r->bb_min[0]) &&
        (room->bb_min[1] <= r->bb_max[1] && room->bb_max[1] >= r->bb_min[1]))
@@ -443,7 +443,7 @@ void Room_AddToNearRoomsList(struct room_s *room, struct room_s *r)
                 return;
             }
         }
-        
+
         if(!Room_IsInOverlappedRoomsList(room, r))
         {
             room->content->near_room_list[room->content->near_room_list_size] = r->real_room;
@@ -488,10 +488,8 @@ int Room_IsOverlapped(struct room_s *r0, struct room_s *r1)
         return 0;
     }
 
-    const int margin = TR_METERING_SECTORSIZE * 2;
-
-    if(r0->bb_min[0] >= r1->bb_max[0] - margin || r0->bb_max[0] - margin <= r1->bb_min[0] ||
-       r0->bb_min[1] >= r1->bb_max[1] - margin || r0->bb_max[1] - margin <= r1->bb_min[1] ||
+    if(r0->bb_min[0] >= r1->bb_max[0] || r0->bb_max[0] <= r1->bb_min[0] ||
+       r0->bb_min[1] >= r1->bb_max[1] || r0->bb_max[1] <= r1->bb_min[1] ||
        r0->bb_min[2] >= r1->bb_max[2] || r0->bb_max[2] <= r1->bb_min[2])
     {
         return 0;
@@ -644,7 +642,7 @@ struct room_sector_s *Sector_GetNextSector(struct room_sector_s *rs, float dir[3
     int ind_x = rs->index_x;
     int ind_y = rs->index_y;
     room_p r = rs->owner_room;
-        
+
     if(fabs(dir[0]) > fabs(dir[1]))
     {
         ind_x += (dir[0] > 0.0f) ? (1) : (-1);
@@ -787,19 +785,19 @@ static bool Room_IsBoxForPath(room_box_p curr_box, room_box_p next_box, box_vali
             {
                 case ZONE_TYPE_ALL:
                     return true;
-                    
+
                 case ZONE_TYPE_FLY:
                     return (op->zone_alt) ? (op->zone & next_box->zone.FlyZone_Alternate) : (op->zone & next_box->zone.FlyZone_Normal);
-                    
+
                 case ZONE_TYPE_1:
                     return (op->zone_alt) ? (op->zone & next_box->zone.GroundZone1_Alternate) : (op->zone & next_box->zone.GroundZone1_Normal);
-                    
+
                 case ZONE_TYPE_2:
                     return (op->zone_alt) ? (op->zone & next_box->zone.GroundZone2_Alternate) : (op->zone & next_box->zone.GroundZone2_Normal);
-                    
+
                 case ZONE_TYPE_3:
                     return (op->zone_alt) ? (op->zone & next_box->zone.GroundZone3_Alternate) : (op->zone & next_box->zone.GroundZone3_Normal);
-                    
+
                 case ZONE_TYPE_4:
                     return (op->zone_alt) ? (op->zone & next_box->zone.GroundZone4_Alternate) : (op->zone & next_box->zone.GroundZone4_Normal);
             }
@@ -850,7 +848,7 @@ int  Room_FindPath(room_box_p *path_buf, uint32_t max_boxes, room_sector_p from,
                     {
                         vec3_copy(pt_from, from->pos);
                     }
-                    
+
                     while(ov)
                     {
                         room_box_p next_box = World_GetRoomBoxByID(ov->box);
@@ -878,7 +876,7 @@ int  Room_FindPath(room_box_p *path_buf, uint32_t max_boxes, room_sector_p from,
                                         break;
                                     }
                                 }
-                                
+
                                 if(not_in_front)
                                 {
                                     next_front[next_front_size++] = next_box;
@@ -922,7 +920,7 @@ int  Room_FindPath(room_box_p *path_buf, uint32_t max_boxes, room_sector_p from,
             ret = 1;
         }
     }
-    
+
     return ret;
 }
 
