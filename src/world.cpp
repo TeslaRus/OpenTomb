@@ -939,8 +939,8 @@ void World_BuildNearRoomsList(struct room_s *room)
         }
     }
 
-    uint32_t list_1_size = room->content->near_room_list_size;
-    for(uint32_t j = -1; j < list_1_size; j++)
+    int32_t list_1_size = room->content->near_room_list_size;
+    for(int32_t j = -1; j < list_1_size; j++)
     {
         room_p r = (j < 0) ? room : room->content->near_room_list[j];
         rs = r->content->sectors;
