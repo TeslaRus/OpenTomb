@@ -273,15 +273,15 @@ int Script_ParseControls(lua_State *lua, struct control_settings_s *cs)
         int top = lua_gettop(lua);
 
         lua_getglobal(lua, "controls");
-        
+
         lua_getfield(lua, -1, "mouse_sensitivity_x");
         cs->mouse_sensitivity_x = lua_tonumber(lua, -1);
         lua_pop(lua, 1);
 
         lua_getfield(lua, -1, "mouse_sensitivity_y");
         cs->mouse_sensitivity_y = lua_tonumber(lua, -1);
-        lua_pop(lua, 1); 
-        
+        lua_pop(lua, 1);
+
         lua_getfield(lua, -1, "use_joy");
         cs->use_joy = lua_tonumber(lua, -1);
         lua_pop(lua, 1);
@@ -940,7 +940,7 @@ void Script_LoadConstants(lua_State *lua)
         LUA_EXPOSE(lua, ZONE_TYPE_3);
         LUA_EXPOSE(lua, ZONE_TYPE_4);
         LUA_EXPOSE(lua, ZONE_TYPE_FLY);
-        
+
         LUA_EXPOSE(lua, MOVE_STATIC_POS);
         LUA_EXPOSE(lua, MOVE_KINEMATIC);
         LUA_EXPOSE(lua, MOVE_ON_FLOOR);
@@ -960,7 +960,6 @@ void Script_LoadConstants(lua_State *lua)
         LUA_EXPOSE(lua, TRIGGER_OP_AND_INV);
 
         LUA_EXPOSE(lua, CHARACTER_STATE_DEAD);
-        LUA_EXPOSE(lua, CHARACTER_STATE_SLIDE);
 
         LUA_EXPOSE(lua, TICK_IDLE);
         LUA_EXPOSE(lua, TICK_STOPPED);

@@ -2927,8 +2927,8 @@ int StateControl_Lara(struct entity_s *ent, struct ss_animation_s *ss_anim)
             {
                 ss_anim->next_state = TR_STATE_LARA_CRAWL_IDLE; // Stop
             }
-            else if( (next_fc.floor_hit.point[2] >= pos[2] + ent->character->min_step_up_height)   ||
-                     (next_fc.floor_hit.point[2] <= pos[2] - ent->character->min_step_up_height)    )
+            else if((next_fc.floor_hit.point[2] >= pos[2] + ent->character->min_step_up_height) ||
+                    (next_fc.floor_hit.point[2] <= pos[2] - ent->character->min_step_up_height))
             {
                 ent->dir_flag = ENT_STAY;
                 Entity_SetAnimation(ent, ANIM_TYPE_BASE, TR_ANIMATION_LARA_CRAWL_IDLE, 0);
