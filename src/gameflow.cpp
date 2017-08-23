@@ -9,9 +9,17 @@ extern "C" {
 #include "engine.h"
 #include "script/script.h"
 #include "gameflow.h"
+#include "game.h"
+#include "audio.h"
 
 #include <assert.h>
 #include <vector>
+
+typedef struct gameflow_action_s
+{
+    int8_t      m_opcode;
+    uint8_t     m_operand;
+} gameflow_action_t;
 
 struct gameflow_s
 {
@@ -21,8 +29,9 @@ struct gameflow_s
     char                            m_currentLevelName[LEVEL_NAME_MAX_LEN];
     char                            m_currentLevelPath[MAX_ENGINE_PATH];
     char                            m_secretsTriggerMap[GF_MAX_SECRETS];
+    char                            m_doLoadMap[MAX_ENGINE_PATH];
 
-    std::vector<gameflow_action>    m_actions;
+    std::vector<gameflow_action_t>    m_actions;
 } global_gameflow;
 
 
@@ -31,13 +40,14 @@ void Gameflow_Init()
     memset(global_gameflow.m_currentLevelName, 0, sizeof(global_gameflow.m_currentLevelName));
     memset(global_gameflow.m_currentLevelPath, 0, sizeof(global_gameflow.m_currentLevelPath));
     memset(global_gameflow.m_secretsTriggerMap, 0, sizeof(global_gameflow.m_secretsTriggerMap));
+    memset(global_gameflow.m_doLoadMap, 0, sizeof(global_gameflow.m_doLoadMap));
     global_gameflow.m_actions.clear();
 }
 
 
 bool Gameflow_Send(int opcode, int operand)
 {
-    gameflow_action act;
+    gameflow_action_t act;
 
     act.m_opcode = opcode;
     act.m_operand = operand;
@@ -47,16 +57,23 @@ bool Gameflow_Send(int opcode, int operand)
 }
 
 
+void Gameflow_SetLoadMap(const char* filePath)
+{
+    strncpy(global_gameflow.m_doLoadMap, filePath, LEVEL_NAME_MAX_LEN);
+}
+
+
 void Gameflow_ProcessCommands()
 {
     for(; !global_gameflow.m_actions.empty(); global_gameflow.m_actions.pop_back())
     {
-        gameflow_action &it = global_gameflow.m_actions.back();
+        gameflow_action_t &it = global_gameflow.m_actions.back();
         switch(it.m_opcode)
         {
             case GF_OP_LEVELCOMPLETE:
             {
                 int top = lua_gettop(engine_lua);
+                Game_LevelTransition(it.m_operand);
 
                 //Must be loaded from gameflow script!
                 lua_getglobal(engine_lua, "getNextLevel");
@@ -85,6 +102,10 @@ void Gameflow_ProcessCommands()
             }
             break;
 
+            case GF_OP_SETTRACK:
+                Audio_StreamPlay(it.m_operand);
+                break;
+
             case GF_NOENTRY:
                 continue;
 
@@ -92,6 +113,13 @@ void Gameflow_ProcessCommands()
                 //Con_Printf("Unimplemented gameflow opcode: %i", global_gameflow.m_actions[i].m_opcode);
                 break;
         };   // end switch(gameflow_manager.Operand)
+    }
+    
+    if(global_gameflow.m_doLoadMap[0])
+    {
+        strncpy(global_gameflow.m_currentLevelName, global_gameflow.m_doLoadMap, LEVEL_NAME_MAX_LEN);
+        Engine_LoadMap(global_gameflow.m_doLoadMap);
+        memset(global_gameflow.m_doLoadMap, 0, sizeof(global_gameflow.m_doLoadMap));
     }
 }
 

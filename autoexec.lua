@@ -14,9 +14,10 @@ setLanguage("english");
 
 setGravity(0, 0, -5700.0);
 mlook(1);
-freelook(0);
+freelook(1);
 cam_distance(1024.0);
 noclip(0);
 --loadMap("tests/altroom3/LEVEL1.PHD");
-dofile(base_path .. "save/qsave.lua");
+loadMap("data/tr1/data/CUT1.PHD");
+--dofile(base_path .. "save/qsave.lua");
 --setgamef(1, 4);

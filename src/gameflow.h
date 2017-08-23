@@ -20,12 +20,6 @@
 
 #define GF_NOENTRY     -1
 
-struct gameflow_action
-{
-    int8_t      m_opcode;
-    uint8_t     m_operand;
-};
-
 enum GF_OP
 {
     GF_OP_PICTURE,         // Unknown possibly TR1?
@@ -56,6 +50,7 @@ enum GF_OP
 
 void Gameflow_Init();
 bool Gameflow_Send(int opcode, int operand);
+void Gameflow_SetLoadMap(const char* filePath);
 void Gameflow_ProcessCommands();
 void Gameflow_ResetSecrets();
 const char* Gameflow_GetCurrentLevelPathLocal();
