@@ -5,7 +5,7 @@
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-gameflow_paths[GAME_1].numlevels = 15;
+gameflow_paths[GAME_1].numlevels = 19;
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- 1 - Define our level array to store our level information
@@ -21,15 +21,19 @@ gameflow_paths[GAME_1].level[1]  = { name = "Caves",                   filepath 
 gameflow_paths[GAME_1].level[2]  = { name = "City of Vilcabamba",      filepath = "data/tr1/data/LEVEL2.PHD",       picpath = "data/tr1/pix/aztecloa" };
 gameflow_paths[GAME_1].level[3]  = { name = "Lost Valley",             filepath = "data/tr1/data/LEVEL3A.PHD",      picpath = "data/tr1/pix/aztecloa" };
 gameflow_paths[GAME_1].level[4]  = { name = "Tomb of Qualopec",        filepath = "data/tr1/data/LEVEL3B.PHD",      picpath = "data/tr1/pix/aztecloa" };
-gameflow_paths[GAME_1].level[5]  = { name = "St. Francis' Folly",      filepath = "data/tr1/data/LEVEL4.PHD",       picpath = "data/tr1/pix/greekloa" };
-gameflow_paths[GAME_1].level[6]  = { name = "Colosseum",               filepath = "data/tr1/data/LEVEL5.PHD",       picpath = "data/tr1/pix/greekloa" };
-gameflow_paths[GAME_1].level[7]  = { name = "Palace Midas",            filepath = "data/tr1/data/LEVEL6.PHD",       picpath = "data/tr1/pix/greekloa" };
-gameflow_paths[GAME_1].level[8]  = { name = "The Cistern",             filepath = "data/tr1/data/LEVEL7A.PHD",      picpath = "data/tr1/pix/greekloa" };
-gameflow_paths[GAME_1].level[9]  = { name = "Tomb of Tihocan",         filepath = "data/tr1/data/LEVEL7B.PHD",      picpath = "data/tr1/pix/greekloa" };
-gameflow_paths[GAME_1].level[10] = { name = "City of Khamoon",         filepath = "data/tr1/data/LEVEL8A.PHD",      picpath = "data/tr1/pix/egyptloa" };
-gameflow_paths[GAME_1].level[11] = { name = "Obelisk of Khamoon",      filepath = "data/tr1/data/LEVEL8B.PHD",      picpath = "data/tr1/pix/egyptloa" };
-gameflow_paths[GAME_1].level[12] = { name = "Sanctuary of the Scion",  filepath = "data/tr1/data/LEVEL8C.PHD",      picpath = "data/tr1/pix/egyptloa" };
-gameflow_paths[GAME_1].level[13] = { name = "Natla's Mines",           filepath = "data/tr1/data/LEVEL10A.PHD",     picpath = "data/tr1/pix/atlanloa" };
-gameflow_paths[GAME_1].level[14] = { name = "Atlantis",                filepath = "data/tr1/data/LEVEL10B.PHD",     picpath = "data/tr1/pix/atlanloa" };
-gameflow_paths[GAME_1].level[15] = { name = "The Great Pyramid",       filepath = "data/tr1/data/LEVEL10C.PHD",     picpath = "data/tr1/pix/atlanloa" };
+gameflow_paths[GAME_1].level[5]  = { name = "Tomb of Qualopec",        filepath = "data/tr1/data/CUT1.PHD",         picpath = "data/tr1/pix/aztecloa" };
+gameflow_paths[GAME_1].level[6]  = { name = "St. Francis' Folly",      filepath = "data/tr1/data/LEVEL4.PHD",       picpath = "data/tr1/pix/greekloa" };
+gameflow_paths[GAME_1].level[7]  = { name = "Colosseum",               filepath = "data/tr1/data/LEVEL5.PHD",       picpath = "data/tr1/pix/greekloa" };
+gameflow_paths[GAME_1].level[8]  = { name = "Palace Midas",            filepath = "data/tr1/data/LEVEL6.PHD",       picpath = "data/tr1/pix/greekloa" };
+gameflow_paths[GAME_1].level[9]  = { name = "The Cistern",             filepath = "data/tr1/data/LEVEL7A.PHD",      picpath = "data/tr1/pix/greekloa" };
+gameflow_paths[GAME_1].level[10]  ={ name = "Tomb of Tihocan",         filepath = "data/tr1/data/LEVEL7B.PHD",      picpath = "data/tr1/pix/greekloa" };
+gameflow_paths[GAME_1].level[11]  ={ name = "Tomb of Tihocan",         filepath = "data/tr1/data/CUT2.PHD",         picpath = "data/tr1/pix/greekloa" };
+gameflow_paths[GAME_1].level[12] = { name = "City of Khamoon",         filepath = "data/tr1/data/LEVEL8A.PHD",      picpath = "data/tr1/pix/egyptloa" };
+gameflow_paths[GAME_1].level[13] = { name = "Obelisk of Khamoon",      filepath = "data/tr1/data/LEVEL8B.PHD",      picpath = "data/tr1/pix/egyptloa" };
+gameflow_paths[GAME_1].level[14] = { name = "Sanctuary of the Scion",  filepath = "data/tr1/data/LEVEL8C.PHD",      picpath = "data/tr1/pix/egyptloa" };
+gameflow_paths[GAME_1].level[15] = { name = "Natla's Mines",           filepath = "data/tr1/data/LEVEL10A.PHD",     picpath = "data/tr1/pix/atlanloa" };
+gameflow_paths[GAME_1].level[16] = { name = "Atlantis",                filepath = "data/tr1/data/CUT3.PHD",         picpath = "data/tr1/pix/atlanloa" };
+gameflow_paths[GAME_1].level[17] = { name = "Atlantis",                filepath = "data/tr1/data/LEVEL10B.PHD",     picpath = "data/tr1/pix/atlanloa" };
+gameflow_paths[GAME_1].level[18] = { name = "Atlantis",                filepath = "data/tr1/data/CUT4.PHD",         picpath = "data/tr1/pix/atlanloa" };
+gameflow_paths[GAME_1].level[19] = { name = "The Great Pyramid",       filepath = "data/tr1/data/LEVEL10C.PHD",     picpath = "data/tr1/pix/atlanloa" };
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------
