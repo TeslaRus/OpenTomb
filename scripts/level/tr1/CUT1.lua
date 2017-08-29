@@ -21,7 +21,7 @@ level_PostLoad = function()
         entity_funcs[0].t = entity_funcs[0].t + frame_time;
         if(not setCameraFrame(entity_funcs[0].t * 30)) then
             -- really: play FMV here first
-            setGame(GAME_1, 6);
+            gameflowSend(GF_OP_LEVELCOMPLETE, getLevel() + 1);
         end;
     end;
 end;

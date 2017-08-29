@@ -786,7 +786,7 @@ function Larson_init(id)
                 if((a == 15) and (f + 1 >= c)) then
                     local dist = getEntityDistance(object_id, player);
                     if(dist < 2048) then
-                        gameflowLoadMap(base_path .. "data/tr1/data/CUT1.PHD");
+                        gameflowSend(GF_OP_LEVELCOMPLETE, getLevel() + 1);
                     end;
                 end;
             else
