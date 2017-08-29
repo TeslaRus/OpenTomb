@@ -37,7 +37,16 @@ struct gameflow_s
     std::vector<gameflow_action_t>    m_actions;
 } global_gameflow;
 
+typedef struct level_info_s
+{
+    int num_levels = 0;
+    char name[LEVEL_NAME_MAX_LEN];
+    char path[MAX_ENGINE_PATH];
+    char pic[MAX_ENGINE_PATH];
+}level_info_t, *level_info_p;
 
+
+bool Gameflow_GetLevelInfo(level_info_p info, int game_id, int level_id);
 bool Gameflow_SetGameInternal(int game_id, int level_id);
 
 
@@ -99,11 +108,19 @@ void Gameflow_ProcessCommands()
 
 bool Gameflow_SetMap(const char* filePath, int game_id, int level_id)
 {
+    level_info_t info;
+    if(Gameflow_GetLevelInfo(&info, game_id, level_id))
+    {
+        if(!Gui_LoadScreenAssignPic(info.pic))
+        {
+            Gui_LoadScreenAssignPic("resource/graphics/legal");
+        }
+    }
+
     strncpy(global_gameflow.m_currentLevelPath, filePath, MAX_ENGINE_PATH);
     global_gameflow.m_currentGameID = game_id;
     global_gameflow.m_currentLevelID = level_id;
-    ///TODO: update params from scripts first!
-    ///SET GUI load screen!
+
     return Engine_LoadMap(filePath);
 }
 
@@ -116,13 +133,9 @@ bool Gameflow_SetGame(int game_id, int level_id)
 }
 
 
-bool Gameflow_SetGameInternal(int game_id, int level_id)
+bool Gameflow_GetLevelInfo(level_info_p info, int game_id, int level_id)
 {
     int top = lua_gettop(engine_lua);
-    int num_levels = 0;
-    char name[LEVEL_NAME_MAX_LEN];
-    char path[MAX_ENGINE_PATH];
-    char pic[MAX_ENGINE_PATH];
     
     lua_getglobal(engine_lua, "gameflow_params");
     if(!lua_istable(engine_lua, -1))
@@ -139,11 +152,11 @@ bool Gameflow_SetGameInternal(int game_id, int level_id)
     }
     
     lua_getfield(engine_lua, -1, "title");
-    strncpy(pic, lua_tostring(engine_lua, -1), MAX_ENGINE_PATH);
+    strncpy(info->pic, lua_tostring(engine_lua, -1), MAX_ENGINE_PATH);
     lua_pop(engine_lua, 1);
     
     lua_getfield(engine_lua, -1, "numlevels");
-    num_levels = lua_tointeger(engine_lua, -1);
+    info->num_levels = lua_tointeger(engine_lua, -1);
     lua_pop(engine_lua, 1);
     
     lua_getfield(engine_lua, -1, "levels");
@@ -153,7 +166,7 @@ bool Gameflow_SetGameInternal(int game_id, int level_id)
         return false;
     }
     
-    level_id = (level_id <= num_levels) ? (level_id) : (0);
+    level_id = (level_id <= info->num_levels) ? (level_id) : (0);
     lua_rawgeti(engine_lua, -1, level_id);
     if(!lua_istable(engine_lua, -1))
     {
@@ -162,15 +175,15 @@ bool Gameflow_SetGameInternal(int game_id, int level_id)
     }
     
     lua_getfield(engine_lua, -1, "name");
-    strncpy(name, lua_tostring(engine_lua, -1), LEVEL_NAME_MAX_LEN);
+    strncpy(info->name, lua_tostring(engine_lua, -1), LEVEL_NAME_MAX_LEN);
     lua_pop(engine_lua, 1);
     
     lua_getfield(engine_lua, -1, "filepath");
-    strncpy(path, lua_tostring(engine_lua, -1), MAX_ENGINE_PATH);
+    strncpy(info->path, lua_tostring(engine_lua, -1), MAX_ENGINE_PATH);
     lua_pop(engine_lua, 1);
     
     lua_getfield(engine_lua, -1, "picpath");
-    strncpy(pic, lua_tostring(engine_lua, -1), MAX_ENGINE_PATH);
+    strncpy(info->pic, lua_tostring(engine_lua, -1), MAX_ENGINE_PATH);
     lua_pop(engine_lua, 1);
     
     lua_pop(engine_lua, 1);   // level_id
@@ -178,17 +191,29 @@ bool Gameflow_SetGameInternal(int game_id, int level_id)
    
     lua_pop(engine_lua, 1);   // game_id
     lua_settop(engine_lua, top);
-    
-    if(!Gui_LoadScreenAssignPic(pic))
+
+    return true;
+}
+
+
+bool Gameflow_SetGameInternal(int game_id, int level_id)
+{
+    level_info_t info;
+    if(Gameflow_GetLevelInfo(&info, game_id, level_id))
     {
-        Gui_LoadScreenAssignPic("resource/graphics/legal");
+        if(!Gui_LoadScreenAssignPic(info.pic))
+        {
+            Gui_LoadScreenAssignPic("resource/graphics/legal");
+        }
+
+        global_gameflow.m_currentGameID = game_id;
+        global_gameflow.m_currentLevelID = level_id;
+        strncpy(global_gameflow.m_currentLevelName, info.name, LEVEL_NAME_MAX_LEN);
+        strncpy(global_gameflow.m_currentLevelPath, info.path, MAX_ENGINE_PATH);
+        return Engine_LoadMap(info.path);
     }
     
-    global_gameflow.m_currentGameID = game_id;
-    global_gameflow.m_currentLevelID = level_id;
-    strncpy(global_gameflow.m_currentLevelName, name, LEVEL_NAME_MAX_LEN);
-    strncpy(global_gameflow.m_currentLevelPath, path, MAX_ENGINE_PATH);
-    return Engine_LoadMap(path);
+    return false;
 }
 
 
