@@ -12,6 +12,7 @@ extern "C" {
 #include "gameflow.h"
 #include "game.h"
 #include "audio.h"
+#include "world.h"
 
 #include <assert.h>
 #include <vector>
@@ -29,7 +30,7 @@ struct gameflow_s
 
     int                             m_nextGameID;
     int                             m_nextLevelID;
-    
+
     char                            m_currentLevelName[LEVEL_NAME_MAX_LEN];
     char                            m_currentLevelPath[MAX_ENGINE_PATH];
     char                            m_secretsTriggerMap[GF_MAX_SECRETS];
@@ -81,7 +82,20 @@ void Gameflow_ProcessCommands()
         switch(it.m_opcode)
         {
             case GF_OP_LEVELCOMPLETE:
-                Gameflow_SetGame(global_gameflow.m_currentGameID, global_gameflow.m_currentLevelID + 1);
+                if(World_GetPlayer())
+                {
+                    luaL_dostring(engine_lua, "saved_inventory = getItems(player);");
+                }
+                if(Gameflow_SetGameInternal(global_gameflow.m_currentGameID, global_gameflow.m_currentLevelID + 1) && World_GetPlayer())
+                {
+                    luaL_dostring(engine_lua, "if(saved_inventory ~= nil) then\n"
+                                                  "removeAllItems(player);\n"
+                                                  "for k, v in pairs(saved_inventory) do\n"
+                                                      "addItem(player, k, v);\n"
+                                                  "end;\n"
+                                                  "saved_inventory = nil;\n"
+                                              "end;");
+                }
                 break;
 
             case GF_OP_SETTRACK:
@@ -96,7 +110,7 @@ void Gameflow_ProcessCommands()
                 break;
         };   // end switch(gameflow_manager.Operand)
     }
-    
+
     if(global_gameflow.m_nextGameID >= 0)
     {
         Gameflow_SetGameInternal(global_gameflow.m_nextGameID, global_gameflow.m_nextLevelID);
@@ -136,36 +150,36 @@ bool Gameflow_SetGame(int game_id, int level_id)
 bool Gameflow_GetLevelInfo(level_info_p info, int game_id, int level_id)
 {
     int top = lua_gettop(engine_lua);
-    
+
     lua_getglobal(engine_lua, "gameflow_params");
     if(!lua_istable(engine_lua, -1))
     {
         lua_settop(engine_lua, top);
         return false;
     }
-    
+
     lua_rawgeti(engine_lua, -1, game_id);
     if(!lua_istable(engine_lua, -1))
     {
         lua_settop(engine_lua, top);
         return false;
     }
-    
+
     lua_getfield(engine_lua, -1, "title");
     strncpy(info->pic, lua_tostring(engine_lua, -1), MAX_ENGINE_PATH);
     lua_pop(engine_lua, 1);
-    
+
     lua_getfield(engine_lua, -1, "numlevels");
     info->num_levels = lua_tointeger(engine_lua, -1);
     lua_pop(engine_lua, 1);
-    
+
     lua_getfield(engine_lua, -1, "levels");
     if(!lua_istable(engine_lua, -1))
     {
         lua_settop(engine_lua, top);
         return false;
     }
-    
+
     level_id = (level_id <= info->num_levels) ? (level_id) : (0);
     lua_rawgeti(engine_lua, -1, level_id);
     if(!lua_istable(engine_lua, -1))
@@ -173,22 +187,22 @@ bool Gameflow_GetLevelInfo(level_info_p info, int game_id, int level_id)
         lua_settop(engine_lua, top);
         return false;
     }
-    
+
     lua_getfield(engine_lua, -1, "name");
     strncpy(info->name, lua_tostring(engine_lua, -1), LEVEL_NAME_MAX_LEN);
     lua_pop(engine_lua, 1);
-    
+
     lua_getfield(engine_lua, -1, "filepath");
     strncpy(info->path, lua_tostring(engine_lua, -1), MAX_ENGINE_PATH);
     lua_pop(engine_lua, 1);
-    
+
     lua_getfield(engine_lua, -1, "picpath");
     strncpy(info->pic, lua_tostring(engine_lua, -1), MAX_ENGINE_PATH);
     lua_pop(engine_lua, 1);
-    
+
     lua_pop(engine_lua, 1);   // level_id
     lua_pop(engine_lua, 1);   // levels
-   
+
     lua_pop(engine_lua, 1);   // game_id
     lua_settop(engine_lua, top);
 
@@ -212,7 +226,7 @@ bool Gameflow_SetGameInternal(int game_id, int level_id)
         strncpy(global_gameflow.m_currentLevelPath, info.path, MAX_ENGINE_PATH);
         return Engine_LoadMap(info.path);
     }
-    
+
     return false;
 }
 
