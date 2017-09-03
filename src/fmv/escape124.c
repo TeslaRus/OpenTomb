@@ -28,13 +28,6 @@
 #include "tiny_codec.h"
 
 
-static int av_log2(uint32_t value)
-{
-    int ret = -1;
-    for(; value; value >>= 1, ++ret);
-    return ret;
-}
-
 typedef union MacroBlock
 {
     uint16_t pixels[4];
@@ -80,23 +73,6 @@ static void escape124_free_data(void *data)
     }
 }
 
-void escape124_decode_init(struct tiny_codec_s *avctx)
-{
-    if(!avctx->video.priv_data)
-    {
-        Escape124Context *s = (Escape124Context*)malloc(sizeof(Escape124Context));
-        avctx->video.priv_data = s;
-        avctx->video.free_data = escape124_free_data;
-        s->num_superblocks = ((unsigned)avctx->video.width / 8) *
-                             ((unsigned)avctx->video.height / 8);
-        
-        for (int i = 0; i < 3; i++)
-        {
-            s->codebooks[i].blocks = NULL;
-        }
-    }
-}
-
 static CodeBook unpack_codebook(GetBitContext* gb, unsigned depth, unsigned size)
 {
     unsigned i, j;
@@ -114,13 +90,13 @@ static CodeBook unpack_codebook(GetBitContext* gb, unsigned depth, unsigned size
 
     cb.depth = depth;
     cb.size = size;
-    for (i = 0; i < size; i++) 
+    for (i = 0; i < size; i++)
     {
         unsigned mask_bits = get_bits(gb, 4);
         unsigned color0 = get_bits(gb, 15);
         unsigned color1 = get_bits(gb, 15);
 
-        for (j = 0; j < 4; j++) 
+        for (j = 0; j < 4; j++)
         {
             if (mask_bits & (1 << j))
                 cb.blocks[i].pixels[j] = color1;
@@ -214,7 +190,7 @@ static const uint16_t mask_matrix[] = {0x1,   0x2,   0x10,   0x20,
                                        0x100, 0x200, 0x1000, 0x2000,
                                        0x400, 0x800, 0x4000, 0x8000};
 
-int escape124_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *avpkt)
+static int escape124_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *avpkt)
 {
     Escape124Context *s = (Escape124Context*)avctx->video.priv_data;
 
@@ -290,7 +266,7 @@ int escape124_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *avpkt)
                 return -1;
             }
 
-            free(&s->codebooks[i].blocks);
+            free(s->codebooks[i].blocks);
             s->codebooks[i] = unpack_codebook(&gb, cb_depth, cb_size);
             if (!s->codebooks[i].blocks)
                 return -1;
@@ -299,10 +275,10 @@ int escape124_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *avpkt)
 
     new_frame_data = (uint16_t*)avctx->video.buff;
     new_stride = avctx->video.line_bytes / 2;
-    old_frame_data = (uint16_t*)avctx->video.buff + new_stride * avctx->video.height;
+    old_frame_data = new_frame_data + new_stride * avctx->video.height;
     old_stride = avctx->video.line_bytes / 2;
     memcpy(old_frame_data, new_frame_data, avctx->video.line_bytes * avctx->video.height);
-    
+
     for (superblock_index = 0; superblock_index < s->num_superblocks; superblock_index++)
     {
         MacroBlock mb;
@@ -391,7 +367,38 @@ int escape124_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *avpkt)
         skip--;
     }
 
+    if(avctx->video.rgba)
+    {
+        uint8_t *rgba = avctx->video.rgba;
+        for(i = 0; i < avctx->video.height; ++i)
+        {
+            uint16_t *px = (uint16_t*)avctx->video.buff + i * new_stride;
+            for(int j = 0; j < avctx->video.width; ++j, ++px)
+            {
+                *rgba++ = ((*px) & 0x7C00) >> (10 - 3);
+                *rgba++ = ((*px) & 0x03E0) >> (5 - 3);
+                *rgba++ = ((*px) & 0x001F) << 3 ;
+                *rgba++ = 0xFF;
+            }
+        }
+    }
     return frame_size;
 }
 
+void escape124_decode_init(struct tiny_codec_s *avctx)
+{
+    avctx->video.decode = escape124_decode_frame;
+    if(!avctx->video.priv_data)
+    {
+        Escape124Context *s = (Escape124Context*)malloc(sizeof(Escape124Context));
+        avctx->video.priv_data = s;
+        avctx->video.free_data = escape124_free_data;
+        s->num_superblocks = ((unsigned)avctx->video.width / 8) *
+                             ((unsigned)avctx->video.height / 8);
 
+        for (int i = 0; i < 3; i++)
+        {
+            s->codebooks[i].blocks = NULL;
+        }
+    }
+}
