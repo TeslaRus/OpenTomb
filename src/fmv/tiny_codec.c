@@ -10,8 +10,19 @@
 
 #include "tiny_codec.h"
 
+void av_init_packet(AVPacket *pkt)
+{
+    pkt->pos = 0;
+    pkt->data = NULL;
+    pkt->size = 0;
+    pkt->allocated_size = 0;
+    pkt->flags = 0;
+    pkt->stream_index = 0;
+}
+
 int av_get_packet(SDL_RWops *pb, AVPacket *pkt, int size)
 {
+    int ret = 0;
     if(pkt->allocated_size < size)
     {
         pkt->allocated_size = size + 1024 - size % 1024;
@@ -25,9 +36,10 @@ int av_get_packet(SDL_RWops *pb, AVPacket *pkt, int size)
     pkt->dts = 0;
     pkt->pts = 0;
     pkt->duration = 0;
-    pkt->pos = 0;
     pkt->flags = 0;
-    return SDL_RWread(pb, pkt->data, 1, size);
+    ret = SDL_RWread(pb, pkt->data, 1, size);
+    pkt->pos = SDL_RWtell(pb);
+    return ret;
 }
 
 void av_packet_unref(AVPacket *pkt)
@@ -51,6 +63,8 @@ void codec_init(struct tiny_codec_s *s, SDL_RWops *rw)
 
     s->audio.buff = NULL;
     s->audio.entry = NULL;
+    s->audio.entry_size = 0;
+    s->audio.entry_current = 0;
     s->audio.priv_data = NULL;
     s->audio.free_data = NULL;
     s->audio.decode = NULL;
@@ -59,6 +73,8 @@ void codec_init(struct tiny_codec_s *s, SDL_RWops *rw)
     s->video.buff = NULL;
     s->video.rgba = NULL;
     s->video.entry = NULL;
+    s->video.entry_size = 0;
+    s->video.entry_current = 0;
     s->video.priv_data = NULL;
     s->video.free_data = NULL;
     s->video.decode = NULL;
@@ -87,6 +103,8 @@ void codec_clear(struct tiny_codec_s *s)
     {
         free(s->video.entry);
         s->video.entry = NULL;
+        s->video.entry_size = 0;
+        s->video.entry_current = 0;
     }
     if(s->video.free_data)
     {
@@ -103,6 +121,8 @@ void codec_clear(struct tiny_codec_s *s)
     {
         free(s->audio.entry);
         s->audio.entry = NULL;
+        s->audio.entry_size = 0;
+        s->audio.entry_current = 0;
     }
     if(s->audio.free_data)
     {
