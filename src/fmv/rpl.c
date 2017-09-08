@@ -179,7 +179,7 @@ static int rpl_read_packet(struct tiny_codec_s *s, struct AVPacket *pkt)
     {
         if(s->audio.entry_current >= s->audio.entry_size)
             return -1;
-
+       
         entry = &s->audio.entry[s->audio.entry_current];
 
         pkt->pos = entry->pos;
@@ -200,7 +200,7 @@ static int rpl_read_packet(struct tiny_codec_s *s, struct AVPacket *pkt)
 
         pkt->pts = entry->timestamp;
         pkt->stream_index = rpl->chunk_part;
-        rpl->chunk_part++;
+        s->audio.entry_current++;
     }
 
     // None of the Escape formats have keyframes, and the ADPCM
@@ -211,6 +211,7 @@ static int rpl_read_packet(struct tiny_codec_s *s, struct AVPacket *pkt)
 
 
 void escape124_decode_init(struct tiny_codec_s *avctx);
+void pcm_decode_init(struct tiny_codec_s *avctx);
 
 int codec_open_rpl(struct tiny_codec_s *s)
 {
@@ -308,8 +309,8 @@ int codec_open_rpl(struct tiny_codec_s *s)
                 if(s->audio.bits_per_coded_sample == 16)
                 {
                     // 16-bit audio is always signed
-                    s->audio.decode = NULL;//AV_CODEC_ID_PCM_S16LE;
-                    s->audio.codec_tag = 0;
+                    s->audio.codec_tag = 0;//AV_CODEC_ID_PCM_S16LE;
+                    pcm_decode_init(s);
                 }
                 // There are some other formats listed as legal per the spec;
                 // samples needed.
@@ -320,8 +321,8 @@ int codec_open_rpl(struct tiny_codec_s *s)
                 {
                     // The samples with this kind of audio that I have
                     // are all unsigned.
-                    s->audio.decode = NULL;//AV_CODEC_ID_PCM_U8;
-                    s->audio.codec_tag = 0;
+                    s->audio.codec_tag = 0;//AV_CODEC_ID_PCM_U8;
+                    pcm_decode_init(s);
                 }
                 else if (s->audio.bits_per_coded_sample == 4)
                 {
@@ -392,3 +393,26 @@ int codec_open_rpl(struct tiny_codec_s *s)
     return error;
 }
 
+
+static uint32_t pcm_dummy_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *avpkt)
+{
+    if(avctx->audio.buff_allocated_size < avpkt->size)
+    {
+        avctx->audio.buff_allocated_size = avpkt->size + 1024 - avpkt->size % 1024;
+        if(avctx->audio.buff)
+        {
+            free(avctx->audio.buff);
+        }
+        avctx->audio.buff = (uint8_t*)malloc(avctx->audio.buff_allocated_size);
+    }
+    memcpy(avctx->audio.buff, avpkt->data, avpkt->size);
+    avctx->audio.buff_offset += avctx->audio.buff_size;
+    avctx->audio.buff_size = avpkt->size;
+    
+    return avpkt->size;
+}
+
+void pcm_decode_init(struct tiny_codec_s *avctx)
+{
+    avctx->audio.decode = pcm_dummy_decode_frame;
+}
