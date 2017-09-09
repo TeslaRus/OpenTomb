@@ -797,7 +797,6 @@ void Engine_PollSDLEvents()
                 if(event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)
                 {
                     stream_codec_stop(&engine_video, 0);
-                    Audio_StreamExternalStop();
                 }
 
                 if(Con_IsShown() && event.key.state)
@@ -917,7 +916,13 @@ void Engine_MainLoop()
             fps->style_id   = FONTSTYLE_MENU_TITLE;
         }
 
-        if(!stream_codec_check_playing(&engine_video))
+        int codec_end_state = stream_codec_check_end(&engine_video);
+        if(codec_end_state == 1)
+        {
+            Audio_StreamExternalStop();
+        }
+        
+        if(codec_end_state >= 0)
         {
             if(screen_info.debug_view_state != debug_view_state_e::model_view)
             {
@@ -1582,6 +1587,12 @@ int  Engine_PlayVideo(const char *name)
 {
     Audio_StreamExternalStop();
     return stream_codec_play_rpl(&engine_video, name);
+}
+
+
+int  Engine_IsVideoPlayed()
+{
+    return (engine_video.state != VIDEO_STATE_STOPPED);
 }
 
 

@@ -265,6 +265,7 @@ int codec_open_rpl(struct tiny_codec_s *s)
             break;
 
         case 124:
+            s->video.decode = NULL;
             s->video.codec_tag = 124;
             s->video.line_bytes = s->video.width * 2;
             s->video.buff = (uint8_t*)calloc(1, 2 * s->video.line_bytes * s->video.height);
