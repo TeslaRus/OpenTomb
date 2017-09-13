@@ -4,7 +4,7 @@
 
 #include <math.h>
 
-#include "config-opentomb.h"
+#include "../config-opentomb.h"
 
 extern "C" {
 #include <al.h>
@@ -25,40 +25,24 @@ extern "C" {
 #include <vorbisfile.h>
 }
 
-#include "core/system.h"
-#include "core/gl_text.h"
-#include "core/console.h"
-#include "core/vmath.h"
-#include "render/camera.h"
-#include "render/render.h"
-#include "script/script.h"
-#include "vt/vt_level.h"
-#include "game.h"
+#include "../core/system.h"
+#include "../core/vmath.h"
+#include "../core/console.h"
+#include "../script/script.h"
+#include "../render/camera.h"
+#include "../vt/vt_level.h"
+#include "../entity.h"
+#include "../room.h"
+#include "../world.h"
+#include "../engine.h"
+#include "../game.h"
+
 #include "audio.h"
-#include "engine.h"
-#include "entity.h"
-#include "character_controller.h"
-#include "engine_string.h"
-#include "room.h"
-#include "world.h"
-
-
-// FX manager structure.
-// It contains all necessary info to process sample FX (reverb and echo).
-typedef struct audio_fxmanager_s
-{
-    ALuint      al_filter;
-    ALuint      al_effect[TR_AUDIO_FX_LASTINDEX];
-    ALuint      al_slot[TR_AUDIO_MAX_SLOTS];
-    ALuint      current_slot;
-    ALuint      current_room_type;
-    ALuint      last_room_type;
-    int8_t      water_state;    // If listener is underwater, all samples will damp.
-}audio_fxmanager_t, *audio_fxmanager_p;
+#include "audio_stream.h"
+#include "audio_fx.h"
 
 // Effect structure.
 // Contains all global effect parameters.
-
 typedef struct audio_effect_s
 {
     // General sound source parameters (similar to TR sound info).
@@ -119,9 +103,6 @@ public:
     void SetPitch(ALfloat pitch_value);     // Set pitch shift.
     void SetGain(ALfloat gain_value);       // Set gain (volume).
     void SetRange(ALfloat range_value);     // Set max. audible distance.
-    void SetFX();                           // Set reverb FX, according to room flag.
-    void UnsetFX();                         // Remove any reverb FX from source.
-    void SetUnderwater();                   // Apply low-pass underwater filter.
 
     bool IsActive();            // Check if source is active.
 
@@ -176,7 +157,7 @@ public:
     {
         return buffer_part;
     }
-    
+
     int GetType()
     {
         return stream_type;
@@ -196,71 +177,6 @@ private:
     ALenum          format;
     ALsizei         rate;
 };
-
-
-// Main stream track class is used to create multi-channel soundtrack player,
-// which differs from classic TR scheme, where each new soundtrack interrupted
-// previous one. With flexible class handling, we now can implement multitrack
-// player with automatic channel and crossfade management.
-
-class StreamTrack
-{
-public:
-    StreamTrack();      // Stream track constructor.
-   ~StreamTrack();      // Stream track destructor.
-
-    // Load routine prepares track for playing. Arguments are track index,
-    // stream type (background, one-shot or chat) and load method, which
-    // differs for TR1-2, TR3 and TR4-5.
-
-    void SetTrackInfo(int track_index, int stream_type_in)
-    {
-        current_track = track_index;
-        stream_type   = stream_type_in;
-        dampable      = (stream_type == TR_AUDIO_STREAM_TYPE_BACKGROUND);       // Damp only looped (BGM) tracks.
-        buffer_offset = 0;
-    }
-    bool Play(bool fade_in = false);     // Begins to play track.
-    void Pause();                        // Pauses track, preserving position.
-    void Resume();                       // Resume paused track.
-    void End();                          // End track with fade-out.
-    void Stop();                         // Immediately stop track.
-    bool Update();                       // Update track and manage streaming.
-
-    bool IsTrack(const int track_index); // Checks desired track's index.
-    bool IsType(const int track_type);   // Checks desired track's type.
-    ALenum GetState();                   //
-    bool IsActive();                     // Checks if track is still active.
-    bool IsDampable();                   // Checks if track is dampable.
-
-    void SetFX();                        // Set reverb FX, according to room flag.
-    void UnsetFX();                      // Remove any reverb FX from source.
-
-    static bool damp_active;             // Global flag for damping BGM tracks.
-
-private:
-    bool Stream(ALuint al_buffer);       // General stream routine.
-
-    uint32_t        buffer_offset;
-    // General OpenAL fields
-    ALuint          source;
-    ALuint          buffers[TR_AUDIO_STREAM_NUMBUFFERS];
-    ALfloat         current_volume;     // Stream volume, considering fades.
-    ALfloat         damped_volume;      // Additional damp volume multiplier.
-
-    bool            active;             // Used when track is being faded by other one.
-    bool            dampable;           // Specifies if track can be damped by others.
-    int             stream_type;        // Either BACKGROUND, ONESHOT or CHAT.
-    int             current_track;      // Needed to prevent same track sending.
-};
-
-
-
-// ========== GLOBALS ==============
-ALfloat                     listener_position[3];
-struct audio_settings_s     audio_settings = {0};
-struct audio_fxmanager_s    fxManager = {0};
-bool                        StreamTrack::damp_active = false;
 
 
 size_t sdl_ov_fread(void *data, size_t size, size_t n, void *ctx)
@@ -291,382 +207,19 @@ static ov_callbacks ov_sdl_callbacks =
     sdl_ov_ftell
 };
 
+// Error handling routines.
+int  Audio_LogALError(int error_marker = 0);    // AL-specific error handler.
+void Audio_LogOGGError(int code);               // Ogg-specific error handler.
 
-struct audio_world_data_s
-{
-    uint32_t                        audio_emitters_count;   // Amount of audio emitters in level.
-    struct audio_emitter_s         *audio_emitters;         // Audio emitters.
-
-    uint32_t                        audio_map_count;        // Amount of overall effects in engine.
-    int16_t                        *audio_map;              // Effect indexes.
-    uint32_t                        audio_effects_count;    // Amount of available effects in level.
-    struct audio_effect_s          *audio_effects;          // Effects and their parameters.
-
-    uint32_t                        audio_buffers_count;    // Amount of samples.
-    ALuint                         *audio_buffers;          // Samples.
-    uint32_t                        audio_sources_count;    // Amount of runtime channels.
-    AudioSource                    *audio_sources;          // Channels.
-
-    uint32_t                        stream_tracks_count;    // Amount of stream track channels.
-    StreamTrack                    *stream_tracks;          // Stream tracks.
-
-    uint32_t                        stream_buffers_count;    // Amount of stream track source buffers.
-    StreamTrackBuffer             **stream_buffers;
-
-    uint32_t                        stream_track_map_count; // Stream track flag map count.
-    uint8_t                        *stream_track_map;       // Stream track flag map.
-
-    ALuint                          external_source;
-    uint32_t                        external_buffer_offset;
-    int                             external_source_linked_buffers;
-    ALuint                          external_source_buffers[TR_AUDIO_STREAM_NUMBUFFERS];
-} audio_world_data;
-
-
-// ======== PRIVATE PROTOTYPES =============
-void Audio_InitFX();
-#ifdef HAVE_ALEXT_H
-int  Audio_LoadReverbToFX(const int effect_index, const EFXEAXREVERBPROPERTIES *reverb);
-#endif
-bool Audio_FillALBuffer(ALuint buf_number, Uint8* buffer_data, Uint32 buffer_size, int sample_bitsize, int channels, int frequency);
 int  Audio_LoadALbufferFromWAV_Mem(ALuint buf_number, uint8_t *sample_pointer, uint32_t sample_size, uint32_t uncomp_sample_size = 0);
 int  Audio_LoadALbufferFromWAV_File(ALuint buf_number, const char *fname);
 void Audio_LoadOverridedSamples();
-
-int  Audio_GetFreeSource();
-int  Audio_IsInRange(int entity_type, int entity_ID, float range, float gain);
-
-void Audio_PauseAllSources();    // Used to pause all effects currently playing.
-void Audio_StopAllSources();     // Used in audio deinit.
-void Audio_ResumeAllSources();   // Used to resume all effects currently paused.
-void Audio_UpdateSources();      // Main sound loop.
-void Audio_UpdateListenerByCamera(struct camera_s *cam);
-void Audio_UpdateListenerByEntity(struct entity_s *ent);
 
 int  Audio_GetFreeStream();                         // Get free (stopped) stream.
 int  Audio_IsTrackPlaying(uint32_t track_index);    // See if track is already playing.
 int  Audio_TrackAlreadyPlayed(uint32_t track_index, int8_t mask = 0);     // Check if track played with given activation mask.
 void Audio_UpdateStreams();                         // Update all streams.
 void Audio_UpdateStreamsDamping();                  // See if there any damping tracks playing.
-
-
-// Error handling routines.
-int  Audio_LogALError(int error_marker = 0);    // AL-specific error handler.
-void Audio_LogOGGError(int code);               // Ogg-specific error handler.
-
-
-// ======== AUDIOSOURCE CLASS IMPLEMENTATION ========
-AudioSource::AudioSource()
-{
-    active = false;
-    emitter_ID =  -1;
-    emitter_type = TR_AUDIO_EMITTER_ENTITY;
-    effect_index = 0;
-    sample_index = 0;
-    sample_count = 0;
-    is_water     = false;
-    alGenSources(1, &source_index);
-
-    if(alIsSource(source_index))
-    {
-        alSourcef(source_index, AL_MIN_GAIN, 0.0);
-        alSourcef(source_index, AL_MAX_GAIN, 1.0);
-
-#ifdef HAVE_ALEXT_H
-        if(audio_settings.use_effects)
-        {
-            alSourcef(source_index, AL_ROOM_ROLLOFF_FACTOR, 1.0);
-            alSourcei(source_index, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO,   AL_TRUE);
-            alSourcei(source_index, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO, AL_TRUE);
-            alSourcef(source_index, AL_AIR_ABSORPTION_FACTOR, 0.1);
-        }
-        else
-        {
-            alSourcef(source_index, AL_AIR_ABSORPTION_FACTOR, 0.0);
-        }
-#endif
-    }
-}
-
-
-AudioSource::~AudioSource()
-{
-    if(alIsSource(source_index))
-    {
-        alSourceStop(source_index);
-        alDeleteSources(1, &source_index);
-    }
-}
-
-
-bool AudioSource::IsActive()
-{
-    return active;
-}
-
-
-void AudioSource::Play()
-{
-    if(alIsSource(source_index))
-    {
-        if(emitter_type == TR_AUDIO_EMITTER_GLOBAL)
-        {
-            alSourcei(source_index, AL_SOURCE_RELATIVE, AL_TRUE);
-            alSource3f(source_index, AL_POSITION, 0.0f, 0.0f, 0.0f);
-            alSource3f(source_index, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
-
-            if(audio_settings.use_effects)
-            {
-                UnsetFX();
-            }
-        }
-        else
-        {
-            alSourcei(source_index, AL_SOURCE_RELATIVE, AL_FALSE);
-            LinkEmitter();
-
-            if(audio_settings.use_effects)
-            {
-                SetFX();
-                SetUnderwater();
-            }
-        }
-
-        alSourcePlay(source_index);
-        active = true;
-    }
-}
-
-
-void AudioSource::Pause()
-{
-    if(alIsSource(source_index))
-    {
-        alSourcePause(source_index);
-    }
-}
-
-
-void AudioSource::Stop()
-{
-    if(alIsSource(source_index))
-    {
-        alSourceStop(source_index);
-        active = false;
-    }
-}
-
-
-void AudioSource::Update()
-{
-    ALint   state;
-    ALfloat range, gain;
-
-    alGetSourcei(source_index, AL_SOURCE_STATE, &state);
-
-    // Disable and bypass source, if it is stopped.
-    if(state == AL_STOPPED)
-    {
-        active = false;
-        return;
-    }
-
-    // Stop source, if it is disabled, but still playing.
-    if(!active && (state == AL_PLAYING))
-    {
-        Stop();
-        return;
-    }
-
-    // Bypass source, if it is paused or global.
-    if( (state == AL_PAUSED) || (emitter_type == TR_AUDIO_EMITTER_GLOBAL) )
-    {
-        return;
-    }
-
-    alGetSourcef(source_index, AL_GAIN, &gain);
-    alGetSourcef(source_index, AL_MAX_DISTANCE, &range);
-
-    // Check if source is in listener's range, and if so, update position,
-    // else stop and disable it.
-    if(Audio_IsInRange(emitter_type, emitter_ID, range, gain))
-    {
-        LinkEmitter();
-
-        if( (audio_settings.use_effects) && (is_water != fxManager.water_state) )
-        {
-            SetUnderwater();
-        }
-    }
-    else
-    {
-        Stop();
-    }
-}
-
-
-void AudioSource::SetBuffer(ALint buffer)
-{
-    ALint buffer_index = audio_world_data.audio_buffers[buffer];
-
-    if(alIsSource(source_index) && alIsBuffer(buffer_index))
-    {
-        alSourcei(source_index, AL_BUFFER, buffer_index);
-
-        // For some reason, OpenAL sometimes produces "Invalid Operation" error here,
-        // so there's extra debug info - maybe it'll help some day.
-
-        /*
-        if(Audio_LogALError(1))
-        {
-            int channels, bits, freq;
-
-            alGetBufferi(buffer_index, AL_CHANNELS,  &channels);
-            alGetBufferi(buffer_index, AL_BITS,      &bits);
-            alGetBufferi(buffer_index, AL_FREQUENCY, &freq);
-
-            Sys_DebugLog(SYS_LOG_FILENAME, "Erroneous buffer %d info: CH%d, B%d, F%d", buffer_index, channels, bits, freq);
-        }
-        */
-    }
-}
-
-
-void AudioSource::SetLooping(ALboolean is_looping)
-{
-    alSourcei(source_index, AL_LOOPING, is_looping);
-}
-
-
-void AudioSource::SetGain(ALfloat gain_value)
-{
-    // Clamp gain value.
-    gain_value = (gain_value > 1.0) ? (1.0) : (gain_value);
-    gain_value = (gain_value < 0.0) ? (0.0) : (gain_value);
-
-    alSourcef(source_index, AL_GAIN, gain_value * audio_settings.sound_volume);
-}
-
-
-void AudioSource::SetPitch(ALfloat pitch_value)
-{
-    // Clamp pitch value, as OpenAL tends to hang with incorrect ones.
-    pitch_value = (pitch_value < 0.1) ? (0.1) : (pitch_value);
-    pitch_value = (pitch_value > 2.0) ? (2.0) : (pitch_value);
-
-    alSourcef(source_index, AL_PITCH, pitch_value);
-}
-
-
-void AudioSource::SetRange(ALfloat range_value)
-{
-    // Source will become fully audible on 1/6 of overall position.
-    alSourcef(source_index, AL_REFERENCE_DISTANCE, range_value / 6.0);
-    alSourcef(source_index, AL_MAX_DISTANCE, range_value);
-}
-
-
-void AudioSource::SetPosition(const ALfloat pos_vector[])
-{
-    alSourcefv(source_index, AL_POSITION, pos_vector);
-}
-
-
-void AudioSource::SetVelocity(const ALfloat vel_vector[])
-{
-    alSourcefv(source_index, AL_VELOCITY, vel_vector);
-}
-
-
-void AudioSource::SetFX()
-{
-#ifdef HAVE_ALEXT_H
-    ALuint effect;
-    ALuint slot;
-
-    // Reverb FX is applied globally through audio send. Since player can
-    // jump between adjacent rooms with different reverb info, we assign
-    // several (2 by default) interchangeable audio sends, which are switched
-    // every time current room reverb is changed.
-
-    if(fxManager.current_room_type != fxManager.last_room_type)  // Switch audio send.
-    {
-        fxManager.last_room_type = fxManager.current_room_type;
-        fxManager.current_slot   = (++fxManager.current_slot > (TR_AUDIO_MAX_SLOTS-1)) ? (0) : (fxManager.current_slot);
-
-        effect = fxManager.al_effect[fxManager.current_room_type];
-        slot   = fxManager.al_slot[fxManager.current_slot];
-
-        if(alIsAuxiliaryEffectSlot(slot) && alIsEffect(effect))
-        {
-            alAuxiliaryEffectSloti(slot, AL_EFFECTSLOT_EFFECT, effect);
-        }
-    }
-    else    // Do not switch audio send.
-    {
-        slot = fxManager.al_slot[fxManager.current_slot];
-    }
-
-    // Assign global reverb FX to channel.
-
-    alSource3i(source_index, AL_AUXILIARY_SEND_FILTER, slot, 0, AL_FILTER_NULL);
-#endif
-}
-
-
-void AudioSource::UnsetFX()
-{
-#ifdef HAVE_ALEXT_H
-    // Remove any audio sends and direct filters from channel.
-    alSourcei(source_index, AL_DIRECT_FILTER, AL_FILTER_NULL);
-    alSource3i(source_index, AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, 0, AL_FILTER_NULL);
-#endif
-}
-
-void AudioSource::SetUnderwater()
-{
-#ifdef HAVE_ALEXT_H
-    // Water low-pass filter is applied when source's is_water flag is set.
-    // Note that it is applied directly to channel, i. e. all sources that
-    // are underwater will damp, despite of global reverb setting.
-
-    if(fxManager.water_state)
-    {
-        alSourcei(source_index, AL_DIRECT_FILTER, fxManager.al_filter);
-        is_water = true;
-    }
-    else
-    {
-        alSourcei(source_index, AL_DIRECT_FILTER, AL_FILTER_NULL);
-        is_water = false;
-    }
-#endif
-}
-
-
-void AudioSource::LinkEmitter()
-{
-    entity_p ent;
-
-    switch(emitter_type)
-    {
-        case TR_AUDIO_EMITTER_ENTITY:
-            ent = World_GetEntityByID(emitter_ID);
-            if(ent)
-            {
-                ALfloat  vec[3];
-                vec3_copy(vec, ent->transform + 12);
-                SetPosition(vec);
-                vec3_copy(vec, ent->speed);
-                SetVelocity(vec);
-            }
-            return;
-
-        case TR_AUDIO_EMITTER_SOUNDSOURCE:
-            SetPosition(audio_world_data.audio_emitters[emitter_ID].position);
-            return;
-    }
-}
 
 // ==== STREAMTRACK BUFFER CLASS IMPLEMENTATION =====
 StreamTrackBuffer::StreamTrackBuffer() :
@@ -768,8 +321,7 @@ bool StreamTrackBuffer::Load_Ogg(const char *path)
         }
         while(readed > 0);
 
-        ov_clear(&vorbis_Stream);
-        //SDL_RWclose(audio_file);   //ov_clear closes (vorbis_Stream->datasource == audio_file);
+        ov_clear(&vorbis_Stream);   //ov_clear closes (vorbis_Stream->datasource == audio_file);
 
         if(buffer_size > 0)
         {
@@ -951,470 +503,314 @@ bool StreamTrackBuffer::Load_WavRW(SDL_RWops *file)
     return true;
 }
 
-// ======== STREAMTRACK CLASS IMPLEMENTATION ========
-StreamTrack::StreamTrack() :
-    buffer_offset(0),
-    source(0),
-    current_volume(0.0f),
-    damped_volume(0.0f),
-    active(false),
-    dampable(false),
-    stream_type(TR_AUDIO_STREAM_TYPE_ONESHOT),
-    current_track(-1)
+// ========== GLOBALS ==============
+ALfloat                     listener_position[3];
+struct audio_settings_s     audio_settings = {0};
+
+
+struct audio_world_data_s
 {
-    alGenBuffers(TR_AUDIO_STREAM_NUMBUFFERS, buffers);              // Generate all buffers at once.
-    alGenSources(1, &source);
+    uint32_t                        audio_emitters_count;   // Amount of audio emitters in level.
+    struct audio_emitter_s         *audio_emitters;         // Audio emitters.
 
-    if(alIsSource(source))
-    {
-        alSource3f(source, AL_POSITION,        0.0f,  0.0f, -1.0f); // OpenAL tut says this.
-        alSource3f(source, AL_VELOCITY,        0.0f,  0.0f,  0.0f);
-        alSource3f(source, AL_DIRECTION,       0.0f,  0.0f,  0.0f);
-        alSourcef (source, AL_ROLLOFF_FACTOR,  0.0f              );
-        alSourcei (source, AL_SOURCE_RELATIVE, AL_TRUE           );
-        alSourcei (source, AL_LOOPING,         AL_FALSE          ); // No effect, but just in case...
-    }
-}
+    uint32_t                        audio_map_count;        // Amount of overall effects in engine.
+    int16_t                        *audio_map;              // Effect indexes.
+    uint32_t                        audio_effects_count;    // Amount of available effects in level.
+    struct audio_effect_s          *audio_effects;          // Effects and their parameters.
 
+    uint32_t                        audio_buffers_count;    // Amount of samples.
+    ALuint                         *audio_buffers;          // Samples.
+    uint32_t                        audio_sources_count;    // Amount of runtime channels.
+    AudioSource                    *audio_sources;          // Channels.
 
-StreamTrack::~StreamTrack()
-{
-    Stop(); // In case we haven't stopped yet.
+    bool                            damp_active;            // Global flag for damping BGM tracks.
+    uint32_t                        stream_tracks_count;    // Amount of stream track channels.
+    struct stream_track_s          *stream_tracks;          // Stream tracks.
 
-    buffer_offset = 0;
+    uint32_t                        stream_buffers_count;    // Amount of stream track source buffers.
+    StreamTrackBuffer             **stream_buffers;
 
-    alDeleteSources(1, &source);
-    alDeleteBuffers(TR_AUDIO_STREAM_NUMBUFFERS, buffers);
-}
+    uint32_t                        stream_track_map_count; // Stream track flag map count.
+    uint8_t                        *stream_track_map;       // Stream track flag map.
 
-
-bool StreamTrack::Play(bool fade_in)
-{
-    int buffers_to_play = 0;
-
-    // At start-up, we fill all available buffers.
-    // TR soundtracks contain a lot of short tracks, like Lara speech etc., and
-    // there is high chance that such short tracks won't fill all defined buffers.
-    // For this reason, we count amount of filled buffers, and immediately stop
-    // allocating them as long as Stream() routine returns false. Later, we use
-    // this number for queuing buffers to source.
-
-    for(int i = 0; i < TR_AUDIO_STREAM_NUMBUFFERS; i++, buffers_to_play++)
-    {
-        if(!Stream(buffers[i]))
-        {
-            if(i == 0)
-            {
-                Sys_DebugLog(SYS_LOG_FILENAME, "StreamTrack: error preparing buffers.");
-                return false;
-            }
-            else
-            {
-                break;
-            }
-        }
-    }
-
-    if(fade_in)     // If fade-in flag is set, do it.
-    {
-        current_volume = 0.0;
-    }
-    else
-    {
-        current_volume = 1.0;
-    }
-
-    if(audio_settings.use_effects)
-    {
-        if(stream_type == TR_AUDIO_STREAM_TYPE_CHAT)
-        {
-            SetFX();
-        }
-        else
-        {
-            UnsetFX();
-        }
-    }
-
-    alSourcef(source, AL_GAIN, current_volume * audio_settings.music_volume);
-    alSourceQueueBuffers(source, buffers_to_play, buffers);
-    alSourcePlay(source);
-
-    active = true;
-    return   true;
-}
+    struct stream_track_s           external_stream;
+} audio_world_data;
 
 
-void StreamTrack::Pause()
-{
-    if(alIsSource(source))
-    {
-        alSourcePause(source);
-    }
-}
+// ======== PRIVATE PROTOTYPES =============
+bool Audio_FillALBuffer(ALuint buf_number, Uint8* buffer_data, Uint32 buffer_size, int sample_bitsize, int channels, int frequency);
 
 
-void StreamTrack::Resume()
-{
-    if(alIsSource(source))
-    {
-        alSourcePlay(source);
-    }
-}
+int  Audio_LoadALbufferFromWAV_File(ALuint buf_number, const char *fname);
+void Audio_LoadOverridedSamples();
+
+int  Audio_GetFreeSource();
+int  Audio_IsInRange(int entity_type, int entity_ID, float range, float gain);
+
+void Audio_PauseAllSources();    // Used to pause all effects currently playing.
+void Audio_StopAllSources();     // Used in audio deinit.
+void Audio_ResumeAllSources();   // Used to resume all effects currently paused.
+void Audio_UpdateSources();      // Main sound loop.
+void Audio_UpdateListenerByCamera(struct camera_s *cam, float time);
+void Audio_UpdateListenerByEntity(struct entity_s *ent);
+
+int  Audio_GetFreeStream();                         // Get free (stopped) stream.
+int  Audio_IsTrackPlaying(uint32_t track_index);    // See if track is already playing.
+void Audio_UpdateStreams();                         // Update all streams.
+void Audio_UpdateStreamsDamping();                  // See if there any damping tracks playing.
 
 
-void StreamTrack::End()     // Smoothly end track with fadeout.
+// Error handling routines.
+//int  Audio_LogALError(int error_marker = 0);    // AL-specific error handler.
+//void Audio_LogOGGError(int code);               // Ogg-specific error handler.
+
+
+// ======== AUDIOSOURCE CLASS IMPLEMENTATION ========
+AudioSource::AudioSource()
 {
     active = false;
-}
+    emitter_ID =  -1;
+    emitter_type = TR_AUDIO_EMITTER_ENTITY;
+    effect_index = 0;
+    sample_index = 0;
+    sample_count = 0;
+    is_water     = false;
+    alGenSources(1, &source_index);
 
-
-void StreamTrack::Stop()    // Immediately stop track.
-{
-    active = false;         // Clear activity flag.
-    buffer_offset = 0;
-    current_track = -1;
-    if(alIsSource(source))  // Stop and unlink all associated buffers.
+    if(alIsSource(source_index))
     {
-        ALint state = AL_STOPPED;
-        alGetSourcei(source, AL_SOURCE_STATE, &state);
-        if(state != AL_STOPPED)
+        alSourcef(source_index, AL_MIN_GAIN, 0.0);
+        alSourcef(source_index, AL_MAX_GAIN, 1.0);
+
+#ifdef HAVE_ALEXT_H
+        if(audio_settings.use_effects)
         {
-            alSourceStop(source);
-        }
-
-        ALint queued = 0;
-        alGetSourcei(source, AL_BUFFERS_QUEUED, &queued);
-        while(queued--)
-        {
-            ALuint buffer;
-            alSourceUnqueueBuffers(source, 1, &buffer);                         // Unlink queued buffers.
-        }
-    }
-}
-
-
-bool StreamTrack::Update()
-{
-    ALint processed    = 0;
-    bool buffered      = false;
-    bool change_gain   = false;
-
-    // Update damping, if track supports it.
-    if(dampable)
-    {
-        // We check if damp condition is active, and if so, is it already at low-level or not.
-        if(damp_active && (damped_volume < TR_AUDIO_STREAM_DAMP_LEVEL))
-        {
-            damped_volume += TR_AUDIO_STREAM_DAMP_SPEED;
-
-            // Clamp volume.
-            damped_volume = (damped_volume > TR_AUDIO_STREAM_DAMP_LEVEL) ? (TR_AUDIO_STREAM_DAMP_LEVEL) : (damped_volume);
-            change_gain   = true;
-        }
-        else if(!damp_active && (damped_volume > 0))    // If damp is not active, but it's still at low, restore it.
-        {
-            damped_volume -= TR_AUDIO_STREAM_DAMP_SPEED;
-
-            // Clamp volume.
-            damped_volume = (damped_volume < 0.0f) ? (0.0f) : (damped_volume);
-            change_gain   = true;
-        }
-    }
-
-    if(!active)     // If track has ended, crossfade it.
-    {
-        switch(stream_type)
-        {
-            case TR_AUDIO_STREAM_TYPE_BACKGROUND:
-                current_volume -= TR_AUDIO_STREAM_CROSSFADE_BACKGROUND;
-                break;
-
-            case TR_AUDIO_STREAM_TYPE_ONESHOT:
-                current_volume -= TR_AUDIO_STREAM_CROSSFADE_ONESHOT;
-                break;
-
-            case TR_AUDIO_STREAM_TYPE_CHAT:
-                current_volume -= TR_AUDIO_STREAM_CROSSFADE_CHAT;
-                break;
-        }
-
-        // Crossfade has ended, we can now kill the stream.
-        if(current_volume <= 0.0f)
-        {
-            current_volume = 0.0f;
-            Stop();
-            return true;    // Stop track, although return success, as everything is normal.
+            alSourcef(source_index, AL_ROOM_ROLLOFF_FACTOR, 1.0);
+            alSourcei(source_index, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO,   AL_TRUE);
+            alSourcei(source_index, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO, AL_TRUE);
+            alSourcef(source_index, AL_AIR_ABSORPTION_FACTOR, 0.1);
         }
         else
         {
-            change_gain = true;
+            alSourcef(source_index, AL_AIR_ABSORPTION_FACTOR, 0.0);
         }
+#endif
     }
-    else
-    {
-        // If track is active and playing, restore it from crossfade.
-        if(current_volume < 1.0)
-        {
-            switch(stream_type)
-            {
-                case TR_AUDIO_STREAM_TYPE_BACKGROUND:
-                    current_volume += TR_AUDIO_STREAM_CROSSFADE_BACKGROUND;
-                    break;
-
-                case TR_AUDIO_STREAM_TYPE_ONESHOT:
-                    current_volume += TR_AUDIO_STREAM_CROSSFADE_ONESHOT;
-                    break;
-
-                case TR_AUDIO_STREAM_TYPE_CHAT:
-                    current_volume += TR_AUDIO_STREAM_CROSSFADE_CHAT;
-                    break;
-            }
-
-            // Clamp volume.
-            current_volume = (current_volume > 1.0f) ? (1.0f) : (current_volume);
-            change_gain    = true;
-        }
-    }
-
-    if(change_gain) // If any condition which modify track gain was met, call AL gain change.
-    {
-        alSourcef(source, AL_GAIN, current_volume              *  // Global track volume.
-                                   (1.0f - damped_volume)      *  // Damp volume.
-                                   audio_settings.music_volume);  // Global music volume setting.
-    }
-
-    // Check if any track buffers were already processed.
-    // by doc: "Buffer queuing loop must operate in a new thread"
-    alGetSourcei(source, AL_BUFFERS_PROCESSED, &processed);
-    while(0 < processed--)  // Manage processed buffer.
-    {
-        ALuint buffer = 0;
-        alSourceUnqueueBuffers(source, 1, &buffer);     // Unlink processed buffer.                 
-        if(Stream(buffer))  // Refill processed buffer.
-        {
-            alSourceQueueBuffers(source, 1, &buffer);   // Relink processed buffer.
-            buffered = true;
-        }
-    }
-
-    return buffered;
 }
 
 
-bool StreamTrack::IsTrack(const int track_index)    // Check if track has specific index.
+AudioSource::~AudioSource()
 {
-    return (current_track == track_index);
+    if(alIsSource(source_index))
+    {
+        alSourceStop(source_index);
+        alDeleteSources(1, &source_index);
+    }
 }
 
 
-bool StreamTrack::IsType(const int track_type)      // Check if track has specific type.
-{
-    return (track_type == stream_type);
-}
-
-
-bool StreamTrack::IsActive()                         // Check if track is still active.
+bool AudioSource::IsActive()
 {
     return active;
 }
 
 
-bool StreamTrack::IsDampable()                      // Check if track is dampable.
+void AudioSource::Play()
 {
-    return dampable;
-}
-
-
-ALenum StreamTrack::GetState()                      // AL_STOPPED, AL_INITIAL, AL_PLAYING, AL_PAUSED
-{
-    ALint state = AL_STOPPED;
-
-    if(alIsSource(source))
+    if(alIsSource(source_index))
     {
-       alGetSourcei(source, AL_SOURCE_STATE, &state);
-    }
-
-    return state;
-}
-
-
-bool StreamTrack::Stream(ALuint al_buffer)             // Update stream process.
-{
-    uint8_t *buffer = NULL;
-    StreamTrackBuffer *stb = NULL;
-    size_t buffer_size = 0;
-    size_t block_size = 0;
-    bool ret = false;
-
-    if(current_track >= 0)
-    {
-        stb = audio_world_data.stream_buffers[current_track];
-        buffer = stb->GetBuffer();
-        buffer_size = stb->GetBufferSize();
-    }
-
-    if(buffer && (buffer_offset + 1 < buffer_size))
-    {
-        block_size = stb->GetStreamBufferPart();
-        if(buffer_offset + block_size < buffer_size)
+        if(emitter_type == TR_AUDIO_EMITTER_GLOBAL)
         {
-            alBufferData(al_buffer, stb->GetFormat(), buffer + buffer_offset, block_size, stb->GetRate());
-            buffer_offset += block_size;
-            ret = true;
+            alSourcei(source_index, AL_SOURCE_RELATIVE, AL_TRUE);
+            alSource3f(source_index, AL_POSITION, 0.0f, 0.0f, 0.0f);
+            alSource3f(source_index, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
+
+            if(audio_settings.use_effects)
+            {
+                Audio_UnsetFX(source_index);
+            }
         }
         else
         {
-            alBufferData(al_buffer, stb->GetFormat(), buffer + buffer_offset, buffer_size - buffer_offset, stb->GetRate());
-            buffer_offset = (stream_type == TR_AUDIO_STREAM_TYPE_BACKGROUND) ? 0 : (buffer_size - 1);
-            ret = true;
+            alSourcei(source_index, AL_SOURCE_RELATIVE, AL_FALSE);
+            LinkEmitter();
+
+            if(audio_settings.use_effects)
+            {
+                Audio_SetFX(source_index);
+                Audio_SetFXWaterStateForSource(source_index);
+            }
         }
-    }
 
-    return ret;
+        alSourcePlay(source_index);
+        active = true;
+    }
 }
 
 
-void StreamTrack::SetFX()
+void AudioSource::Pause()
 {
-#ifdef HAVE_ALEXT_H
-    ALuint effect;
-    ALuint slot;
-
-    // Reverb FX is applied globally through audio send. Since player can
-    // jump between adjacent rooms with different reverb info, we assign
-    // several (2 by default) interchangeable audio sends, which are switched
-    // every time current room reverb is changed.
-
-    if(fxManager.current_room_type != fxManager.last_room_type)  // Switch audio send.
+    if(alIsSource(source_index))
     {
-        fxManager.last_room_type = fxManager.current_room_type;
-        fxManager.current_slot   = (++fxManager.current_slot > (TR_AUDIO_MAX_SLOTS - 1)) ? (0) : (fxManager.current_slot);
+        alSourcePause(source_index);
+    }
+}
 
-        effect = fxManager.al_effect[fxManager.current_room_type];
-        slot   = fxManager.al_slot[fxManager.current_slot];
 
-        if(alIsAuxiliaryEffectSlot(slot) && alIsEffect(effect))
+void AudioSource::Stop()
+{
+    if(alIsSource(source_index))
+    {
+        alSourceStop(source_index);
+        active = false;
+    }
+}
+
+
+void AudioSource::Update()
+{
+    ALint   state;
+    ALfloat range, gain;
+
+    alGetSourcei(source_index, AL_SOURCE_STATE, &state);
+
+    // Disable and bypass source, if it is stopped.
+    if(state == AL_STOPPED)
+    {
+        active = false;
+        return;
+    }
+
+    // Stop source, if it is disabled, but still playing.
+    if(!active && (state == AL_PLAYING))
+    {
+        Stop();
+        return;
+    }
+
+    // Bypass source, if it is paused or global.
+    if( (state == AL_PAUSED) || (emitter_type == TR_AUDIO_EMITTER_GLOBAL) )
+    {
+        return;
+    }
+
+    alGetSourcef(source_index, AL_GAIN, &gain);
+    alGetSourcef(source_index, AL_MAX_DISTANCE, &range);
+
+    // Check if source is in listener's range, and if so, update position,
+    // else stop and disable it.
+    if(Audio_IsInRange(emitter_type, emitter_ID, range, gain))
+    {
+        LinkEmitter();
+
+        if((audio_settings.use_effects) && (is_water != Audio_GetFXWaterState()))
         {
-            alAuxiliaryEffectSloti(slot, AL_EFFECTSLOT_EFFECT, effect);
-        }
-    }
-    else    // Do not switch audio send.
-    {
-        slot = fxManager.al_slot[fxManager.current_slot];
-    }
-
-    // Assign global reverb FX to channel.
-
-    alSource3i(source, AL_AUXILIARY_SEND_FILTER, slot, 0, AL_FILTER_NULL);
-#endif
-}
-
-
-void StreamTrack::UnsetFX()
-{
-#ifdef HAVE_ALEXT_H
-    // Remove any audio sends and direct filters from channel.
-
-    alSourcei(source, AL_DIRECT_FILTER, AL_FILTER_NULL);
-    alSource3i(source, AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, 0, AL_FILTER_NULL);
-#endif
-}
-
-// ======== END STREAMTRACK CLASS IMPLEMENTATION ========
-
-
-// General soundtrack playing routine. All native TR CD triggers and commands should ONLY
-// call this one.
-
-int Audio_StreamPlay(const uint32_t track_index, const uint8_t mask)
-{
-    int    target_stream = -1;
-    bool   do_fade_in    =  false;
-
-    // Don't even try to do anything with track, if its index is greater than overall amount of
-    // soundtracks specified in a stream track map count (which is derived from script).
-
-    if((track_index >= audio_world_data.stream_track_map_count) ||
-       (track_index >= audio_world_data.stream_buffers_count))
-    {
-        Con_AddLine("StreamPlay: CANCEL, track index is out of bounds.", FONTSTYLE_CONSOLE_WARNING);
-        return TR_AUDIO_STREAMPLAY_WRONGTRACK;
-    }
-
-    // Don't play track, if it is already playing.
-    // This should become useless option, once proper one-shot trigger functionality is implemented.
-
-    if(Audio_IsTrackPlaying(track_index))
-    {
-        Con_AddLine("StreamPlay: CANCEL, stream already playing.", FONTSTYLE_CONSOLE_WARNING);
-        return TR_AUDIO_STREAMPLAY_IGNORED;
-    }
-
-    // lua_GetSoundtrack returns stream type, file path and load method in last three
-    // provided arguments. That is, after calling this function we receive stream type
-    // in "stream_type" argument, file path into "file_path" argument and load method into
-    // "load_method" argument. Function itself returns false, if script wasn't found or
-    // request was broken; in this case, we quit.
-    if(!audio_world_data.stream_buffers[track_index])
-    {
-        Audio_CacheTrack(track_index);
-    }
-
-    StreamTrackBuffer *stb = audio_world_data.stream_buffers[track_index];
-    if(!stb)
-    {
-        Con_AddLine("StreamPlay: CANCEL, wrong track index or broken script.", FONTSTYLE_CONSOLE_WARNING);
-        return TR_AUDIO_STREAMPLAY_LOADERROR;
-    }
-
-    // Don't try to play track, if it was already played by specified bit mask.
-    // Additionally, TrackAlreadyPlayed function applies specified bit mask to track map.
-    // Also, bit mask is valid only for non-looped tracks, since looped tracks are played
-    // in any way.
-
-    int stream_type = stb->GetType();
-    if((stream_type != TR_AUDIO_STREAM_TYPE_BACKGROUND) &&
-        Audio_TrackAlreadyPlayed(track_index, mask))
-    {
-        return TR_AUDIO_STREAMPLAY_IGNORED;
-    }
-
-    // Entry found, now process to actual track loading.
-
-    target_stream = Audio_GetFreeStream();            // At first, we need to get free stream.
-
-    if(target_stream == -1)
-    {
-        do_fade_in = Audio_StopStreams(stream_type);  // If no free track found, hardly stop all tracks.
-        target_stream = Audio_GetFreeStream();        // Try again to assign free stream.
-
-        if(target_stream == -1)
-        {
-            Con_AddLine("StreamPlay: CANCEL, no free stream.", FONTSTYLE_CONSOLE_WARNING);
-            return TR_AUDIO_STREAMPLAY_NOFREESTREAM;  // No success, exit and don't play anything.
+            Audio_SetFXWaterStateForSource(source_index);
+            is_water = !is_water;
         }
     }
     else
     {
-        do_fade_in = Audio_EndStreams(stream_type);   // End all streams of this type with fadeout.
-
-        // Additionally check if track type is looped. If it is, force fade in in any case.
-        // This is needed to smooth out possible pop with gapless looped track at a start-up.
-        do_fade_in |= (stream_type == TR_AUDIO_STREAM_TYPE_BACKGROUND);
+        Stop();
     }
+}
 
-    // Finally - load our track.
-    audio_world_data.stream_tracks[target_stream].SetTrackInfo(track_index, stb->GetType());
 
-    // Try to play newly assigned and loaded track.
-    if(!(audio_world_data.stream_tracks[target_stream].Play(do_fade_in)))
+void AudioSource::SetBuffer(ALint buffer)
+{
+    ALint buffer_index = audio_world_data.audio_buffers[buffer];
+
+    if(alIsSource(source_index) && alIsBuffer(buffer_index))
     {
-        Con_AddLine("StreamPlay: CANCEL, stream play error.", FONTSTYLE_CONSOLE_WARNING);
-        return TR_AUDIO_STREAMPLAY_PLAYERROR;
-    }
+        alSourcei(source_index, AL_BUFFER, buffer_index);
 
-    return TR_AUDIO_STREAMPLAY_PROCESSED;   // Everything is OK!
+        // For some reason, OpenAL sometimes produces "Invalid Operation" error here,
+        // so there's extra debug info - maybe it'll help some day.
+
+        /*
+        if(Audio_LogALError(1))
+        {
+            int channels, bits, freq;
+
+            alGetBufferi(buffer_index, AL_CHANNELS,  &channels);
+            alGetBufferi(buffer_index, AL_BITS,      &bits);
+            alGetBufferi(buffer_index, AL_FREQUENCY, &freq);
+
+            Sys_DebugLog(SYS_LOG_FILENAME, "Erroneous buffer %d info: CH%d, B%d, F%d", buffer_index, channels, bits, freq);
+        }
+        */
+    }
+}
+
+
+void AudioSource::SetLooping(ALboolean is_looping)
+{
+    alSourcei(source_index, AL_LOOPING, is_looping);
+}
+
+
+void AudioSource::SetGain(ALfloat gain_value)
+{
+    // Clamp gain value.
+    gain_value = (gain_value > 1.0) ? (1.0) : (gain_value);
+    gain_value = (gain_value < 0.0) ? (0.0) : (gain_value);
+
+    alSourcef(source_index, AL_GAIN, gain_value * audio_settings.sound_volume);
+}
+
+
+void AudioSource::SetPitch(ALfloat pitch_value)
+{
+    // Clamp pitch value, as OpenAL tends to hang with incorrect ones.
+    pitch_value = (pitch_value < 0.1) ? (0.1) : (pitch_value);
+    pitch_value = (pitch_value > 2.0) ? (2.0) : (pitch_value);
+
+    alSourcef(source_index, AL_PITCH, pitch_value);
+}
+
+
+void AudioSource::SetRange(ALfloat range_value)
+{
+    // Source will become fully audible on 1/6 of overall position.
+    alSourcef(source_index, AL_REFERENCE_DISTANCE, range_value / 6.0);
+    alSourcef(source_index, AL_MAX_DISTANCE, range_value);
+}
+
+
+void AudioSource::SetPosition(const ALfloat pos_vector[])
+{
+    alSourcefv(source_index, AL_POSITION, pos_vector);
+}
+
+
+void AudioSource::SetVelocity(const ALfloat vel_vector[])
+{
+    alSourcefv(source_index, AL_VELOCITY, vel_vector);
+}
+
+
+void AudioSource::LinkEmitter()
+{
+    entity_p ent;
+
+    switch(emitter_type)
+    {
+        case TR_AUDIO_EMITTER_ENTITY:
+            ent = World_GetEntityByID(emitter_ID);
+            if(ent)
+            {
+                ALfloat  vec[3];
+                vec3_copy(vec, ent->transform + 12);
+                SetPosition(vec);
+                vec3_copy(vec, ent->speed);
+                SetVelocity(vec);
+            }
+            return;
+
+        case TR_AUDIO_EMITTER_SOUNDSOURCE:
+            SetPosition(audio_world_data.audio_emitters[emitter_ID].position);
+            return;
+    }
 }
 
 
@@ -1423,7 +819,7 @@ int Audio_StreamPlay(const uint32_t track_index, const uint8_t mask)
 
 void Audio_UpdateStreamsDamping()
 {
-    StreamTrack::damp_active = false;   // Reset damp activity flag.
+    /*StreamTrack::damp_active = false;   // Reset damp activity flag.
 
     // Scan for any tracks that can provoke damp. Usually it's any tracks that are
     // NOT background. So we simply check this condition and set damp activity flag
@@ -1437,14 +833,14 @@ void Audio_UpdateStreamsDamping()
             StreamTrack::damp_active = true;
             return; // No need to check more, we found at least one condition.
         }
-    }
+    }*/
 }
 
 
 // Update routine for all streams. Should be placed into main loop.
 void Audio_UpdateStreams()
 {
-    Audio_UpdateStreamsDamping();
+    /*Audio_UpdateStreamsDamping();
 
     for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
     {
@@ -1456,20 +852,20 @@ void Audio_UpdateStreams()
         {
             audio_world_data.stream_tracks[i].Stop();
         }
-    }
+    }*/
 }
 
 
 int  Audio_IsTrackPlaying(uint32_t track_index)
 {
-    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
+    /*for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
     {
         if(audio_world_data.stream_tracks[i].IsTrack(track_index) &&
            (AL_PLAYING == audio_world_data.stream_tracks[i].GetState()))
         {
             return 1;
         }
-    }
+    }*/
 
     return 0;
 }
@@ -1515,7 +911,7 @@ int Audio_GetFreeStream()
 {
     ALenum state;
     int ret = TR_AUDIO_STREAMPLAY_NOFREESTREAM;
-    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
+    /*for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
     {
         state = audio_world_data.stream_tracks[i].GetState();
         {
@@ -1529,8 +925,8 @@ int Audio_GetFreeStream()
                 return i;
             }
         }
-    }
-   
+    }*/
+
     return ret;
 }
 
@@ -1538,19 +934,23 @@ int Audio_GetFreeStream()
 int  Audio_StopStreams(int stream_type)
 {
     int ret = 0;
-    ALenum state;
-    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
+    /*stream_track_p s = audio_world_data.stream_tracks;
+    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; ++i, ++s)
     {
-        if((stream_type == -1) || audio_world_data.stream_tracks[i].IsType(stream_type))
+        if((stream_type == -1) || (s->type == stream_type))
         {
-            state = audio_world_data.stream_tracks[i].GetState();
-            if(AL_PLAYING == state || AL_PAUSED == state)
+            if(alIsSource(s->source))
             {
-                audio_world_data.stream_tracks[i].Stop();
-                ret++;
+                ALint state = AL_STOPPED;
+                alGetSourcei(s->source, AL_SOURCE_STATE, &state);
+                if(AL_PLAYING == state || AL_PAUSED == state)
+                {
+                    s->Stop();
+                    ret++;
+                }
             }
         }
-    }
+    }*/
 
     return ret;
 }
@@ -1559,7 +959,7 @@ int  Audio_StopStreams(int stream_type)
 int  Audio_EndStreams(int stream_type)
 {
     int ret = 0;
-    ALenum state;
+   /* ALenum state;
     for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
     {
         if((stream_type == -1) || audio_world_data.stream_tracks[i].IsType(stream_type))
@@ -1576,7 +976,7 @@ int  Audio_EndStreams(int stream_type)
                 ret++;
             }
         }
-    }
+    }*/
 
     return ret;
 }
@@ -1586,7 +986,7 @@ int  Audio_PauseStreams(int stream_type)
 {
     int ret = 0;
 
-    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
+    /*for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
     {
         if(((stream_type == -1) || audio_world_data.stream_tracks[i].IsType(stream_type)) &&
             (AL_PLAYING == audio_world_data.stream_tracks[i].GetState()))
@@ -1594,7 +994,7 @@ int  Audio_PauseStreams(int stream_type)
             audio_world_data.stream_tracks[i].Pause();
             ret++;
         }
-    }
+    }*/
 
     return ret;
 }
@@ -1604,7 +1004,7 @@ int  Audio_ResumeStreams(int stream_type)
 {
     int ret = 0;
 
-    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
+    /*for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
     {
         if(((stream_type == -1) || audio_world_data.stream_tracks[i].IsType(stream_type)) &&
             (AL_PAUSED == audio_world_data.stream_tracks[i].GetState()))
@@ -1612,7 +1012,7 @@ int  Audio_ResumeStreams(int stream_type)
             audio_world_data.stream_tracks[i].Resume();
             ret++;
         }
-    }
+    }*/
 
     return ret;
 }
@@ -1976,101 +1376,26 @@ void Audio_InitGlobals()
 }
 
 
-void Audio_InitFX()
-{
-#ifdef HAVE_ALEXT_H
-    memset(&fxManager, 0, sizeof(audio_fxmanager_s));
-
-    // Set up effect slots, effects and filters.
-
-    alGenAuxiliaryEffectSlots(TR_AUDIO_MAX_SLOTS, fxManager.al_slot);
-    alGenEffects(TR_AUDIO_FX_LASTINDEX, fxManager.al_effect);
-    alGenFilters(1, &fxManager.al_filter);
-
-    alFilteri(fxManager.al_filter, AL_FILTER_TYPE, AL_FILTER_LOWPASS);
-    alFilterf(fxManager.al_filter, AL_LOWPASS_GAIN, 0.7f);      // Low frequencies gain.
-    alFilterf(fxManager.al_filter, AL_LOWPASS_GAINHF, 0.0f);    // High frequencies gain.
-
-    // Fill up effects with reverb presets.
-
-    EFXEAXREVERBPROPERTIES reverb1 = EFX_REVERB_PRESET_CITY;
-    Audio_LoadReverbToFX(TR_AUDIO_FX_OUTSIDE, &reverb1);
-
-    EFXEAXREVERBPROPERTIES reverb2 = EFX_REVERB_PRESET_LIVINGROOM;
-    Audio_LoadReverbToFX(TR_AUDIO_FX_SMALLROOM, &reverb2);
-
-    EFXEAXREVERBPROPERTIES reverb3 = EFX_REVERB_PRESET_WOODEN_LONGPASSAGE;
-    Audio_LoadReverbToFX(TR_AUDIO_FX_MEDIUMROOM, &reverb3);
-
-    EFXEAXREVERBPROPERTIES reverb4 = EFX_REVERB_PRESET_DOME_TOMB;
-    Audio_LoadReverbToFX(TR_AUDIO_FX_LARGEROOM, &reverb4);
-
-    EFXEAXREVERBPROPERTIES reverb5 = EFX_REVERB_PRESET_PIPE_LARGE;
-    Audio_LoadReverbToFX(TR_AUDIO_FX_PIPE, &reverb5);
-
-    EFXEAXREVERBPROPERTIES reverb6 = EFX_REVERB_PRESET_UNDERWATER;
-    Audio_LoadReverbToFX(TR_AUDIO_FX_WATER, &reverb6);
-#endif
-}
-
-
-#ifdef HAVE_ALEXT_H
-int Audio_LoadReverbToFX(const int effect_index, const EFXEAXREVERBPROPERTIES *reverb)
-{
-    ALuint effect = fxManager.al_effect[effect_index];
-
-    if(alIsEffect(effect))
-    {
-        alEffecti(effect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
-
-        alEffectf(effect, AL_REVERB_DENSITY, reverb->flDensity);
-        alEffectf(effect, AL_REVERB_DIFFUSION, reverb->flDiffusion);
-        alEffectf(effect, AL_REVERB_GAIN, reverb->flGain);
-        alEffectf(effect, AL_REVERB_GAINHF, reverb->flGainHF);
-        alEffectf(effect, AL_REVERB_DECAY_TIME, reverb->flDecayTime);
-        alEffectf(effect, AL_REVERB_DECAY_HFRATIO, reverb->flDecayHFRatio);
-        alEffectf(effect, AL_REVERB_REFLECTIONS_GAIN, reverb->flReflectionsGain);
-        alEffectf(effect, AL_REVERB_REFLECTIONS_DELAY, reverb->flReflectionsDelay);
-        alEffectf(effect, AL_REVERB_LATE_REVERB_GAIN, reverb->flLateReverbGain);
-        alEffectf(effect, AL_REVERB_LATE_REVERB_DELAY, reverb->flLateReverbDelay);
-        alEffectf(effect, AL_REVERB_AIR_ABSORPTION_GAINHF, reverb->flAirAbsorptionGainHF);
-        alEffectf(effect, AL_REVERB_ROOM_ROLLOFF_FACTOR, reverb->flRoomRolloffFactor);
-        alEffecti(effect, AL_REVERB_DECAY_HFLIMIT, reverb->iDecayHFLimit);
-    }
-    else
-    {
-        Sys_DebugLog(SYS_LOG_FILENAME, "OpenAL error: no effect %d", effect);
-        return 0;
-    }
-
-    return 1;
-}
-#endif
-
-
 void Audio_Init(uint32_t num_Sources)
 {
     // FX should be inited first, as source constructor checks for FX slot to be created.
-
     if(audio_settings.use_effects)
     {
         Audio_InitFX();
     }
 
     // Generate new source array.
-
     num_Sources -= TR_AUDIO_STREAM_NUMSOURCES;          // Subtract sources reserved for music.
     audio_world_data.audio_sources_count = num_Sources;
     audio_world_data.audio_sources = new AudioSource[num_Sources];
 
     // Generate stream tracks array.
-
     audio_world_data.stream_tracks_count = TR_AUDIO_STREAM_NUMSOURCES - 1;
-    audio_world_data.stream_tracks = new StreamTrack[audio_world_data.stream_tracks_count];
-
-    // Reset last room type used for assigning reverb.
-
-    fxManager.last_room_type = TR_AUDIO_FX_LASTINDEX;
+    audio_world_data.stream_tracks = (stream_track_p)malloc(audio_world_data.stream_tracks_count * sizeof(stream_track_t));
+    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; ++i)
+    {
+        StreamTrack_Init(audio_world_data.stream_tracks + i);
+    }
 }
 
 
@@ -2414,22 +1739,16 @@ int Audio_DeInit()
         audio_world_data.audio_map = NULL;
     }
 
-#ifdef HAVE_ALEXT_H
-    for(int i = 0; i < TR_AUDIO_MAX_SLOTS; i++)
-    {
-        if(alIsAuxiliaryEffectSlot(fxManager.al_slot[i]))
-        {
-            alAuxiliaryEffectSloti(fxManager.al_slot[i], AL_EFFECTSLOT_EFFECT, AL_EFFECT_NULL);
-            alDeleteAuxiliaryEffectSlots(1, &fxManager.al_slot[i]);
-        }
-    }
+    Audio_DeinitFX();
 
-    if(alIsFilter(fxManager.al_filter))
+
+    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; ++i)
     {
-        alDeleteFilters(1, &fxManager.al_filter);
-        alDeleteEffects(TR_AUDIO_FX_LASTINDEX, fxManager.al_effect);
+        StreamTrack_Clear(audio_world_data.stream_tracks + i);
     }
-#endif
+    audio_world_data.stream_tracks_count = 0;
+    free(audio_world_data.stream_tracks);
+    audio_world_data.stream_tracks = NULL;
 
     if(audio_world_data.stream_buffers)
     {
@@ -2626,7 +1945,7 @@ bool Audio_FillALBuffer(ALuint buf_number, Uint8* buffer_data, Uint32 buffer_siz
  * that function have to be called every game frame.
  * @param cam - pointer to the camera structure.
  */
-void Audio_UpdateListenerByCamera(struct camera_s *cam)
+void Audio_UpdateListenerByCamera(struct camera_s *cam, float time)
 {
     ALfloat v[6];       // vec3 - forvard, vec3 - up
 
@@ -2638,27 +1957,28 @@ void Audio_UpdateListenerByCamera(struct camera_s *cam)
     alListenerfv(AL_POSITION, v);
 
     vec3_sub(v, cam->gl_transform + 12, cam->prev_pos);
-    v[3] = 1.0 / engine_frame_time;
+    v[3] = 1.0 / time;
     vec3_mul_scalar(v, v, v[3]);
     alListenerfv(AL_VELOCITY, v);
     vec3_copy(cam->prev_pos, cam->gl_transform + 12);
 
     if(cam->current_room)
     {
-        if(cam->current_room->content->room_flags & TR_ROOM_FLAG_WATER)
+        bool old_state = Audio_GetFXWaterState();
+        bool water_state = cam->current_room->content->room_flags & TR_ROOM_FLAG_WATER;
+        Audio_SetFXWaterState(water_state);
+        if(water_state)
         {
-            fxManager.current_room_type = TR_AUDIO_FX_WATER;
+            Audio_SetFXRoomType(TR_AUDIO_FX_WATER);
         }
         else
         {
-            fxManager.current_room_type = cam->current_room->content->reverb_info;
+            Audio_SetFXRoomType(cam->current_room->content->reverb_info);
         }
 
-        if(fxManager.water_state != (int8_t)(cam->current_room->content->room_flags & TR_ROOM_FLAG_WATER))
+        if(water_state != old_state)
         {
-            fxManager.water_state = cam->current_room->content->room_flags & TR_ROOM_FLAG_WATER;
-
-            if(fxManager.water_state)
+            if(water_state)
             {
                 Audio_Send(TR_AUDIO_SOUND_UNDERWATER);
             }
@@ -2690,54 +2010,33 @@ void Audio_Update(float time)
 
         Audio_UpdateSources();
         Audio_UpdateStreams();
-        Audio_UpdateListenerByCamera(&engine_camera);
+        Audio_UpdateListenerByCamera(&engine_camera, time);
     }
 }
 
 
 void Audio_StreamExternalInit()
 {
-    // init external source
-    audio_world_data.external_source_linked_buffers = 0;
-    audio_world_data.external_buffer_offset = 0;
-    alGenBuffers(TR_AUDIO_STREAM_NUMBUFFERS, audio_world_data.external_source_buffers);              // Generate all buffers at once.
-    alGenSources(1, &audio_world_data.external_source);
-
-    if(alIsSource(audio_world_data.external_source))
-    {
-        alSource3f(audio_world_data.external_source, AL_POSITION,        0.0f,  0.0f, -1.0f); // OpenAL tut says this.
-        alSource3f(audio_world_data.external_source, AL_VELOCITY,        0.0f,  0.0f,  0.0f);
-        alSource3f(audio_world_data.external_source, AL_DIRECTION,       0.0f,  0.0f,  0.0f);
-        alSourcef (audio_world_data.external_source, AL_ROLLOFF_FACTOR,  0.0f              );
-        alSourcei (audio_world_data.external_source, AL_SOURCE_RELATIVE, AL_TRUE           );
-        alSourcei (audio_world_data.external_source, AL_LOOPING,         AL_FALSE          ); // No effect, but just in case...
-    }
+    StreamTrack_Init(&audio_world_data.external_stream);
 }
 
 
 void Audio_StreamExternalDeinit()
 {
-    audio_world_data.external_buffer_offset = 0;
-    if(alIsSource(audio_world_data.external_source))
-    {
-        alSourceStop(audio_world_data.external_source);
-        alDeleteSources(1, &audio_world_data.external_source);
-        audio_world_data.external_source = 0;
-    }
-    alDeleteBuffers(TR_AUDIO_STREAM_NUMBUFFERS, audio_world_data.external_source_buffers);
+    StreamTrack_Clear(&audio_world_data.external_stream);
 }
 
 
 int Audio_StreamExternalPlay()
 {
-    if(alIsSource(audio_world_data.external_source))
+    if(alIsSource(audio_world_data.external_stream.source))
     {
         ALint state = 0;
-        alGetSourcei(audio_world_data.external_source, AL_SOURCE_STATE, &state);
+        alGetSourcei(audio_world_data.external_stream.source, AL_SOURCE_STATE, &state);
         if(state != AL_PLAYING)
         {
-            alSourcef(audio_world_data.external_source, AL_GAIN, audio_settings.music_volume);
-            alSourcePlay(audio_world_data.external_source);
+            alSourcef(audio_world_data.external_stream.source, AL_GAIN, audio_settings.music_volume);
+            alSourcePlay(audio_world_data.external_stream.source);
         }
         return 1;
     }
@@ -2747,88 +2046,23 @@ int Audio_StreamExternalPlay()
 
 int Audio_StreamExternalStop()
 {
-    if(alIsSource(audio_world_data.external_source))
-    {
-        ALint queued = 0;
-        ALint state = AL_STOPPED;
-        alGetSourcei(audio_world_data.external_source, AL_SOURCE_STATE, &state);
-        if(state != AL_STOPPED)
-        {
-            alSourceStop(audio_world_data.external_source);
-        }
-
-        alGetSourcei(audio_world_data.external_source, AL_BUFFERS_QUEUED, &queued);
-        while(0 < queued--)
-        {
-            ALuint buffer;
-            alSourceUnqueueBuffers(audio_world_data.external_source, 1, &buffer);
-        }
-        audio_world_data.external_source_linked_buffers = 0;
-        audio_world_data.external_buffer_offset = 0;
-        return 1;
-    }
-    return -1;
+    return StreamTrack_Stop(&audio_world_data.external_stream);
 }
 
 
 int Audio_StreamExternalBufferIsNeedUpdate()
 {
-    if(alIsSource(audio_world_data.external_source))
-    {
-        if(audio_world_data.external_source_linked_buffers >= TR_AUDIO_STREAM_NUMBUFFERS)
-        {
-            ALint processed = 0;
-            alGetSourcei(audio_world_data.external_source, AL_BUFFERS_PROCESSED, &processed);
-            return processed > 0;
-        }
-        return 1;
-    }
-    return 0;
+    return StreamTrack_IsNeedUpdateBuffer(&audio_world_data.external_stream);
 }
 
 
 uint32_t Audio_StreamExternalBufferOffset()
 {
-    return audio_world_data.external_buffer_offset;
+    return audio_world_data.external_stream.buffer_offset;
 }
 
 
 int Audio_StreamExternalUpdateBuffer(uint8_t *buff, size_t size, int sample_bitsize, int channels, int frequency)
 {
-    if(alIsSource(audio_world_data.external_source))
-    {
-        if(audio_world_data.external_source_linked_buffers >= TR_AUDIO_STREAM_NUMBUFFERS)
-        {
-            ALint processed = 0;
-            // Check if any track buffers were already processed.
-            // by doc: "Buffer queuing loop must operate in a new thread"
-            alGetSourcei(audio_world_data.external_source, AL_BUFFERS_PROCESSED, &processed);
-            if(processed > 0)
-            {
-                ALuint buffer_index = 0;
-                alSourceUnqueueBuffers(audio_world_data.external_source, 1, &buffer_index);
-                if(Audio_FillALBuffer(buffer_index, buff, size, sample_bitsize, channels, frequency))
-                {
-                    audio_world_data.external_buffer_offset += size;
-                    alSourceQueueBuffers(audio_world_data.external_source, 1, &buffer_index);
-                    return 1;
-                }
-                return -1;
-            }
-            return 0;
-        }
-        else
-        {
-            ALuint buffer_index = audio_world_data.external_source_buffers[audio_world_data.external_source_linked_buffers];
-            ++audio_world_data.external_source_linked_buffers;
-            if(Audio_FillALBuffer(buffer_index, buff, size, sample_bitsize, channels, frequency))
-            {
-                alSourceQueueBuffers(audio_world_data.external_source, 1, &buffer_index);
-                audio_world_data.external_buffer_offset += size;
-                return 1;
-            }
-            return -1;
-        }
-    }
-    return -1;
+    return StreamTrack_UpdateBuffer(&audio_world_data.external_stream, buff, size, sample_bitsize, channels, frequency);
 }
