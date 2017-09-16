@@ -27,6 +27,7 @@ extern "C" {
 
 #include "../core/system.h"
 #include "../core/vmath.h"
+#include "../core/gl_text.h"
 #include "../core/console.h"
 #include "../script/script.h"
 #include "../render/camera.h"
@@ -133,49 +134,21 @@ public:
 
     bool Load(int track_index);
 
-    uint8_t *GetBuffer()
-    {
-        return buffer;
-    }
-
-    size_t GetBufferSize()
-    {
-        return buffer_size;
-    }
-
-    ALenum GetFormat()
-    {
-        return format;
-    }
-
-    ALsizei GetRate()
-    {
-        return rate;
-    }
-
-    ALsizei GetStreamBufferPart()
-    {
-        return buffer_part;
-    }
-
-    int GetType()
-    {
-        return stream_type;
-    }
-
 private:
     bool Load_Ogg(const char *path);                        // Ogg file loading routine.
     bool Load_Wad(const char *path, uint32_t track);        // Wad file loading routine.
     bool Load_Wav(const char *path);                        // Wav file loading routine.
     bool Load_WavRW(SDL_RWops *file);                       // Wav file loading routine.
 
+public:
     int             track_index;
     uint32_t        buffer_size;
     uint32_t        buffer_part;
     uint8_t        *buffer;
     int             stream_type;         // Either BACKGROUND, ONESHOT or CHAT.
-    ALenum          format;
-    ALsizei         rate;
+    int             channels;
+    int             sample_bitsize;
+    int             rate;
 };
 
 
@@ -207,19 +180,28 @@ static ov_callbacks ov_sdl_callbacks =
     sdl_ov_ftell
 };
 
-// Error handling routines.
+// ======== PRIVATE PROTOTYPES =============
 int  Audio_LogALError(int error_marker = 0);    // AL-specific error handler.
 void Audio_LogOGGError(int code);               // Ogg-specific error handler.
 
+bool Audio_FillALBuffer(ALuint buf_number, Uint8* buffer_data, Uint32 buffer_size, int sample_bitsize, int channels, int frequency);
 int  Audio_LoadALbufferFromWAV_Mem(ALuint buf_number, uint8_t *sample_pointer, uint32_t sample_size, uint32_t uncomp_sample_size = 0);
 int  Audio_LoadALbufferFromWAV_File(ALuint buf_number, const char *fname);
 void Audio_LoadOverridedSamples();
 
+int  Audio_GetFreeSource();
 int  Audio_GetFreeStream();                         // Get free (stopped) stream.
-int  Audio_IsTrackPlaying(uint32_t track_index);    // See if track is already playing.
 int  Audio_TrackAlreadyPlayed(uint32_t track_index, int8_t mask = 0);     // Check if track played with given activation mask.
-void Audio_UpdateStreams();                         // Update all streams.
-void Audio_UpdateStreamsDamping();                  // See if there any damping tracks playing.
+void Audio_UpdateStreams(float time);               // Update all streams.
+int  Audio_IsInRange(int entity_type, int entity_ID, float range, float gain);
+
+void Audio_PauseAllSources();    // Used to pause all effects currently playing.
+void Audio_StopAllSources();     // Used in audio deinit.
+void Audio_ResumeAllSources();   // Used to resume all effects currently paused.
+void Audio_UpdateSources();      // Main sound loop.
+void Audio_UpdateListenerByCamera(struct camera_s *cam, float time);
+void Audio_UpdateListenerByEntity(struct entity_s *ent);
+int  Audio_IsTrackPlaying(uint32_t track_index);
 
 // ==== STREAMTRACK BUFFER CLASS IMPLEMENTATION =====
 StreamTrackBuffer::StreamTrackBuffer() :
@@ -227,7 +209,8 @@ StreamTrackBuffer::StreamTrackBuffer() :
     buffer_size(0),
     buffer(NULL),
     stream_type(TR_AUDIO_STREAM_TYPE_ONESHOT),
-    format(0),
+    channels(0),
+    sample_bitsize(0),
     rate(0)
 {
 }
@@ -299,8 +282,9 @@ bool StreamTrackBuffer::Load_Ogg(const char *path)
     }
 
     vorbis_Info = ov_info(&vorbis_Stream, -1);
-    format = (vorbis_Info->channels == 1) ? (AL_FORMAT_MONO16) : (AL_FORMAT_STEREO16);
-    buffer_part = vorbis_Info->bitrate_nominal;
+    channels = vorbis_Info->channels;
+    sample_bitsize = 16;
+    buffer_part = vorbis_Info->bitrate_nominal * 16;
     rate = vorbis_Info->rate;
 
     {
@@ -409,14 +393,15 @@ bool StreamTrackBuffer::Load_WavRW(SDL_RWops *file)
         return false;
     }
 
+    // Extract bitsize from SDL audio spec for further usage.
+    sample_bitsize = (uint8_t)(wav_spec.format & SDL_AUDIO_MASK_BITSIZE);
+    channels = wav_spec.channels;
+
     if(wav_spec.channels > 2)   // We can't use non-mono and barely can use stereo samples.
     {
         Sys_DebugLog(SYS_LOG_FILENAME, "Error: track has more than 2 channels!");
         return false;
     }
-
-    // Extract bitsize from SDL audio spec for further usage.
-    uint8_t sample_bitsize = (uint8_t)(wav_spec.format & SDL_AUDIO_MASK_BITSIZE);
 
     // Check if bitsize is supported.
     // We rarely encounter samples with exotic bitsizes, but just in case...
@@ -428,7 +413,7 @@ bool StreamTrackBuffer::Load_WavRW(SDL_RWops *file)
 
     if(false)//use_SDL_resampler
     {
-        int FrameSize = wav_spec.channels * 4; // sizeof(float);
+        int FrameSize = channels * 4; // sizeof(float);
         SDL_AudioCVT cvt;
         SDL_BuildAudioCVT(&cvt, wav_spec.format, wav_spec.channels, wav_spec.freq, AUDIO_F32, wav_spec.channels, 44100);
 
@@ -448,50 +433,10 @@ bool StreamTrackBuffer::Load_WavRW(SDL_RWops *file)
             SDL_ConvertAudio(&cvt);
         }
 
-#ifdef HAVE_ALEXT_H
-        format = (wav_spec.channels == 1) ? (AL_FORMAT_MONO_FLOAT32) : (AL_FORMAT_STEREO_FLOAT32);
-#endif
         rate = 44100;
     }
     else    // Standard OpenAL sample loading process.
     {
-        format = 0x00;
-
-        if(wav_spec.channels == 1)
-        {
-            switch(sample_bitsize)
-            {
-                case 8:
-                    format = AL_FORMAT_MONO8;
-                    break;
-                case 16:
-                    format = AL_FORMAT_MONO16;
-                    break;
-#ifdef HAVE_ALEXT_H
-                case 32:
-                    format = AL_FORMAT_MONO_FLOAT32;
-                    break;
-#endif
-            }
-        }
-        else
-        {
-            switch(sample_bitsize)
-            {
-                case 8:
-                    format = AL_FORMAT_STEREO8;
-                    break;
-                case 16:
-                    format = AL_FORMAT_STEREO16;
-                    break;
-#ifdef HAVE_ALEXT_H
-                case 32:
-                    format = AL_FORMAT_STEREO_FLOAT32;
-                    break;
-#endif
-            }
-        }
-
         buffer_size = wav_length;
         buffer = (uint8_t*)malloc(buffer_size);
         buffer_part = 128 * 1024;
@@ -535,34 +480,6 @@ struct audio_world_data_s
 
     struct stream_track_s           external_stream;
 } audio_world_data;
-
-
-// ======== PRIVATE PROTOTYPES =============
-bool Audio_FillALBuffer(ALuint buf_number, Uint8* buffer_data, Uint32 buffer_size, int sample_bitsize, int channels, int frequency);
-
-
-int  Audio_LoadALbufferFromWAV_File(ALuint buf_number, const char *fname);
-void Audio_LoadOverridedSamples();
-
-int  Audio_GetFreeSource();
-int  Audio_IsInRange(int entity_type, int entity_ID, float range, float gain);
-
-void Audio_PauseAllSources();    // Used to pause all effects currently playing.
-void Audio_StopAllSources();     // Used in audio deinit.
-void Audio_ResumeAllSources();   // Used to resume all effects currently paused.
-void Audio_UpdateSources();      // Main sound loop.
-void Audio_UpdateListenerByCamera(struct camera_s *cam, float time);
-void Audio_UpdateListenerByEntity(struct entity_s *ent);
-
-int  Audio_GetFreeStream();                         // Get free (stopped) stream.
-int  Audio_IsTrackPlaying(uint32_t track_index);    // See if track is already playing.
-void Audio_UpdateStreams();                         // Update all streams.
-void Audio_UpdateStreamsDamping();                  // See if there any damping tracks playing.
-
-
-// Error handling routines.
-//int  Audio_LogALError(int error_marker = 0);    // AL-specific error handler.
-//void Audio_LogOGGError(int code);               // Ogg-specific error handler.
 
 
 // ======== AUDIOSOURCE CLASS IMPLEMENTATION ========
@@ -814,58 +731,192 @@ void AudioSource::LinkEmitter()
 }
 
 
-// General damping update procedure. Constantly checks if damp condition exists, and
-// if so, it lowers the volume of tracks which are dampable.
-
-void Audio_UpdateStreamsDamping()
+int Audio_StreamPlay(uint32_t track_index, const uint8_t mask)
 {
-    /*StreamTrack::damp_active = false;   // Reset damp activity flag.
+    int    target_stream = -1;
 
-    // Scan for any tracks that can provoke damp. Usually it's any tracks that are
-    // NOT background. So we simply check this condition and set damp activity flag
-    // if condition is met.
-
-    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
+    // Don't even try to do anything with track, if its index is greater than overall amount of
+    // soundtracks specified in a stream track map count (which is derived from script).
+    if((track_index >= audio_world_data.stream_track_map_count) ||
+       (track_index >= audio_world_data.stream_buffers_count))
     {
-        if(!audio_world_data.stream_tracks[i].IsType(TR_AUDIO_STREAM_TYPE_BACKGROUND) &&
-           (AL_PLAYING == audio_world_data.stream_tracks[i].GetState()))
+        Con_AddLine("StreamPlay: CANCEL, track index is out of bounds.", FONTSTYLE_CONSOLE_WARNING);
+        return TR_AUDIO_STREAMPLAY_WRONGTRACK;
+    }
+
+    // Don't play track, if it is already playing.
+    // This should become useless option, once proper one-shot trigger functionality is implemented.
+    if(Audio_IsTrackPlaying(track_index))
+    {
+        Con_AddLine("StreamPlay: CANCEL, stream already playing.", FONTSTYLE_CONSOLE_WARNING);
+        return TR_AUDIO_STREAMPLAY_IGNORED;
+    }
+
+    // lua_GetSoundtrack returns stream type, file path and load method in last three
+    // provided arguments. That is, after calling this function we receive stream type
+    // in "stream_type" argument, file path into "file_path" argument and load method into
+    // "load_method" argument. Function itself returns false, if script wasn't found or
+    // request was broken; in this case, we quit.
+    if(!audio_world_data.stream_buffers[track_index])
+    {
+        Audio_CacheTrack(track_index);
+    }
+    StreamTrackBuffer *stb = audio_world_data.stream_buffers[track_index];
+    if(!stb)
+    {
+        Con_AddLine("StreamPlay: CANCEL, wrong track index or broken script.", FONTSTYLE_CONSOLE_WARNING);
+        return TR_AUDIO_STREAMPLAY_LOADERROR;
+    }
+
+    // Don't try to play track, if it was already played by specified bit mask.
+    // Additionally, TrackAlreadyPlayed function applies specified bit mask to track map.
+    // Also, bit mask is valid only for non-looped tracks, since looped tracks are played
+    // in any way.
+    if((stb->stream_type != TR_AUDIO_STREAM_TYPE_BACKGROUND) &&
+        Audio_TrackAlreadyPlayed(track_index, mask))
+    {
+        return TR_AUDIO_STREAMPLAY_IGNORED;
+    }
+
+    if(stb->stream_type != TR_AUDIO_STREAM_TYPE_ONESHOT)
+    {
+        Audio_StopStreams(stb->stream_type);
+    }
+    
+    // Entry found, now process to actual track loading.
+    target_stream = Audio_GetFreeStream();            // At first, we need to get free stream.
+    if(target_stream == -1)
+    {
+        Con_AddLine("StreamPlay: CANCEL, no free stream.", FONTSTYLE_CONSOLE_WARNING);
+        return TR_AUDIO_STREAMPLAY_NOFREESTREAM;  // No success, exit and don't play anything.
+    }
+
+    stream_track_p s = audio_world_data.stream_tracks + target_stream;
+    s->track = stb->track_index;
+    s->type = stb->stream_type;
+    s->state = TR_AUDIO_STREAM_PLAYING;
+    s->current_volume = (s->type == TR_AUDIO_STREAM_TYPE_BACKGROUND) ? (0.0f) : (audio_settings.sound_volume);
+    while(StreamTrack_IsNeedUpdateBuffer(s) && (s->buffer_offset < stb->buffer_size))
+    {
+        size_t bytes = stb->buffer_part;
+        if(bytes > stb->buffer_size - s->buffer_offset)
         {
-            StreamTrack::damp_active = true;
-            return; // No need to check more, we found at least one condition.
+            bytes = stb->buffer_size - s->buffer_offset;
         }
-    }*/
+        if(StreamTrack_UpdateBuffer(s, stb->buffer + s->buffer_offset, bytes, stb->sample_bitsize, stb->channels, stb->rate) > 0)
+        {
+            s->buffer_offset += bytes;
+        }
+    }
+    
+    if(audio_settings.use_effects)
+    {
+        if(s->type == TR_AUDIO_STREAM_TYPE_CHAT)
+        {
+            Audio_SetFX(s->source);
+        }
+        else
+        {
+            Audio_UnsetFX(s->source);
+        }
+    }
+    
+    if(StreamTrack_Play(s) <= 0)
+    {
+        Con_AddLine("StreamPlay: CANCEL, stream play error.", FONTSTYLE_CONSOLE_WARNING);
+        return TR_AUDIO_STREAMPLAY_PLAYERROR;
+    }
+
+    return TR_AUDIO_STREAMPLAY_PROCESSED;   // Everything is OK!
 }
 
 
 // Update routine for all streams. Should be placed into main loop.
-void Audio_UpdateStreams()
+void Audio_UpdateStreams(float time)
 {
-    /*Audio_UpdateStreamsDamping();
-
-    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
+    stream_track_p s = audio_world_data.stream_tracks;
+    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; ++i, ++s)
     {
-        if(AL_PLAYING == audio_world_data.stream_tracks[i].GetState())
+        if((s->state != TR_AUDIO_STREAM_STOPPED) && alIsSource(s->source))
         {
-            audio_world_data.stream_tracks[i].Update();
+            ALint state = 0;
+            ALfloat inc = 0.0f;
+            alGetSourcei(s->source, AL_SOURCE_STATE, &state);
+            StreamTrackBuffer *stb = ((s->track >= 0) && (s->track < audio_world_data.stream_buffers_count)) ?
+                (audio_world_data.stream_buffers[s->track]) : (NULL);
+
+            if(StreamTrack_CheckForEnd(s))
+            {
+                StreamTrack_Stop(s);
+                continue;
+            }
+            
+            switch(s->type)
+            {
+                case TR_AUDIO_STREAM_TYPE_BACKGROUND:
+                    inc = time * TR_AUDIO_STREAM_CROSSFADE_BACKGROUND;
+                    break;
+
+                case TR_AUDIO_STREAM_TYPE_ONESHOT:
+                    inc = time * TR_AUDIO_STREAM_CROSSFADE_ONESHOT;
+                    break;
+
+                case TR_AUDIO_STREAM_TYPE_CHAT:
+                    inc = time * TR_AUDIO_STREAM_CROSSFADE_CHAT;
+                    break;
+            }
+            
+            if(s->state == TR_AUDIO_STREAM_STOPPING)
+            {
+                s->current_volume -= inc;
+                if(s->current_volume <= 0.0f)
+                {
+                    s->current_volume = 0.0f;
+                    StreamTrack_Stop(s);
+                    continue;
+                }
+                else
+                {
+                    alSourcef(s->source, AL_GAIN, s->current_volume);
+                }
+            }
+            else if((s->state == TR_AUDIO_STREAM_PLAYING) && (s->current_volume < audio_settings.sound_volume))
+            {
+                s->current_volume += inc;
+                if(s->current_volume > audio_settings.sound_volume)
+                {
+                    s->current_volume = audio_settings.sound_volume;
+                }
+                alSourcef(s->source, AL_GAIN, s->current_volume);
+            }
+
+            while(stb && StreamTrack_IsNeedUpdateBuffer(s) && (s->buffer_offset < stb->buffer_size))
+            {
+                size_t bytes = stb->buffer_part;
+                if(bytes > stb->buffer_size - s->buffer_offset)
+                {
+                    bytes = stb->buffer_size - s->buffer_offset;
+                }
+                if(StreamTrack_UpdateBuffer(s, stb->buffer + s->buffer_offset, bytes, stb->sample_bitsize, stb->channels, stb->rate) > 0)
+                {
+                    s->buffer_offset += bytes;
+                }
+            }
         }
-        else if(!audio_world_data.stream_tracks[i].IsActive())
-        {
-            audio_world_data.stream_tracks[i].Stop();
-        }
-    }*/
+    }
 }
 
 
 int  Audio_IsTrackPlaying(uint32_t track_index)
 {
-    /*for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
+    stream_track_p s = audio_world_data.stream_tracks;
+    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; ++i, ++s)
     {
-        if(audio_world_data.stream_tracks[i].IsTrack(track_index) &&
-           (AL_PLAYING == audio_world_data.stream_tracks[i].GetState()))
+        if(s->track == track_index)
         {
-            return 1;
+            return s->state != TR_AUDIO_STREAM_STOPPED;
         }
-    }*/
+    }
 
     return 0;
 }
@@ -909,23 +960,25 @@ int  Audio_TrackAlreadyPlayed(uint32_t track_index, int8_t mask)
 
 int Audio_GetFreeStream()
 {
-    ALenum state;
     int ret = TR_AUDIO_STREAMPLAY_NOFREESTREAM;
-    /*for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
+    stream_track_p s = audio_world_data.stream_tracks;
+    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; ++i, ++s)
     {
-        state = audio_world_data.stream_tracks[i].GetState();
+        if(alIsSource(s->source))
         {
-            if((AL_STOPPED == state) || (AL_INITIAL == state))
+            ALint state = 0;
+            alGetSourcei(s->source, AL_SOURCE_STATE, &state);
+            if((state == AL_STOPPED) || (state == AL_INITIAL))
             {
                 return i;
             }
-            else if(AL_PAUSED == state)
+            if(state == AL_PAUSED)
             {
-                audio_world_data.stream_tracks[ret].Stop();
+                StreamTrack_Stop(s);
                 return i;
             }
         }
-    }*/
+    }
 
     return ret;
 }
@@ -934,23 +987,14 @@ int Audio_GetFreeStream()
 int  Audio_StopStreams(int stream_type)
 {
     int ret = 0;
-    /*stream_track_p s = audio_world_data.stream_tracks;
+    stream_track_p s = audio_world_data.stream_tracks;
     for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; ++i, ++s)
     {
         if((stream_type == -1) || (s->type == stream_type))
         {
-            if(alIsSource(s->source))
-            {
-                ALint state = AL_STOPPED;
-                alGetSourcei(s->source, AL_SOURCE_STATE, &state);
-                if(AL_PLAYING == state || AL_PAUSED == state)
-                {
-                    s->Stop();
-                    ret++;
-                }
-            }
+            ret += (StreamTrack_Stop(s) > 0);
         }
-    }*/
+    }
 
     return ret;
 }
@@ -959,24 +1003,18 @@ int  Audio_StopStreams(int stream_type)
 int  Audio_EndStreams(int stream_type)
 {
     int ret = 0;
-   /* ALenum state;
-    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
+    stream_track_p s = audio_world_data.stream_tracks;
+    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; ++i, ++s)
     {
-        if((stream_type == -1) || audio_world_data.stream_tracks[i].IsType(stream_type))
+        if((stream_type == -1) || (s->type == stream_type))
         {
-            state = audio_world_data.stream_tracks[i].GetState();
-            if(AL_PLAYING == state)
+            if(s->state == TR_AUDIO_STREAM_PLAYING)
             {
-                audio_world_data.stream_tracks[i].End();
-                ret++;
-            }
-            else if(AL_PAUSED == state)
-            {
-                audio_world_data.stream_tracks[i].Stop();
+                s->state = TR_AUDIO_STREAM_STOPPING;
                 ret++;
             }
         }
-    }*/
+    }
 
     return ret;
 }
@@ -986,15 +1024,14 @@ int  Audio_PauseStreams(int stream_type)
 {
     int ret = 0;
 
-    /*for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
+    stream_track_p s = audio_world_data.stream_tracks;
+    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; ++i, ++s)
     {
-        if(((stream_type == -1) || audio_world_data.stream_tracks[i].IsType(stream_type)) &&
-            (AL_PLAYING == audio_world_data.stream_tracks[i].GetState()))
+        if((stream_type == -1) || (s->type == stream_type))
         {
-            audio_world_data.stream_tracks[i].Pause();
-            ret++;
+            ret += (StreamTrack_Pause(s) > 0);
         }
-    }*/
+    }
 
     return ret;
 }
@@ -1004,15 +1041,14 @@ int  Audio_ResumeStreams(int stream_type)
 {
     int ret = 0;
 
-    /*for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; i++)
+    stream_track_p s = audio_world_data.stream_tracks;
+    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; ++i, ++s)
     {
-        if(((stream_type == -1) || audio_world_data.stream_tracks[i].IsType(stream_type)) &&
-            (AL_PAUSED == audio_world_data.stream_tracks[i].GetState()))
+        if(((stream_type == -1) || (s->type == stream_type)) && (s->state == TR_AUDIO_STREAM_PAUSED))
         {
-            audio_world_data.stream_tracks[i].Resume();
-            ret++;
+            ret += (StreamTrack_Play(s) > 0);
         }
-    }*/
+    }
 
     return ret;
 }
@@ -1703,10 +1739,14 @@ int Audio_DeInit()
 
     if(audio_world_data.stream_tracks)
     {
-        audio_world_data.stream_tracks_count = 0;
-        delete[] audio_world_data.stream_tracks;
+        for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; ++i)
+        {
+            StreamTrack_Clear(audio_world_data.stream_tracks + i);
+        }
+        free(audio_world_data.stream_tracks);
         audio_world_data.stream_tracks = NULL;
     }
+    audio_world_data.stream_tracks_count = 0;
 
     if(audio_world_data.stream_track_map)
     {
@@ -1715,7 +1755,7 @@ int Audio_DeInit()
         audio_world_data.stream_track_map = NULL;
     }
 
-    ///@CRITICAL: You must delete all sources before buffers deleting!!!
+    ///@CRITICAL: You must to delete all sources before buffers deleting!!!
 
     if(audio_world_data.audio_buffers)
     {
@@ -1740,15 +1780,6 @@ int Audio_DeInit()
     }
 
     Audio_DeinitFX();
-
-
-    for(uint32_t i = 0; i < audio_world_data.stream_tracks_count; ++i)
-    {
-        StreamTrack_Clear(audio_world_data.stream_tracks + i);
-    }
-    audio_world_data.stream_tracks_count = 0;
-    free(audio_world_data.stream_tracks);
-    audio_world_data.stream_tracks = NULL;
 
     if(audio_world_data.stream_buffers)
     {
@@ -1999,17 +2030,17 @@ void Audio_UpdateListenerByEntity(struct entity_s *ent)
 
 void Audio_Update(float time)
 {
-    static float game_logic_time  = 0.0;
-    game_logic_time += time;
+    //static float game_logic_time  = 0.0;
+    //game_logic_time += time;
 
-    if(game_logic_time >= GAME_LOGIC_REFRESH_INTERVAL)
+    //if(game_logic_time >= GAME_LOGIC_REFRESH_INTERVAL)
     {
-        int32_t t = game_logic_time / GAME_LOGIC_REFRESH_INTERVAL;
-        float dt = (float)t * GAME_LOGIC_REFRESH_INTERVAL;
-        game_logic_time -= dt;
+        //int32_t t = game_logic_time / GAME_LOGIC_REFRESH_INTERVAL;
+        //float dt = (float)t * GAME_LOGIC_REFRESH_INTERVAL;
+        //game_logic_time -= dt;
 
         Audio_UpdateSources();
-        Audio_UpdateStreams();
+        Audio_UpdateStreams(time);
         Audio_UpdateListenerByCamera(&engine_camera, time);
     }
 }
@@ -2029,18 +2060,7 @@ void Audio_StreamExternalDeinit()
 
 int Audio_StreamExternalPlay()
 {
-    if(alIsSource(audio_world_data.external_stream.source))
-    {
-        ALint state = 0;
-        alGetSourcei(audio_world_data.external_stream.source, AL_SOURCE_STATE, &state);
-        if(state != AL_PLAYING)
-        {
-            alSourcef(audio_world_data.external_stream.source, AL_GAIN, audio_settings.music_volume);
-            alSourcePlay(audio_world_data.external_stream.source);
-        }
-        return 1;
-    }
-    return -1;
+    return StreamTrack_Play(&audio_world_data.external_stream);
 }
 
 
@@ -2064,5 +2084,6 @@ uint32_t Audio_StreamExternalBufferOffset()
 
 int Audio_StreamExternalUpdateBuffer(uint8_t *buff, size_t size, int sample_bitsize, int channels, int frequency)
 {
+    audio_world_data.external_stream.current_volume = audio_settings.sound_volume;
     return StreamTrack_UpdateBuffer(&audio_world_data.external_stream, buff, size, sample_bitsize, channels, frequency);
 }

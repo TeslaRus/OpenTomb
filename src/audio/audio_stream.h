@@ -75,27 +75,34 @@ enum TR_AUDIO_STREAM_TYPE
 // previous one. With flexible class handling, we now can implement multitrack
 // player with automatic channel and crossfade management.
 
+#define TR_AUDIO_STREAM_STOPPED     (0)
+#define TR_AUDIO_STREAM_PLAYING     (1)
+#define TR_AUDIO_STREAM_PAUSED      (2)
+#define TR_AUDIO_STREAM_STOPPING    (3)
+
 typedef struct stream_track_s
 {
     uint32_t        id;   //current_track // Needed to prevent same track sending.
-    uint32_t        type; //stream_type;        // Either BACKGROUND, ONESHOT or CHAT.
+    int             type; //stream_type;        // Either BACKGROUND, ONESHOT or CHAT.
+    int             state;
     ALuint          source;
-    int             track;
-    int             linked_buffers;
+    uint32_t        track;
+    uint32_t        linked_buffers;
     uint32_t        buffer_offset;
     ALuint          buffers[TR_AUDIO_STREAM_NUMBUFFERS];
     ALfloat         current_volume;     // Stream volume, considering fades.
     ALfloat         volume_accel;
     //ALfloat         damped_volume;      // Additional damp volume multiplier.
 
-    //bool            active;             // Used when track is being faded by other one.
-    //bool            dampable;           // Specifies if track can be damped by others.
 }stream_track_t, *stream_track_p;
 
 
 void StreamTrack_Init(stream_track_p s);
 void StreamTrack_Clear(stream_track_p s);
+int StreamTrack_Play(stream_track_p s);
 int StreamTrack_Stop(stream_track_p s);
+int StreamTrack_Pause(stream_track_p s);
+int StreamTrack_CheckForEnd(stream_track_p s);
 
 int StreamTrack_IsNeedUpdateBuffer(stream_track_p s);
 int StreamTrack_UpdateBuffer(stream_track_p s, uint8_t *buff, size_t size, int sample_bitsize, int channels, int frequency);
