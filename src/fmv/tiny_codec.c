@@ -68,10 +68,13 @@ void codec_init(struct tiny_codec_s *s, SDL_RWops *rw)
     s->audio.entry = NULL;
     s->audio.entry_size = 0;
     s->audio.entry_current = 0;
+    s->audio.extradata_size = 0;
+    s->audio.extradata = NULL;
     s->audio.priv_data = NULL;
     s->audio.free_data = NULL;
     s->audio.decode = NULL;
     s->audio.codec_tag = 0;
+    s->audio.block_align = 0;
 
     s->video.rgba = NULL;
     s->video.entry = NULL;

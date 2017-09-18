@@ -86,7 +86,7 @@ typedef struct tiny_codec_s
         uint8_t        *rgba;
         void           *priv_data;
         void          (*free_data)(void *data);
-        int           (*decode)(struct tiny_codec_s *s, struct AVPacket *pkt);
+        int32_t       (*decode)(struct tiny_codec_s *s, struct AVPacket *pkt);
 
         uint32_t                entry_current;
         uint32_t                entry_size;
@@ -102,13 +102,16 @@ typedef struct tiny_codec_s
         uint16_t        sample_rate;
         uint16_t        bits_per_coded_sample;
         uint16_t        channels;
+        uint32_t        extradata_size;
+        uint8_t        *extradata;
         void           *priv_data;
         void          (*free_data)(void *data);
-        uint32_t      (*decode)(struct tiny_codec_s *s, struct AVPacket *pkt);
+        int32_t       (*decode)(struct tiny_codec_s *s, struct AVPacket *pkt);
         uint32_t        buff_size;
         uint32_t        buff_allocated_size;
         uint32_t        buff_offset;
         uint8_t        *buff;
+        uint32_t        block_align;
 
         uint32_t                entry_current;
         uint32_t                entry_size;

@@ -5,7 +5,6 @@
 #include <ctype.h>
 
 #include <SDL2/SDL.h>
-//#ifndef _POSIX_C_SOURCE
 #ifndef _POSIX_SOURCE
 #define __USE_POSIX199309  (1)   // make posix GCC workable
 #define __USE_XOPEN2K
