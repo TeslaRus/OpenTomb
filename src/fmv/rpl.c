@@ -410,6 +410,7 @@ static int32_t pcm_dummy_decode_frame(struct tiny_codec_s *avctx, struct AVPacke
     memcpy(avctx->audio.buff, avpkt->data, avpkt->size);
     avctx->audio.buff_offset += avctx->audio.buff_size;
     avctx->audio.buff_size = avpkt->size;
+    avctx->audio.bits_per_sample = avctx->audio.bits_per_coded_sample;
 
     return avpkt->size;
 }

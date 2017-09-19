@@ -30,8 +30,7 @@
 
 #define BLKSIZE 1024
 
-typedef struct ADPCMChannelStatus 
-{
+typedef struct ADPCMChannelStatus {
     int predictor;
     int16_t step_index;
     int step;

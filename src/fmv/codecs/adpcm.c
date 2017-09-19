@@ -647,10 +647,8 @@ static int get_nb_samples(struct tiny_codec_s *avctx, GetByteContext *gb,
 }
 
 
-#ifdef TODO_IMPLEMENT
-static uint32_t adpcm_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *avpkt)
+static int32_t adpcm_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *avpkt)
 {
-    //AVFrame *frame     = data;
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
     ADPCMDecodeContext *c = (ADPCMDecodeContext*)avctx->audio.priv_data;
@@ -658,6 +656,7 @@ static uint32_t adpcm_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *
     int n, m, channel, i;
     int16_t *samples;
     int16_t **samples_p;
+    uint32_t output_buff_size = 0;
     int st; /* stereo */
     int count1, count2;
     int nb_samples, coded_samples, approx_nb_samples, ret;
@@ -672,20 +671,9 @@ static uint32_t adpcm_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *
     }
 
     /* get output buffer */
-    frame->nb_samples = nb_samples;
-    if ((ret = ff_get_buffer(avctx, frame, 0)) < 0)
-        return ret;
-    samples = (int16_t *)frame->data[0];
-    samples_p = (int16_t **)frame->extended_data;
-
-    /* use coded_samples when applicable */
-    /* it is always <= nb_samples, so the output buffer will be large enough */
-    if (coded_samples)
-    {
-        //if (!approx_nb_samples && coded_samples != nb_samples)
-        //    av_log(avctx, AV_LOG_WARNING, "mismatch in coded sample count\n");
-        frame->nb_samples = nb_samples = coded_samples;
-    }
+    output_buff_size = codec_resize_audio_buffer(avctx, avctx->audio.bits_per_sample >> 3, FFMAX(coded_samples, nb_samples));
+    samples = (int16_t*)avctx->audio.buff;
+    samples_p = (int16_t**)avctx->audio.buff_p;
 
     st = avctx->audio.channels == 2 ? 1 : 0;
 
@@ -787,20 +775,20 @@ static uint32_t adpcm_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *
             }
             else
             {
-            for (n = 0; n < (nb_samples - 1) / 8; n++)
-            {
-                for (i = 0; i < avctx->audio.channels; i++)
+                for (n = 0; n < (nb_samples - 1) / 8; n++)
                 {
-                    cs = &c->status[i];
-                    samples = &samples_p[i][1 + n * 8];
-                    for (m = 0; m < 8; m += 2)
+                    for (i = 0; i < avctx->audio.channels; i++)
                     {
-                        int v = bytestream2_get_byteu(&gb);
-                        samples[m    ] = adpcm_ima_expand_nibble(cs, v & 0x0F, 3);
-                        samples[m + 1] = adpcm_ima_expand_nibble(cs, v >> 4  , 3);
+                        cs = &c->status[i];
+                        samples = &samples_p[i][1 + n * 8];
+                        for (m = 0; m < 8; m += 2)
+                        {
+                            int v = bytestream2_get_byteu(&gb);
+                            samples[m    ] = adpcm_ima_expand_nibble(cs, v & 0x0F, 3);
+                            samples[m + 1] = adpcm_ima_expand_nibble(cs, v >> 4  , 3);
+                        }
                     }
                 }
-            }
             }
             break;
         case AV_CODEC_ID_ADPCM_4XM:
@@ -820,7 +808,7 @@ static uint32_t adpcm_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *
 
             for (i = 0; i < avctx->audio.channels; i++)
             {
-                samples = (int16_t *)frame->data[i];
+                samples = (int16_t*)avctx->audio.buff_p[i];
                 cs = &c->status[i];
                 for (n = nb_samples >> 1; n > 0; n--)
                 {
@@ -1340,7 +1328,7 @@ static uint32_t adpcm_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *
                 }
             }
 
-            frame->nb_samples = count * 28;
+            output_buff_size = (avctx->audio.channels * avctx->audio.bits_per_sample * count * 28) / 8;
             bytestream2_seek(&gb, 0, SEEK_END);
             break;
         }
@@ -1730,6 +1718,7 @@ static uint32_t adpcm_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *
                     flag   = bytestream2_get_byteu(&gb);
 
                     /* Decode 28 samples.  */
+                    byte = 0;
                     for (n = 0; n < 28; n++)
                     {
                         int sample = 0, scale;
@@ -1772,9 +1761,13 @@ static uint32_t adpcm_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *
         return avpkt->size;
     }
 
+    avctx->audio.buff_offset += avctx->audio.buff_size;
+    avctx->audio.buff_size = output_buff_size;
+
     return bytestream2_tell(&gb);
 }
-#endif
+
+
 static void adpcm_free_data(void *data)
 {
     ADPCMDecodeContext *c = (ADPCMDecodeContext*)data;
@@ -1788,7 +1781,6 @@ void adpcm_decode_init(struct tiny_codec_s *avctx)
 {
     if(!avctx->audio.priv_data)
     {
-#ifdef TODO_IMPLEMENT
         ADPCMDecodeContext *c = (ADPCMDecodeContext*)malloc(sizeof(ADPCMDecodeContext));
         unsigned int min_channels = 1;
         unsigned int max_channels = 2;
@@ -1865,7 +1857,7 @@ void adpcm_decode_init(struct tiny_codec_s *avctx)
                 break;
         }
 
-        /*switch(avctx->audio.codec_tag)
+        switch(avctx->audio.codec_tag)
         {
             case AV_CODEC_ID_ADPCM_AICA:
             case AV_CODEC_ID_ADPCM_IMA_DAT4:
@@ -1883,15 +1875,17 @@ void adpcm_decode_init(struct tiny_codec_s *avctx)
             case AV_CODEC_ID_ADPCM_DTK:
             case AV_CODEC_ID_ADPCM_PSX:
             case AV_CODEC_ID_ADPCM_MTAF:
-                avctx->sample_fmt = AV_SAMPLE_FMT_S16P;
+                //avctx->sample_fmt = AV_SAMPLE_FMT_S16P;
+                avctx->audio.bits_per_sample = 16;
                 break;
             case AV_CODEC_ID_ADPCM_IMA_WS:
-                avctx->sample_fmt = c->vqa_version == 3 ? AV_SAMPLE_FMT_S16P :
-                                                          AV_SAMPLE_FMT_S16;
+                /*avctx->sample_fmt = c->vqa_version == 3 ? AV_SAMPLE_FMT_S16P :
+                                                          AV_SAMPLE_FMT_S16;*/
+                avctx->audio.bits_per_sample = 16;
                 break;
             default:
-                avctx->sample_fmt = AV_SAMPLE_FMT_S16;
-        }*/
-#endif
+                //avctx->sample_fmt = AV_SAMPLE_FMT_S16;
+                avctx->audio.bits_per_sample = 16;
+        }
     }
 }
