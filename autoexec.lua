@@ -18,7 +18,8 @@ freelook(0);
 cam_distance(1024.0);
 noclip(0);
 
-playVideo(base_path .. "data/tr3/fmv/Intr_Eng.rpl");
+--playVideo(base_path .. "data/tr3/fmv/Intr_Eng.rpl");
+playVideo(base_path .. "data/tr3/fmv/logo.rpl");
 setgamef(1, 0)
 --loadMap(base_path .. "tests/altroom3/LEVEL1.PHD");
 --loadMap(base_path .. "tests/heavy1/LEVEL1.PHD");

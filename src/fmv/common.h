@@ -30,6 +30,8 @@
 #include <limits.h>
 #include "tiny_codec.h"
 
+extern const uint8_t ff_reverse[256];
+
 #define AV_RB8(x)     (((const uint8_t*)(x))[0])
 #define AV_WB8(p, d)  do { ((uint8_t*)(p))[0] = (d); } while(0)
 
@@ -254,6 +256,62 @@
 #define FFMIN3(a,b,c) FFMIN(FFMIN(a,b),c)
 
 #define FF_ARRAY_ELEMS(a) (sizeof(a) / sizeof((a)[0]))
+
+typedef union
+{
+    uint64_t u64;
+    uint32_t u32[2];
+    uint16_t u16[4];
+    uint8_t  u8 [8];
+    double   f64;
+    float    f32[2];
+} /*av_alias*/ av_alias64;
+
+typedef union
+{
+    uint32_t u32;
+    uint16_t u16[2];
+    uint8_t  u8 [4];
+    float    f32;
+} /*av_alias*/ av_alias32;
+
+typedef union
+{
+    uint16_t u16;
+    uint8_t  u8 [2];
+} /*av_alias*/ av_alias16;
+
+/*
+ * The AV_[RW]NA macros access naturally aligned data
+ * in a type-safe way.
+ */
+
+#define AV_RNA(s, p)    (((const av_alias##s*)(p))->u##s)
+#define AV_WNA(s, p, v) (((av_alias##s*)(p))->u##s = (v))
+
+#ifndef AV_RN16A
+#   define AV_RN16A(p) AV_RNA(16, p)
+#endif
+
+#ifndef AV_RN32A
+#   define AV_RN32A(p) AV_RNA(32, p)
+#endif
+
+#ifndef AV_RN64A
+#   define AV_RN64A(p) AV_RNA(64, p)
+#endif
+
+#ifndef AV_WN16A
+#   define AV_WN16A(p, v) AV_WNA(16, p, v)
+#endif
+
+#ifndef AV_WN32A
+#   define AV_WN32A(p, v) AV_WNA(32, p, v)
+#endif
+
+#ifndef AV_WN64A
+#   define AV_WN64A(p, v) AV_WNA(64, p, v)
+#endif
 
 /**
  * Clip a signed integer value into the amin-amax range.

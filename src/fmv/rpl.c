@@ -394,28 +394,3 @@ int codec_open_rpl(struct tiny_codec_s *s)
 
     return error;
 }
-
-
-static int32_t pcm_dummy_decode_frame(struct tiny_codec_s *avctx, struct AVPacket *avpkt)
-{
-    if(avctx->audio.buff_allocated_size < avpkt->size)
-    {
-        avctx->audio.buff_allocated_size = avpkt->size + 1024 - avpkt->size % 1024;
-        if(avctx->audio.buff)
-        {
-            free(avctx->audio.buff);
-        }
-        avctx->audio.buff = (uint8_t*)malloc(avctx->audio.buff_allocated_size);
-    }
-    memcpy(avctx->audio.buff, avpkt->data, avpkt->size);
-    avctx->audio.buff_offset += avctx->audio.buff_size;
-    avctx->audio.buff_size = avpkt->size;
-    avctx->audio.bits_per_sample = avctx->audio.bits_per_coded_sample;
-
-    return avpkt->size;
-}
-
-void pcm_decode_init(struct tiny_codec_s *avctx)
-{
-    avctx->audio.decode = pcm_dummy_decode_frame;
-}
