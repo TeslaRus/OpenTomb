@@ -107,6 +107,8 @@ end;
 
 
 function midastouch_init(id)    -- Midas gold touch
+
+    --enable Midas death anim
     setEntityTypeFlag(id, ENTITY_TYPE_INTERACTIVE);
 
     setEntityActivationOffset(id, -640.0, 0.0, -512.0, 128.0);

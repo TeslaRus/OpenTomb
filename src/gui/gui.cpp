@@ -266,8 +266,7 @@ void Gui_Render()
  */
 void Item_Frame(struct ss_bone_frame_s *bf, float time)
 {
-    int frame_switch_state = Anim_SetNextFrame(&bf->animations, time);
-    //Anim_GetNextFrame(&bf->animations, bf->animations.period, stc, &bf->animations.next_frame, &bf->animations.next_animation, &was_last_anim);
+    Anim_SetNextFrame(&bf->animations, time);
     SSBoneFrame_Update(bf, time);
 }
 

@@ -20,14 +20,28 @@
 
 #include "../config.h"
 
-#include "../threads.h"
+#include <sys/time.h>
+#include <unistd.h>
+
+#ifndef _POSIX_SOURCE
+#define __USE_POSIX199309  (1)   // make posix GCC workable
+#define __USE_XOPEN2K
+#define __USE_XOPEN2K8
+#endif
+#include <pthread.h>
+#ifdef _TIMESPEC_DEFINED         // make MinGW workable
+#include <pthread_time.h>
+#endif
+#ifdef HAVE_PTHREAD_NP_H
+#include <pthread_np.h>
+#endif
 
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 
 #include "../uintmap.h"
-
+#include "../threads.h"
 
 extern inline althrd_t althrd_current(void);
 extern inline int althrd_equal(althrd_t thr0, althrd_t thr1);
@@ -56,13 +70,6 @@ extern inline int altss_set(altss_t tss_id, void *val);
 
 
 #define THREAD_STACK_SIZE (1*1024*1024) /* 1MB */
-
-#include <sys/time.h>
-#include <unistd.h>
-#include <pthread.h>
-#ifdef HAVE_PTHREAD_NP_H
-#include <pthread_np.h>
-#endif
 
 
 extern inline int althrd_sleep(const struct timespec *ts, struct timespec *rem);
@@ -198,7 +205,6 @@ int almtx_timedlock(almtx_t *mtx, const struct timespec *ts)
 {
     int ret;
 
-#ifdef HAVE_PTHREAD_MUTEX_TIMEDLOCK
     ret = pthread_mutex_timedlock(mtx, ts);
     switch(ret)
     {
@@ -207,25 +213,6 @@ int almtx_timedlock(almtx_t *mtx, const struct timespec *ts)
         case EBUSY: return althrd_busy;
     }
     return althrd_error;
-#else
-    if(!mtx || !ts)
-        return althrd_error;
-
-    while((ret=almtx_trylock(mtx)) == althrd_busy)
-    {
-        struct timespec now;
-
-        if(ts->tv_sec < 0 || ts->tv_nsec < 0 || ts->tv_nsec >= 1000000000 ||
-           altimespec_get(&now, AL_TIME_UTC) != AL_TIME_UTC)
-            return althrd_error;
-        if(now.tv_sec > ts->tv_sec || (now.tv_sec == ts->tv_sec && now.tv_nsec >= ts->tv_nsec))
-            return althrd_timedout;
-
-        althrd_yield();
-    }
-
-    return ret;
-#endif
 }
 
 int alcnd_init(alcnd_t *cond)
@@ -286,20 +273,8 @@ int altimespec_get(struct timespec *ts, int base)
 {
     if(base == AL_TIME_UTC)
     {
-        int ret;
-#if __USE_POSIX199309
-        ret = clock_gettime(CLOCK_REALTIME, ts);
+        int ret = clock_gettime(CLOCK_REALTIME, ts);
         if(ret == 0) return base;
-#else /* _POSIX_TIMERS > 0 */
-        struct timeval tv;
-        ret = gettimeofday(&tv, NULL);
-        if(ret == 0)
-        {
-            ts->tv_sec = tv.tv_sec;
-            ts->tv_nsec = tv.tv_usec * 1000;
-            return base;
-        }
-#endif
     }
 
     return 0;

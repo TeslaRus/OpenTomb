@@ -1609,7 +1609,7 @@ extern "C" int Engine_ExecCmd(char *ch)
     while(ch != NULL)
     {
         char *pch = ch;
-        ch = SC_ParseToken(ch, token);
+        ch = SC_ParseToken(ch, token, sizeof(token));
         if(!strcmp(token, "help"))
         {
             Con_AddLine("Available commands:\0", FONTSTYLE_CONSOLE_WARNING);
@@ -1640,7 +1640,7 @@ extern "C" int Engine_ExecCmd(char *ch)
         }
         else if(!strcmp(token, "save"))
         {
-            ch = SC_ParseToken(ch, token);
+            ch = SC_ParseToken(ch, token, sizeof(token));
             if(NULL != ch)
             {
                 Game_Save(token);
@@ -1649,7 +1649,7 @@ extern "C" int Engine_ExecCmd(char *ch)
         }
         else if(!strcmp(token, "load"))
         {
-            ch = SC_ParseToken(ch, token);
+            ch = SC_ParseToken(ch, token, sizeof(token));
             if(NULL != ch)
             {
                 Game_Load(token);
@@ -1668,7 +1668,7 @@ extern "C" int Engine_ExecCmd(char *ch)
         }
         else if(!strcmp(token, "spacing"))
         {
-            ch = SC_ParseToken(ch, token);
+            ch = SC_ParseToken(ch, token, sizeof(token));
             if(NULL == ch)
             {
                 Con_Notify("spacing = %d", Con_GetLineInterval());
@@ -1679,7 +1679,7 @@ extern "C" int Engine_ExecCmd(char *ch)
         }
         else if(!strcmp(token, "showing_lines"))
         {
-            ch = SC_ParseToken(ch, token);
+            ch = SC_ParseToken(ch, token, sizeof(token));
             if(NULL == ch)
             {
                 Con_Notify("showing lines = %d", Con_GetShowingLines());
