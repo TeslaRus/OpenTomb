@@ -29,6 +29,7 @@ extern "C" {
 #include "fmv/tiny_codec.h"
 #include "fmv/stream_codec.h"
 #include "gui/gui.h"
+#include "gui/gui_inventory.h"
 #include "vt/vt_level.h"
 #include "audio/audio.h"
 #include "game.h"
@@ -1810,7 +1811,6 @@ extern "C" int Engine_ExecCmd(char *ch)
         }
         else if(!strcmp(token, "xxx"))
         {
-            //stream_codec_play_rpl(&engine_video, "data/tr2/fmv/CRASH.RPL");
             SDL_RWops *f = SDL_RWFromFile("ascII.txt", "r");
             if(f)
             {

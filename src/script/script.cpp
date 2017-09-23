@@ -93,7 +93,6 @@ char *SC_ParseToken(char *data, char *token, size_t token_size)
         return data+1;
     }
 
-
 // parse a regular word
     do
     {
