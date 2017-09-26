@@ -679,7 +679,7 @@ void Con_Draw(float time)
             if(style)
             {
                 vec4_copy(gl_font->gl_font_color, style->font_color);
-                glf_render_str(gl_font, (GLfloat)x, (GLfloat)y, con_base.lines_text[i]);
+                glf_render_str(gl_font, (GLfloat)x, (GLfloat)y, con_base.lines_text[i], -1);
             }
         }
     }

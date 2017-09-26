@@ -393,24 +393,26 @@ int32_t glf_get_string_len(gl_tex_font_p glf, const char *text, int n)
 }
 
 
-const char *glf_get_string_for_width(gl_tex_font_p glf, const char *text, int32_t w_pt, int *n_sym)
+char *glf_get_string_for_width(gl_tex_font_p glf, char *text, int32_t w_pt, int *n_sym)
 {
     int32_t x = 0;
     uint8_t *ch = (uint8_t*)text;
-    const char *ret = text;
+    char *ret = text;
     *n_sym = 0;
 
     if(glf && glf->ft_face && *ch)
     {
         uint32_t curr_utf32, next_utf32;
         FT_Vector kern;
-
+        
         ch = utf8_to_utf32(ch, &curr_utf32);
         curr_utf32 = FT_Get_Char_Index(glf->ft_face, curr_utf32);
-        for(; x < w_pt; *n_sym++)
+        w_pt -= glf->glyphs[curr_utf32].advance_x_pt;
+        do
         {
+            ret = (char*)ch;
+            (*n_sym)++;
             w_pt = (*ch) ? (w_pt) : (0);
-            ret = (const char*)ch;
             ch = utf8_to_utf32(ch, &next_utf32);
             next_utf32 = FT_Get_Char_Index(glf->ft_face, next_utf32);
 
@@ -418,6 +420,7 @@ const char *glf_get_string_for_width(gl_tex_font_p glf, const char *text, int32_
             curr_utf32 = next_utf32;
             x += kern.x + glf->glyphs[curr_utf32].advance_x_pt;
         }
+        while(x < w_pt);
     }
 
     return ret;
@@ -435,8 +438,8 @@ void glf_get_string_bb(gl_tex_font_p glf, const char *text, int n, int32_t *x0, 
     if(glf && glf->ft_face && *ch)
     {
         FT_Vector kern;
-        int32_t x = 0;
-        int32_t y = 0;
+        int32_t x_pt = 0;
+        int32_t y_pt = 0;
         int32_t xx0, xx1, yy0, yy1;
         uint32_t curr_utf32, next_utf32;
 
@@ -452,20 +455,20 @@ void glf_get_string_bb(gl_tex_font_p glf, const char *text, int n, int32_t *x0, 
             FT_Get_Kerning(glf->ft_face, curr_utf32, next_utf32, FT_KERNING_UNSCALED, &kern);   // kern in 1/64 pixel
             curr_utf32 = next_utf32;
 
-            xx0 = x  + g->left;
-            xx1 = xx0 + g->width;
-            yy0 = y  + g->top;
-            yy1 = yy0 - g->height;
+            xx0 = x_pt + g->left * 64;
+            xx1 = xx0 + g->width * 64;
+            yy0 = y_pt + g->top * 64;
+            yy1 = yy0 - g->height * 64;
             bbox_add(&xx0, &xx1, &yy0, &yy1, x0, x1, y0, y1);
 
-            x += kern.x + g->advance_x_pt;
-            y += kern.y + g->advance_y_pt;
+            x_pt += kern.x + g->advance_x_pt;
+            y_pt += kern.y + g->advance_y_pt;
         }
     }
 }
 
 
-void glf_render_str(gl_tex_font_p glf, GLfloat x, GLfloat y, const char *text)
+void glf_render_str(gl_tex_font_p glf, GLfloat x, GLfloat y, const char *text, int32_t n_sym)
 {
     if(glf && glf->ft_face && text && (text[0] != 0))
     {
@@ -484,7 +487,7 @@ void glf_render_str(gl_tex_font_p glf, GLfloat x, GLfloat y, const char *text)
             curr_utf32 = FT_Get_Char_Index(glf->ft_face, curr_utf32);
 
             qglBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
-            for(p = buffer; *ch;)
+            for(p = buffer; *ch && n_sym--;)
             {
                 char_info_p g;
                 uint8_t *nch2 = utf8_to_utf32(nch, &next_utf32);
@@ -565,7 +568,7 @@ void glf_render_str(gl_tex_font_p glf, GLfloat x, GLfloat y, const char *text)
             nch = utf8_to_utf32(ch, &curr_utf32);
             curr_utf32 = FT_Get_Char_Index(glf->ft_face, curr_utf32);
             qglBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
-            for(; *ch;)
+            for(; *ch && n_sym--;)
             {
                 char_info_p g;
                 uint8_t *nch2 = utf8_to_utf32(nch, &next_utf32);

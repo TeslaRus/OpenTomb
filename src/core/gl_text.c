@@ -147,16 +147,34 @@ void GLText_RenderStringLine(gl_text_line_p l)
     gl_tex_font_p gl_font = NULL;
     gl_fontstyle_p style = NULL;
     int32_t x0, y0, x1, y1;
+    int32_t w_pt = (l->line_width * 64.0f + 0.5f);
+    int n_lines = 1;
+    
     if(!l->show || ((gl_font = GLText_GetFont(l->font_id)) == NULL) || ((style = GLText_GetFontStyle(l->style_id)) == NULL))
     {
         return;
     }
 
-    glf_get_string_bb(gl_font, l->text, -1, &x0, &y0, &x1, &y1);
-    l->rect[0] = x0 / 64.0f;
-    l->rect[1] = y0 / 64.0f;
-    l->rect[2] = x1 / 64.0f;
-    l->rect[3] = y1 / 64.0f;
+    if(l->line_width > 0.0f)
+    {
+        int n_sym = 0;
+        for(char *ch = glf_get_string_for_width(gl_font, l->text, w_pt, &n_sym); *ch; ch = glf_get_string_for_width(gl_font, ch, w_pt, &n_sym))
+        {
+            ++n_lines;
+        }
+        glf_get_string_bb(gl_font, l->text, 1, &x0, &y0, &x1, &y1);
+        x1 = x0 + w_pt;
+        y1 = y0 + n_lines * gl_font->font_size * l->line_height * 64.0f;
+    }
+    else
+    {
+        glf_get_string_bb(gl_font, l->text, -1, &x0, &y0, &x1, &y1);
+    }
+    
+    l->rect[0] = (GLfloat)x0 / 64.0f;
+    l->rect[1] = (GLfloat)y0 / 64.0f;
+    l->rect[2] = (GLfloat)x1 / 64.0f;
+    l->rect[3] = (GLfloat)y1 / 64.0f;
 
     switch(l->x_align)
     {
@@ -220,20 +238,35 @@ void GLText_RenderStringLine(gl_text_line_p l)
         qglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     }
 
-    if(style->shadowed)
-    {
-        gl_font->gl_font_color[0] = 0.0f;
-        gl_font->gl_font_color[1] = 0.0f;
-        gl_font->gl_font_color[2] = 0.0f;
-        gl_font->gl_font_color[3] = (float)style->font_color[3] * GUI_FONT_SHADOW_TRANSPARENCY;// Derive alpha from base color.
-        glf_render_str(gl_font,
-                       (real_x + GUI_FONT_SHADOW_HORIZONTAL_SHIFT),
-                       (real_y + GUI_FONT_SHADOW_VERTICAL_SHIFT  ),
-                       l->text);
-    }
-
     vec4_copy(gl_font->gl_font_color, style->font_color);
-    glf_render_str(gl_font, real_x, real_y, l->text);
+    if((l->line_width > 0.0f) && (n_lines > 1))
+    {
+        int n_sym = 0;
+        char *begin = l->text;
+        char *end = begin;
+        int32_t dy = l->line_height * gl_font->font_size;
+        for( ; n_lines > 0; n_lines--)
+        {
+            end = glf_get_string_for_width(gl_font, begin, w_pt, &n_sym);
+            glf_render_str(gl_font, real_x, real_y + (n_lines - 1) * dy, begin, n_sym);
+            begin = end;
+        }
+    }
+    else
+    {
+        if(style->shadowed)
+        {
+            gl_font->gl_font_color[0] = 0.0f;
+            gl_font->gl_font_color[1] = 0.0f;
+            gl_font->gl_font_color[2] = 0.0f;
+            gl_font->gl_font_color[3] = (float)style->font_color[3] * GUI_FONT_SHADOW_TRANSPARENCY;// Derive alpha from base color.
+            glf_render_str(gl_font,
+                           (real_x + GUI_FONT_SHADOW_HORIZONTAL_SHIFT),
+                           (real_y + GUI_FONT_SHADOW_VERTICAL_SHIFT  ),
+                           l->text, -1);
+        }
+        glf_render_str(gl_font, real_x, real_y, l->text, -1);
+    }
 }
 
 
@@ -326,7 +359,9 @@ gl_text_line_p GLText_VOutTextXY(GLfloat x, GLfloat y, const char *fmt, va_list 
 
         l->font_id = FONT_SECONDARY;
         l->style_id = FONTSTYLE_GENERIC;
-
+        l->line_width = -1.0f;
+        l->line_height = 1.75f;
+        
         vsnprintf(l->text, GUI_LINE_DEFAULTSIZE, fmt, argptr);
 
         l->next = NULL;
