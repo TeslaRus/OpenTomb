@@ -142,130 +142,134 @@ void GLText_UpdateResize(int w, int h, float scale)
 
 void GLText_RenderStringLine(gl_text_line_p l)
 {
-    GLfloat real_x = 0.0, real_y = 0.0;
-
     gl_tex_font_p gl_font = NULL;
     gl_fontstyle_p style = NULL;
-    int32_t x0, y0, x1, y1;
-    int32_t w_pt = (l->line_width * 64.0f + 0.5f);
-    int n_lines = 1;
     
-    if(!l->show || ((gl_font = GLText_GetFont(l->font_id)) == NULL) || ((style = GLText_GetFontStyle(l->style_id)) == NULL))
+    if(l->show && (gl_font = GLText_GetFont(l->font_id)) && (style = GLText_GetFontStyle(l->style_id)))
     {
-        return;
-    }
-
-    if(l->line_width > 0.0f)
-    {
-        int n_sym = 0;
-        for(char *ch = glf_get_string_for_width(gl_font, l->text, w_pt, &n_sym); *ch; ch = glf_get_string_for_width(gl_font, ch, w_pt, &n_sym))
-        {
-            ++n_lines;
-        }
-        glf_get_string_bb(gl_font, l->text, 1, &x0, &y0, &x1, &y1);
-        x1 = x0 + w_pt;
-        y1 = y0 + n_lines * gl_font->font_size * l->line_height * 64.0f;
-    }
-    else
-    {
-        glf_get_string_bb(gl_font, l->text, -1, &x0, &y0, &x1, &y1);
-    }
-    
-    l->rect[0] = (GLfloat)x0 / 64.0f;
-    l->rect[1] = (GLfloat)y0 / 64.0f;
-    l->rect[2] = (GLfloat)x1 / 64.0f;
-    l->rect[3] = (GLfloat)y1 / 64.0f;
-
-    switch(l->x_align)
-    {
-        case GLTEXT_ALIGN_LEFT:
-            real_x = l->x;   // Used with center and right alignments.
-            break;
-        case GLTEXT_ALIGN_RIGHT:
-            real_x = (float)screen_width - (l->rect[2] - l->rect[0]) - l->x;
-            break;
-        case GLTEXT_ALIGN_CENTER:
-            real_x = l->x - 0.5f * (l->rect[2] - l->rect[0]);
-            break;
-    }
-
-    switch(l->y_align)
-    {
-        case GLTEXT_ALIGN_BOTTOM:
-            real_y = l->y;
-            break;
-        case GLTEXT_ALIGN_TOP:
-            real_y = (float)screen_height - (l->rect[3] - l->rect[1]) - l->y;
-            break;
-        case GLTEXT_ALIGN_CENTER:
-            real_y = l->y - 0.5f * (l->rect[3] - l->rect[1]);
-            break;
-    }
-
-    if(style->rect)
-    {
-        BindWhiteTexture();
-        GLfloat x0 = l->rect[0] + real_x - style->rect_border * screen_width;
-        GLfloat y0 = l->rect[1] + real_y - style->rect_border * screen_height;
-        GLfloat x1 = l->rect[2] + real_x + style->rect_border * screen_width;
-        GLfloat y1 = l->rect[3] + real_y + style->rect_border * screen_height;
-        GLfloat *v, backgroundArray[32];
-
-        v = backgroundArray;
-       *v++ = x0; *v++ = y0;
-        vec4_copy(v, style->rect_color);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-       *v++ = x1; *v++ = y0;
-        vec4_copy(v, style->rect_color);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-       *v++ = x1; *v++ = y1;
-        vec4_copy(v, style->rect_color);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-       *v++ = x0; *v++ = y1;
-        vec4_copy(v, style->rect_color);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-        qglVertexPointer(2, GL_FLOAT, 8 * sizeof(GLfloat), backgroundArray);
-        qglColorPointer(4, GL_FLOAT, 8 * sizeof(GLfloat), backgroundArray + 2);
-        qglTexCoordPointer(2, GL_FLOAT, 8 * sizeof(GLfloat), backgroundArray + 6);
-        qglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-    }
-
-    vec4_copy(gl_font->gl_font_color, style->font_color);
-    if((l->line_width > 0.0f) && (n_lines > 1))
-    {
-        int n_sym = 0;
+        GLfloat real_x = 0.0f, real_y = 0.0f;
+        int32_t x0, y0, x1, y1;
+        GLfloat shadow_color[4];
+        int32_t w_pt = (l->line_width * 64.0f + 0.5f);
+        int32_t dy = l->line_height * gl_font->font_size;
+        int n_lines = 1;
         char *begin = l->text;
         char *end = begin;
-        int32_t dy = l->line_height * gl_font->font_size;
-        for( ; n_lines > 0; n_lines--)
+        
+        shadow_color[0] = 0.0f;
+        shadow_color[1] = 0.0f;
+        shadow_color[2] = 0.0f;
+        shadow_color[3] = (float)style->font_color[3] * GUI_FONT_SHADOW_TRANSPARENCY;
+
+        if(l->line_width > 0.0f)
         {
-            end = glf_get_string_for_width(gl_font, begin, w_pt, &n_sym);
-            glf_render_str(gl_font, real_x, real_y + (n_lines - 1) * dy, begin, n_sym);
+            int n_sym = 0;
+            n_lines = 0;
+            for(char *ch = glf_get_string_for_width(gl_font, l->text, w_pt, &n_sym); *begin; ch = glf_get_string_for_width(gl_font, ch, w_pt, &n_sym))
+            {
+                if(!n_lines)
+                {
+                    glf_get_string_bb(gl_font, l->text, n_sym, &x0, &y0, &x1, &y1);
+                }
+                ++n_lines;
+                begin = ch;
+            }
+            begin = l->text;
+            x1 = x0 + w_pt;
+            y1 = y0 + n_lines * gl_font->font_size * l->line_height * 64.0f;
+        }
+        else
+        {
+            glf_get_string_bb(gl_font, l->text, -1, &x0, &y0, &x1, &y1);
+        }
+
+        l->rect[0] = (GLfloat)x0 / 64.0f;
+        l->rect[1] = (GLfloat)y0 / 64.0f;
+        l->rect[2] = (GLfloat)x1 / 64.0f;
+        l->rect[3] = (GLfloat)y1 / 64.0f;
+
+        switch(l->x_align)
+        {
+            case GLTEXT_ALIGN_LEFT:
+                real_x = l->x;   // Used with center and right alignments.
+                break;
+            case GLTEXT_ALIGN_RIGHT:
+                real_x = (float)screen_width - (l->rect[2] - l->rect[0]) - l->x;
+                break;
+            case GLTEXT_ALIGN_CENTER:
+                real_x = l->x - 0.5f * (l->rect[2] - l->rect[0]);
+                break;
+        }
+
+        switch(l->y_align)
+        {
+            case GLTEXT_ALIGN_BOTTOM:
+                real_y = l->y;
+                break;
+            case GLTEXT_ALIGN_TOP:
+                real_y = (float)screen_height - (l->rect[3] - l->rect[1]) - l->y;
+                break;
+            case GLTEXT_ALIGN_CENTER:
+                real_y = l->y - 0.5f * (l->rect[3] - l->rect[1]);
+                break;
+        }
+
+        if(style->rect)  // it is BS
+        {
+            BindWhiteTexture();
+            GLfloat x0 = l->rect[0] + real_x - style->rect_border * screen_width;
+            GLfloat y0 = l->rect[1] + real_y - style->rect_border * screen_height;
+            GLfloat x1 = l->rect[2] + real_x + style->rect_border * screen_width;
+            GLfloat y1 = l->rect[3] + real_y + style->rect_border * screen_height;
+            GLfloat *v, backgroundArray[32];
+
+            v = backgroundArray;
+           *v++ = x0; *v++ = y0;
+            vec4_copy(v, style->rect_color);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+           *v++ = x1; *v++ = y0;
+            vec4_copy(v, style->rect_color);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+           *v++ = x1; *v++ = y1;
+            vec4_copy(v, style->rect_color);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+           *v++ = x0; *v++ = y1;
+            vec4_copy(v, style->rect_color);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+            qglVertexPointer(2, GL_FLOAT, 8 * sizeof(GLfloat), backgroundArray);
+            qglColorPointer(4, GL_FLOAT, 8 * sizeof(GLfloat), backgroundArray + 2);
+            qglTexCoordPointer(2, GL_FLOAT, 8 * sizeof(GLfloat), backgroundArray + 6);
+            qglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+        }
+
+
+        for(int line = n_lines - 1; line >= 0; --line)
+        {
+            int n_sym = -1;
+            if(n_lines > 1)
+            {
+                end = glf_get_string_for_width(gl_font, begin, w_pt, &n_sym);
+            }
+            if(style->shadowed)
+            {
+                vec4_copy(gl_font->gl_font_color, shadow_color);
+                glf_render_str(gl_font,
+                               (real_x + GUI_FONT_SHADOW_HORIZONTAL_SHIFT),
+                               (real_y + line * dy + GUI_FONT_SHADOW_VERTICAL_SHIFT),
+                               begin, n_sym);
+            }
+            vec4_copy(gl_font->gl_font_color, style->font_color);
+            glf_render_str(gl_font, real_x, real_y + line * dy, begin, n_sym);
             begin = end;
         }
-    }
-    else
-    {
-        if(style->shadowed)
-        {
-            gl_font->gl_font_color[0] = 0.0f;
-            gl_font->gl_font_color[1] = 0.0f;
-            gl_font->gl_font_color[2] = 0.0f;
-            gl_font->gl_font_color[3] = (float)style->font_color[3] * GUI_FONT_SHADOW_TRANSPARENCY;// Derive alpha from base color.
-            glf_render_str(gl_font,
-                           (real_x + GUI_FONT_SHADOW_HORIZONTAL_SHIFT),
-                           (real_y + GUI_FONT_SHADOW_VERTICAL_SHIFT  ),
-                           l->text, -1);
-        }
-        glf_render_str(gl_font, real_x, real_y, l->text, -1);
     }
 }
 

@@ -404,7 +404,7 @@ char *glf_get_string_for_width(gl_tex_font_p glf, char *text, int32_t w_pt, int 
     {
         uint32_t curr_utf32, next_utf32;
         FT_Vector kern;
-        
+
         ch = utf8_to_utf32(ch, &curr_utf32);
         curr_utf32 = FT_Get_Char_Index(glf->ft_face, curr_utf32);
         w_pt -= glf->glyphs[curr_utf32].advance_x_pt;
@@ -583,11 +583,6 @@ void glf_render_str(gl_tex_font_p glf, GLfloat x, GLfloat y, const char *text, i
 
                 if(g->tex_index != 0)
                 {
-                    if(active_texture != g->tex_index)
-                    {
-                        qglBindTexture(GL_TEXTURE_2D, g->tex_index);
-                        active_texture = g->tex_index;
-                    }
                     ///RENDER
                     GLfloat x0 = x  + g->left + x_pt / 64.0f;
                     GLfloat x1 = x0 + g->width;
@@ -619,6 +614,11 @@ void glf_render_str(gl_tex_font_p glf, GLfloat x, GLfloat y, const char *text, i
                     *p = g->tex_y1;     p++;
                     vec4_copy(p, glf->gl_font_color);
 
+                    if(active_texture != g->tex_index)
+                    {
+                        qglBindTexture(GL_TEXTURE_2D, g->tex_index);
+                        active_texture = g->tex_index;
+                    }
                     qglVertexPointer(2, GL_FLOAT, 8 * sizeof(GLfloat), buffer+0);
                     qglTexCoordPointer(2, GL_FLOAT, 8 * sizeof(GLfloat), buffer+2);
                     qglColorPointer(4, GL_FLOAT, 8 * sizeof(GLfloat), buffer+4);
