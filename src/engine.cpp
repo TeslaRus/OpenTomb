@@ -806,6 +806,8 @@ void Engine_PollSDLEvents()
                         case SDLK_RIGHT:
                         case SDLK_HOME:
                         case SDLK_END:
+                        case SDLK_PAGEUP:
+                        case SDLK_PAGEDOWN:
                         case SDLK_BACKSPACE:
                         case SDLK_DELETE:
                             Con_Edit(event.key.keysym.sym);
@@ -1588,10 +1590,32 @@ int  Engine_PlayVideo(const char *name)
 {
     if(engine_video.state == VIDEO_STATE_STOPPED)
     {
-        Audio_StreamExternalStop();
-        Audio_StopStreams(-1);
-        Con_SetShown(0);
-        return stream_codec_play_rpl(&engine_video, name);
+        codec_init(&engine_video.codec, SDL_RWFromFile(name, "rb"));
+        if(engine_video.codec.input)
+        {
+            if(0 == codec_open_rpl(&engine_video.codec))
+            {
+                Audio_StreamExternalStop();
+                Audio_StopStreams(-1);
+                Con_SetShown(0);
+                
+                while(Audio_StreamExternalBufferIsNeedUpdate())
+                {
+                    if(engine_video.codec.audio.decode && (engine_video.codec.packet(&engine_video.codec, &engine_video.codec.audio.pkt) >= 0))
+                    {
+                        engine_video.codec.audio.decode(&engine_video.codec, &engine_video.codec.audio.pkt);
+                    }
+                    if(engine_video.codec.audio.buff && (engine_video.codec.audio.buff_offset >= Audio_StreamExternalBufferOffset()))
+                    {
+                        Audio_StreamExternalUpdateBuffer(engine_video.codec.audio.buff, engine_video.codec.audio.buff_size,
+                            engine_video.codec.audio.bits_per_sample, engine_video.codec.audio.channels, engine_video.codec.audio.sample_rate);
+                    }
+                }
+                
+                return stream_codec_play(&engine_video);
+            }
+            codec_clear(&engine_video.codec);
+        }
     }
     return 0;
 }
@@ -1683,7 +1707,7 @@ extern "C" int Engine_ExecCmd(char *ch)
             ch = SC_ParseToken(ch, token, sizeof(token));
             if(NULL == ch)
             {
-                Con_Notify("showing lines = %d", (int)Con_GetHeight());
+                Con_Notify("console height = %dpx", (int)Con_GetHeight());
                 return 1;
             }
             else
@@ -1811,6 +1835,7 @@ extern "C" int Engine_ExecCmd(char *ch)
         }
         else if(!strcmp(token, "xxx"))
         {
+            Con_SetLinesHistorySize(18);
             SDL_RWops *f = SDL_RWFromFile("ascII.txt", "r");
             if(f)
             {
@@ -1851,7 +1876,7 @@ extern "C" int Engine_ExecCmd(char *ch)
                 snprintf(buf, 1024, "Command \"%s\" not found", token);
                 Con_AddLine(buf, FONTSTYLE_CONSOLE_WARNING);
             }
-            return 0;
+            return 1;
         }
     }
 
