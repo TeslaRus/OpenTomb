@@ -96,6 +96,8 @@ engine_container_p Container_Create()
     engine_container_p ret;
 
     ret = (engine_container_p)malloc(sizeof(engine_container_t));
+    ret->collision_shape = 0;
+    ret->collision_heavy = 0x00;
     ret->collision_group = COLLISION_GROUP_KINEMATIC;
     ret->collision_mask = COLLISION_MASK_ALL;
     ret->next = NULL;
@@ -711,6 +713,13 @@ void Engine_PollSDLEvents()
                 mouse_setup = 1;
                 break;
 
+            case SDL_MOUSEWHEEL:
+                if(Con_IsShown())
+                {
+                    Con_Scroll(event.wheel.y);
+                }
+                break;
+
             case SDL_MOUSEBUTTONDOWN:
                 if(event.button.button == 1) //LM = 1, MM = 2, RM = 3
                 {
@@ -913,7 +922,7 @@ void Engine_MainLoop()
             fps->font_id    = FONT_PRIMARY;
             fps->style_id   = FONTSTYLE_MENU_TITLE;
         }
-        
+
         int codec_end_state = stream_codec_check_end(&engine_video);
         if(codec_end_state == 1)
         {
@@ -1598,7 +1607,7 @@ int  Engine_PlayVideo(const char *name)
                 Audio_StreamExternalStop();
                 Audio_StopStreams(-1);
                 Con_SetShown(0);
-                
+
                 while(Audio_StreamExternalBufferIsNeedUpdate())
                 {
                     codec_decode_audio(&engine_video.codec);
@@ -1608,7 +1617,7 @@ int  Engine_PlayVideo(const char *name)
                             engine_video.codec.audio.bits_per_sample, engine_video.codec.audio.channels, engine_video.codec.audio.sample_rate);
                     }
                 }
-                
+
                 return stream_codec_play(&engine_video);
             }
             codec_clear(&engine_video.codec);
