@@ -17,7 +17,6 @@ audio =
     music_volume = 0.9;
     use_effects = 1;
     listener_is_player = 0;
-    stream_buffer_size = 128;
 }
 
 render =

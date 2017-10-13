@@ -22,6 +22,6 @@ noclip(0);
 --playVideo(base_path .. "data/tr3/fmv/logo.rpl");
 --loadMap(base_path .. "tests/altroom3/LEVEL1.PHD");
 --loadMap(base_path .. "tests/heavy1/LEVEL1.PHD");
-loadMap(base_path .. "tests/TRIGGERS.PHD", 1, 0);
+--loadMap(base_path .. "tests/TRIGGERS.PHD", 1, 0);
 --setgamef(1, 0);
---dofile(base_path .. "save/qsave.lua");
+dofile(base_path .. "save/qsave.lua");

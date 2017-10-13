@@ -199,7 +199,7 @@ void World_Open(const char *path, int trv)
 
     World_GenRooms(tr);                 // Build all rooms
     Gui_DrawLoadScreen(480);
-    
+
     World_GenCameras(tr);               // Generate cameras & sinks.
     World_GenCinematicCameras(tr);
     World_GenFlyByCameras(tr);
@@ -262,7 +262,7 @@ void World_Open(const char *path, int trv)
         delete global_world.tex_atlas;
         global_world.tex_atlas = NULL;
     }
-    
+
     delete tr;
 }
 
@@ -956,9 +956,6 @@ struct room_box_s *World_GetRoomBoxByID(uint32_t id)
 
 void World_BuildNearRoomsList(struct room_s *room)
 {
-    room->content->near_room_list_size = 0;
-    room->content->near_room_list = (room_t**)Sys_GetTempMem(global_world.rooms_count * sizeof(room_t*));
-
     room_sector_p rs = room->content->sectors;
     for(uint32_t i = 0; i < room->sectors_count; i++, rs++)
     {
@@ -986,46 +983,20 @@ void World_BuildNearRoomsList(struct room_s *room)
             }
         }
     }
-
-    if(room->content->near_room_list_size > 0)
-    {
-        room_t **p = (room_t**)malloc(room->content->near_room_list_size * sizeof(room_t*));
-        memcpy(p, room->content->near_room_list, room->content->near_room_list_size * sizeof(room_t*));
-        room->content->near_room_list = p;
-    }
-    else
-    {
-        room->content->near_room_list = NULL;
-    }
-    Sys_ReturnTempMem(global_world.rooms_count * sizeof(room_t*));
 }
 
 
 void World_BuildOverlappedRoomsList(struct room_s *room)
 {
-    room->content->overlapped_room_list_size = 0;
-    room->content->overlapped_room_list = (room_t**)Sys_GetTempMem(global_world.rooms_count * sizeof(room_t*));
-
-    for(uint32_t i = 0; i < global_world.rooms_count; i++)
+    room_p r = global_world.rooms;
+    for(uint32_t i = 0; i < global_world.rooms_count; ++i, ++r)
     {
-        if(Room_IsOverlapped(room, global_world.rooms + i))
+        if((room->real_room != r->real_room) && Room_IsOverlapped(room, r))
         {
-            room->content->overlapped_room_list[room->content->overlapped_room_list_size] = global_world.rooms + i;
-            room->content->overlapped_room_list_size++;
+            Room_AddToOverlappedRoomsList(room, r);
+            Room_AddToOverlappedRoomsList(r, room);
         }
     }
-
-    if(room->content->overlapped_room_list_size > 0)
-    {
-        room_t **p = (room_t**)malloc(room->content->overlapped_room_list_size * sizeof(room_t*));
-        memcpy(p, room->content->overlapped_room_list, room->content->overlapped_room_list_size * sizeof(room_t*));
-        room->content->overlapped_room_list = p;
-    }
-    else
-    {
-        room->content->overlapped_room_list = NULL;
-    }
-    Sys_ReturnTempMem(global_world.rooms_count * sizeof(room_t*));
 }
 
 /*
@@ -2448,6 +2419,15 @@ void World_GenRoomProperties(class VT_Level *tr)
         World_BuildOverlappedRoomsList(global_world.rooms + i);
         // Generate links to the near rooms.
         World_BuildNearRoomsList(global_world.rooms + i);
+    }
+
+    for(uint32_t i = 0; i < global_world.rooms_count; i++)
+    {
+        room_p r = global_world.rooms + i;
+        for(uint16_t j = 0; j < r->content->near_room_list_size; ++j)
+        {
+            Room_AddToNearRoomsList(r->content->near_room_list[j], r);
+        }
     }
 }
 
