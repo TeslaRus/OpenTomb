@@ -7,8 +7,6 @@ extern "C" {
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
-#include <al.h>
-#include <alc.h>
 }
 
 #include "script.h"

@@ -492,6 +492,8 @@ void Character_UpdateCurrentHeight(struct entity_s *ent)
     v = ent->bf->bone_tags[0].transform + 12;
     Mat4_vec3_mul_macro(from, ent->transform, v);
     from[2] -= ent->speed[2] * engine_frame_time;
+    from[0] = ent->transform[12 + 0];
+    from[1] = ent->transform[12 + 1];
     Character_GetHeightInfo(ent, from, hi, ent->character->height);
 }
 
@@ -591,7 +593,13 @@ void Character_GetHeightInfo(struct entity_s *ent, float pos[3], struct height_i
     fc->slide = 0x00;
     if(fc->floor_hit.hit && (fc->floor_hit.normale[2] > 0.02) && (fc->floor_hit.normale[2] < ent->character->critical_slant_z_component))
     {
-        fc->slide = (fc->floor_hit.normale[0] * ent->transform[4 + 0] + fc->floor_hit.normale[1] * ent->transform[4 + 1] >= 0.0f) ? (CHARACTER_SLIDE_FRONT) : (CHARACTER_SLIDE_BACK);
+        collision_result_t cs;
+        to[2] = fc->floor_hit.point[2];
+        if(Physics_SphereTest(&cs, from, to, ent->character->sphere, fc->self, COLLISION_FILTER_HEIGHT_TEST) &&
+           (fabs(cs.normale[2] - fc->floor_hit.normale[2]) < 0.01))
+        {
+            fc->slide = (fc->floor_hit.normale[0] * ent->transform[4 + 0] + fc->floor_hit.normale[1] * ent->transform[4 + 1] >= 0.0f) ? (CHARACTER_SLIDE_FRONT) : (CHARACTER_SLIDE_BACK);
+        }
     }
 }
 
@@ -956,6 +964,7 @@ void Character_CheckClimbability(struct entity_s *ent, struct climb_info_s *clim
         {
             room_p next_room = World_FindRoomByPosCogerrence(from, ent->self->room);
             room_sector_p next_sector = (next_room) ? (Room_GetSectorXYZ(next_room, from)) : (NULL);
+            next_sector = Sector_GetPortalSectorTargetRaw(next_sector);
             if(next_sector)
             {
                 next_sector = Sector_GetHighest(next_sector);
