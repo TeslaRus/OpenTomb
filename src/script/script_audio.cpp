@@ -12,7 +12,6 @@ extern "C" {
 #include "script.h"
 
 #include "../core/system.h"
-#include "../core/gl_text.h"
 #include "../core/console.h"
 #include "../audio/audio.h"
 

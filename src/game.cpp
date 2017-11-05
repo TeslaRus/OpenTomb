@@ -547,7 +547,7 @@ void Game_ApplyControls(struct entity_s *ent)
 
         if( (control_mapper.use_joy == 1) && (control_mapper.joy_move_y != 0 ) )
         {
-            ent->character->cmd.rot[1] = (control_mapper.joy_move_y > 0) ? (1) : (-1);
+            ent->character->cmd.rot[1] = (control_mapper.joy_move_y > 0) ? (-1) : (1);
         }
         else
         {
@@ -591,7 +591,7 @@ void Game_Frame(float time)
         if(player &&
           (main_inventory_manager->getCurrentState() == gui_InventoryManager::INVENTORY_DISABLED))
         {
-            main_inventory_manager->setInventory(&player->inventory);
+            main_inventory_manager->setInventory(&player->inventory, player->id);
             main_inventory_manager->send(gui_InventoryManager::INVENTORY_OPEN);
         }
         if(main_inventory_manager->getCurrentState() == gui_InventoryManager::INVENTORY_IDLE)
