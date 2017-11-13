@@ -42,7 +42,7 @@ int32_t Item_Use(struct inventory_node_s **root, uint32_t item_id, uint32_t acto
 {
     inventory_node_p i = *root;
     base_item_p bi = NULL;
-    
+
     for(; i; i = i->next)
     {
         if(i->id == item_id)
@@ -58,10 +58,10 @@ int32_t Item_Use(struct inventory_node_s **root, uint32_t item_id, uint32_t acto
         {
             case ITEM_LARAHOME:
                 return Gameflow_SetGame(Gameflow_GetCurrentGameID(), 0);
-                
+
             case ITEM_PASSPORT:
                 return Gameflow_SetGame(Gameflow_GetCurrentGameID(), 1);
-                
+
             case ITEM_COMPASS:
             case ITEM_VIDEO:
             case ITEM_AUDIO:
@@ -70,12 +70,12 @@ int32_t Item_Use(struct inventory_node_s **root, uint32_t item_id, uint32_t acto
             case ITEM_SAVE:
             case ITEM_MAP:
                 break;
-                
+
             default:
                 return Script_UseItem(engine_lua, i->id, actor_id);
         }
     }
-    
+
     return 0;
 }
 
@@ -850,15 +850,15 @@ void gui_ItemNotifier::Draw()
             float ang = (mCurrRotX + mRotX) * M_PI / 180.0f;
             float matrix[16];
             Mat4_E_macro(matrix);
-           
+
             matrix[12 + 0] = mCurrPosX;
             matrix[12 + 1] = mPosY;
             matrix[12 + 2] = -2048.0;
-            
+
             Mat4_RotateY_SinCos(matrix, sinf(ang), cosf(ang));
             ang = (mCurrRotY + mRotY) * M_PI / 180.0f;
             Mat4_RotateX_SinCos(matrix, sinf(ang), cosf(ang));
-            
+
             Anim_SetAnimation(&item->bf->animations, 0, 0);
             SSBoneFrame_Update(item->bf, 0.0f);
             Gui_RenderItem(item->bf, mSize, matrix);
