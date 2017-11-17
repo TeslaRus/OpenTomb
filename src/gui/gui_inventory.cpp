@@ -222,48 +222,6 @@ int gui_InventoryManager::getItemElementsCountByType(int type)
     return ret;
 }
 
-int gui_InventoryManager::getPreviousItemsType(int curr_type)
-{
-    int ret = -1;
-    for(inventory_node_p i = *mInventory; i; i = i->next)
-    {
-        base_item_p bi = World_GetBaseItemByID(i->id);
-        if(bi)
-        {
-            if(bi->type + 1 == curr_type)
-            {
-                return bi->type;
-            }
-            else if((bi->type < curr_type) && (ret < bi->type))
-            {
-                ret = bi->type;
-            }
-        }
-    }
-    return ret;
-}
-
-int gui_InventoryManager::getNextItemsType(int curr_type)
-{
-    int ret = -1;
-    for(inventory_node_p i = *mInventory; i; i = i->next)
-    {
-        base_item_p bi = World_GetBaseItemByID(i->id);
-        if(bi)
-        {
-            if(bi->type - 1 == curr_type)
-            {
-                return bi->type;
-            }
-            else if((bi->type > curr_type) && (ret > bi->type))
-            {
-                ret = bi->type;
-            }
-        }
-    }
-    return ret;
-}
-
 void gui_InventoryManager::restoreItemAngle(float time)
 {
     if(mItemAngle > 0.0f)
@@ -430,17 +388,20 @@ void gui_InventoryManager::frameStates(float time)
 
                 case INVENTORY_R_LEFT:
                 case INVENTORY_R_RIGHT:
-                    Audio_Send(TR_AUDIO_SOUND_MENUROTATE);
-                    mLabel_ItemName.show = 0;
-                    mCurrentState = mNextState;
-                    mItemTime = 0.0;
+                    if(mCurrentItemsCount > 1)
+                    {
+                        Audio_Send(TR_AUDIO_SOUND_MENUROTATE);
+                        mLabel_ItemName.show = 0;
+                        mCurrentState = mNextState;
+                        mItemTime = 0.0;
+                    }
                     break;
 
                 case INVENTORY_UP:
-                    mNextItemsType = this->getNextItemsType(mCurrentItemsType);
-                    if(mNextItemsType >= 0)
+                    if(mCurrentItemsType < GUI_MENU_ITEMTYPE_QUEST)
                     {
                         //Audio_Send(Script_GetGlobalSound(engine_lua, TR_AUDIO_SOUND_GLOBALID_MENUCLOSE));
+                        mNextItemsType = mCurrentItemsType + 1;
                         mCurrentState = mNextState;
                         mRingTime = 0.0;
                     }
@@ -453,10 +414,10 @@ void gui_InventoryManager::frameStates(float time)
                     break;
 
                 case INVENTORY_DOWN:
-                    mNextItemsType = this->getPreviousItemsType(mCurrentItemsType);
-                    if(mNextItemsType >= 0)
+                    if(mCurrentItemsType > 0)
                     {
                         //Audio_Send(Script_GetGlobalSound(engine_lua, TR_AUDIO_SOUND_GLOBALID_MENUCLOSE));
+                        mNextItemsType = mCurrentItemsType - 1;
                         mCurrentState = mNextState;
                         mRingTime = 0.0;
                     }
@@ -648,6 +609,12 @@ void gui_InventoryManager::render()
         int ring_item_index = 0;
         mLabel_Title.x = screen_info.w / 2;
         mLabel_ItemName.x = screen_info.w / 2;
+        if(mCurrentItemsCount == 0)
+        {
+            strncpy(mLabel_ItemName_text, "No items", GUI_LINE_DEFAULTSIZE);
+            return;
+        }
+
         for(inventory_node_p i = *mInventory; i; i = i->next)
         {
             base_item_p bi = World_GetBaseItemByID(i->id);
