@@ -33,16 +33,16 @@ gui_InventoryManager  *main_inventory_manager = NULL;
 
 void Gui_InitNotifier()
 {
-    Notifier.SetRot(180.0, 270.0);
-    Notifier.SetSize(128.0);
-    Notifier.SetRotateTime(2500.0);
+    Notifier.SetRot(180.0f, 270.0f);
+    Notifier.SetSize(128.0f);
+    Notifier.SetRotateTime(2500.0f);
 }
 
 int32_t Item_Use(struct inventory_node_s **root, uint32_t item_id, uint32_t actor_id)
 {
     inventory_node_p i = *root;
     base_item_p bi = NULL;
-
+    
     for(; i; i = i->next)
     {
         if(i->id == item_id)
@@ -58,10 +58,10 @@ int32_t Item_Use(struct inventory_node_s **root, uint32_t item_id, uint32_t acto
         {
             case ITEM_LARAHOME:
                 return Gameflow_SetGame(Gameflow_GetCurrentGameID(), 0);
-
+                
             case ITEM_PASSPORT:
                 return Gameflow_SetGame(Gameflow_GetCurrentGameID(), 1);
-
+                
             case ITEM_COMPASS:
             case ITEM_VIDEO:
             case ITEM_AUDIO:
@@ -70,12 +70,12 @@ int32_t Item_Use(struct inventory_node_s **root, uint32_t item_id, uint32_t acto
             case ITEM_SAVE:
             case ITEM_MAP:
                 break;
-
+                
             default:
                 return Script_UseItem(engine_lua, i->id, actor_id);
         }
     }
-
+    
     return 0;
 }
 
@@ -103,7 +103,7 @@ void Gui_RenderItem(struct ss_bone_frame_s *bf, float size, const float *mvMatri
     qglUniform1iARB(shader->number_of_lights, 0);
     qglUniform4fARB(shader->light_ambient, 1.0f, 1.0f, 1.0f, 1.0f);
 
-    if(size != 0.0)
+    if(size != 0.0f)
     {
         float bb[3];
         vec3_sub(bb, bf->bb_max, bf->bb_min);
@@ -115,11 +115,11 @@ void Gui_RenderItem(struct ss_bone_frame_s *bf, float size, const float *mvMatri
         {
             size /= ((bb[1] >= bb[2]) ? (bb[1]) : (bb[2]));
         }
-        size *= 0.8;
+        size *= 0.8f;
 
         float scaledMatrix[16];
         Mat4_E(scaledMatrix);
-        if(size < 1.0)          // only reduce items size...
+        if(size < 1.0f)          // only reduce items size...
         {
             Mat4_Scale(scaledMatrix, size, size, size);
         }
@@ -152,23 +152,23 @@ gui_InventoryManager::gui_InventoryManager()
     mCurrentItemsCount          = 0;
     mSelectedItem               = 0;
 
-    mRingRotatePeriod           = 0.5;
-    mRingTime                   = 0.0;
-    mRingAngle                  = 0.0;
-    mRingVerticalAngle          = 0.0;
-    mRingAngleStep              = 0.0;
-    mBaseRingRadius             = 600.0;
-    mRingRadius                 = 600.0;
-    mVerticalOffset             = 0.0;
+    mRingRotatePeriod           = 0.5f;
+    mRingTime                   = 0.0f;
+    mRingAngle                  = 0.0f;
+    mRingVerticalAngle          = 0.0f;
+    mRingAngleStep              = 0.0f;
+    mBaseRingRadius             = 600.0f;
+    mRingRadius                 = 600.0f;
+    mVerticalOffset             = 0.0f;
 
-    mItemRotatePeriod           = 4.0;
-    mItemAngle                  = 0.0;
+    mItemRotatePeriod           = 4.0f;
+    mItemAngle                  = 0.0f;
 
     mInventory                  = NULL;
     mOwnerId                    = ENTITY_ID_NONE;
 
-    mLabel_Title.x              = 0.0;
-    mLabel_Title.y              = 30.0;
+    mLabel_Title.x              = 0.0f;
+    mLabel_Title.y              = 30.0f;
     mLabel_Title.line_width     = -1.0f;
     mLabel_Title.x_align        = GLTEXT_ALIGN_CENTER;
     mLabel_Title.y_align        = GLTEXT_ALIGN_TOP;
@@ -179,8 +179,8 @@ gui_InventoryManager::gui_InventoryManager()
     mLabel_Title_text[0]        = 0;
     mLabel_Title.show           = 0;
 
-    mLabel_ItemName.x           = 0.0;
-    mLabel_ItemName.y           = 50.0;
+    mLabel_ItemName.x           = 0.0f;
+    mLabel_ItemName.y           = 50.0f;
     mLabel_ItemName.line_width  = -1.0f;
     mLabel_ItemName.x_align     = GLTEXT_ALIGN_CENTER;
     mLabel_ItemName.y_align     = GLTEXT_ALIGN_BOTTOM;
@@ -286,10 +286,10 @@ void gui_InventoryManager::updateCurrentRing()
         setTitle(mCurrentItemsType);
         if(mCurrentItemsCount)
         {
-            mRingAngleStep = 360.0 / mCurrentItemsCount;
+            mRingAngleStep = 360.0f / mCurrentItemsCount;
             mSelectedItem %= mCurrentItemsCount;
         }
-        mRingAngle = 180.0;
+        mRingAngle = 180.0f;
     }
 }
 
@@ -344,8 +344,8 @@ void gui_InventoryManager::frameStates(float time)
             mNextState = INVENTORY_R_RIGHT;
             if(mRingTime >= mRingRotatePeriod)
             {
-                mRingTime = 0.0;
-                mRingAngle = 0.0;
+                mRingTime = 0.0f;
+                mRingAngle = 0.0f;
                 mNextState = INVENTORY_IDLE;
                 mCurrentState = INVENTORY_IDLE;
                 mSelectedItem++;
@@ -358,17 +358,17 @@ void gui_InventoryManager::frameStates(float time)
             break;
 
         case INVENTORY_IDLE:
-            mRingTime = 0.0;
+            mRingTime = 0.0f;
             switch(mNextState)
             {
                 default:
                 case INVENTORY_IDLE:
                     mItemTime += time;
-                    mItemAngle = 360.0 * mItemTime / mItemRotatePeriod;
+                    mItemAngle = 360.0f * mItemTime / mItemRotatePeriod;
                     if(mItemTime >= mItemRotatePeriod)
                     {
-                        mItemTime = 0.0;
-                        mItemAngle = 0.0;
+                        mItemTime = 0.0f;
+                        mItemAngle = 0.0f;
                     }
                     mLabel_ItemName.show = 1;
                     mLabel_Title.show = 1;
@@ -388,12 +388,12 @@ void gui_InventoryManager::frameStates(float time)
 
                 case INVENTORY_R_LEFT:
                 case INVENTORY_R_RIGHT:
-                    if(mCurrentItemsCount > 1)
+                    if(mCurrentItemsCount >= 1)
                     {
                         Audio_Send(TR_AUDIO_SOUND_MENUROTATE);
                         mLabel_ItemName.show = 0;
                         mCurrentState = mNextState;
-                        mItemTime = 0.0;
+                        mItemTime = 0.0f;
                     }
                     break;
 
@@ -403,7 +403,7 @@ void gui_InventoryManager::frameStates(float time)
                         //Audio_Send(Script_GetGlobalSound(engine_lua, TR_AUDIO_SOUND_GLOBALID_MENUCLOSE));
                         mNextItemsType = mCurrentItemsType + 1;
                         mCurrentState = mNextState;
-                        mRingTime = 0.0;
+                        mRingTime = 0.0f;
                     }
                     else
                     {
@@ -419,7 +419,7 @@ void gui_InventoryManager::frameStates(float time)
                         //Audio_Send(Script_GetGlobalSound(engine_lua, TR_AUDIO_SOUND_GLOBALID_MENUCLOSE));
                         mNextItemsType = mCurrentItemsType - 1;
                         mCurrentState = mNextState;
-                        mRingTime = 0.0;
+                        mRingTime = 0.0f;
                     }
                     else
                     {
@@ -453,8 +453,8 @@ void gui_InventoryManager::frameStates(float time)
                 }
                 this->updateCurrentRing();
                 mCurrentState = INVENTORY_OPEN;
-                mRingAngle = 180.0;
-                mRingVerticalAngle = 180.0;
+                mRingAngle = 180.0f;
+                mRingVerticalAngle = 180.0f;
             }
             break;
 
@@ -467,28 +467,28 @@ void gui_InventoryManager::frameStates(float time)
                 restoreItemAngle(time);
                 mRingRadius = mBaseRingRadius * (mRingRotatePeriod - mRingTime) / mRingRotatePeriod;
                 mVerticalOffset = - mBaseRingRadius * mRingTime / mRingRotatePeriod;
-                mRingAngle += 180.0 * time / mRingRotatePeriod;
+                mRingAngle += 180.0f * time / mRingRotatePeriod;
             }
-            else if(mRingTime < 2.0 * mRingRotatePeriod)
+            else if(mRingTime < 2.0f * mRingRotatePeriod)
             {
                 if(mRingTime - time <= mRingRotatePeriod)
                 {
                     //Audio_Send(lua_GetGlobalSound(engine_lua, TR_AUDIO_SOUND_GLOBALID_MENUOPEN));
-                    mRingRadius = 0.0;
+                    mRingRadius = 0.0f;
                     mVerticalOffset = mBaseRingRadius;
                     mCurrentItemsType = mNextItemsType;
                     updateCurrentRing();
                 }
                 mRingRadius = mBaseRingRadius * (mRingTime - mRingRotatePeriod) / mRingRotatePeriod;
                 mVerticalOffset -= mBaseRingRadius * time / mRingRotatePeriod;
-                mRingAngle -= 180.0 * time / mRingRotatePeriod;
+                mRingAngle -= 180.0f * time / mRingRotatePeriod;
             }
             else
             {
                 mNextState = INVENTORY_IDLE;
                 mCurrentState = INVENTORY_IDLE;
-                mRingAngle = 0.0;
-                mVerticalOffset = 0.0;
+                mRingAngle = 0.0f;
+                mVerticalOffset = 0.0f;
             }
             break;
 
@@ -501,36 +501,36 @@ void gui_InventoryManager::frameStates(float time)
                 restoreItemAngle(time);
                 mRingRadius = mBaseRingRadius * (mRingRotatePeriod - mRingTime) / mRingRotatePeriod;
                 mVerticalOffset = mBaseRingRadius * mRingTime / mRingRotatePeriod;
-                mRingAngle += 180.0 * time / mRingRotatePeriod;
+                mRingAngle += 180.0f * time / mRingRotatePeriod;
             }
-            else if(mRingTime < 2.0 * mRingRotatePeriod)
+            else if(mRingTime < 2.0f * mRingRotatePeriod)
             {
                 if(mRingTime - time <= mRingRotatePeriod)
                 {
                     //Audio_Send(lua_GetGlobalSound(engine_lua, TR_AUDIO_SOUND_GLOBALID_MENUOPEN));
-                    mRingRadius = 0.0;
+                    mRingRadius = 0.0f;
                     mVerticalOffset = -mBaseRingRadius;
                     mCurrentItemsType = mNextItemsType;
                     updateCurrentRing();
                 }
                 mRingRadius = mBaseRingRadius * (mRingTime - mRingRotatePeriod) / mRingRotatePeriod;
                 mVerticalOffset += mBaseRingRadius * time / mRingRotatePeriod;
-                mRingAngle -= 180.0 * time / mRingRotatePeriod;
+                mRingAngle -= 180.0f * time / mRingRotatePeriod;
             }
             else
             {
                 mNextState = INVENTORY_IDLE;
                 mCurrentState = INVENTORY_IDLE;
-                mRingAngle = 0.0;
-                mVerticalOffset = 0.0;
+                mRingAngle = 0.0f;
+                mVerticalOffset = 0.0f;
             }
             break;
 
         case INVENTORY_OPEN:
             mRingTime += time;
             mRingRadius = mBaseRingRadius * mRingTime / mRingRotatePeriod;
-            mRingAngle -= 180.0 * time / mRingRotatePeriod;
-            mRingVerticalAngle -= 180.0 * time / mRingRotatePeriod;
+            mRingAngle -= 180.0f * time / mRingRotatePeriod;
+            mRingVerticalAngle -= 180.0f * time / mRingRotatePeriod;
             if(mRingTime >= mRingRotatePeriod)
             {
                 mCurrentState = INVENTORY_IDLE;
@@ -538,9 +538,9 @@ void gui_InventoryManager::frameStates(float time)
                 mRingVerticalAngle = 0;
 
                 mRingRadius = mBaseRingRadius;
-                mRingTime = 0.0;
-                mRingAngle = 0.0;
-                mVerticalOffset = 0.0;
+                mRingTime = 0.0f;
+                mRingAngle = 0.0f;
+                mVerticalOffset = 0.0f;
                 setTitle(GUI_MENU_ITEMTYPE_SUPPLY);
             }
             break;
@@ -548,14 +548,14 @@ void gui_InventoryManager::frameStates(float time)
         case INVENTORY_CLOSE:
             mRingTime += time;
             mRingRadius = mBaseRingRadius * (mRingRotatePeriod - mRingTime) / mRingRotatePeriod;
-            mRingAngle += 180.0 * time / mRingRotatePeriod;
-            mRingVerticalAngle += 180.0 * time / mRingRotatePeriod;
+            mRingAngle += 180.0f * time / mRingRotatePeriod;
+            mRingVerticalAngle += 180.0f * time / mRingRotatePeriod;
             if(mRingTime >= mRingRotatePeriod)
             {
                 mCurrentState = INVENTORY_DISABLED;
                 mNextState = INVENTORY_DISABLED;
-                mRingVerticalAngle = 180.0;
-                mRingTime = 0.0;
+                mRingVerticalAngle = 180.0f;
+                mRingTime = 0.0f;
                 mLabel_Title.show = 0;
                 mRingRadius = mBaseRingRadius;
                 mCurrentItemsType = 1;
@@ -594,7 +594,7 @@ void gui_InventoryManager::frameItems(float time)
             else
             {
                 Anim_SetAnimation(&bi->bf->animations, 0, 0);
-                Item_Frame(bi->bf, 0.0);
+                Item_Frame(bi->bf, 0.0f);
             }
             ring_item_index++;
         }
@@ -614,19 +614,19 @@ void gui_InventoryManager::render()
             strncpy(mLabel_ItemName_text, "No items", GUI_LINE_DEFAULTSIZE);
             return;
         }
-
+        
         for(inventory_node_p i = *mInventory; i; i = i->next)
         {
             base_item_p bi = World_GetBaseItemByID(i->id);
             if(bi && (bi->type == mCurrentItemsType))
             {
                 Mat4_E_macro(matrix);
-                matrix[12 + 2] = - mBaseRingRadius * 2.0;
+                matrix[12 + 2] = - mBaseRingRadius * 2.0f;
                 ang = (25.0f + mRingVerticalAngle) * M_PI / 180.0f;
                 Mat4_RotateX_SinCos(matrix, sinf(ang), cosf(ang));
                 ang = (mRingAngleStep * (-mSelectedItem + ring_item_index) + mRingAngle) * M_PI / 180.0f;
                 Mat4_RotateY_SinCos(matrix, sinf(ang), cosf(ang));
-                offset[0] = 0.0;
+                offset[0] = 0.0f;
                 offset[1] = mVerticalOffset;
                 offset[2] = mRingRadius;
                 Mat4_Translate(matrix, offset);
@@ -657,12 +657,12 @@ void gui_InventoryManager::render()
                     ang = M_PI_2 - ang;
                     Mat4_RotateZ_SinCos(matrix, sinf(ang), cosf(ang));
                 }
-                offset[0] = -0.5 * bi->bf->centre[0];
-                offset[1] = -0.5 * bi->bf->centre[1];
-                offset[2] = -0.5 * bi->bf->centre[2];
+                offset[0] = -0.5f * bi->bf->centre[0];
+                offset[1] = -0.5f * bi->bf->centre[1];
+                offset[2] = -0.5f * bi->bf->centre[2];
                 Mat4_Translate(matrix, offset);
-                Mat4_Scale(matrix, 0.7, 0.7, 0.7);
-                Gui_RenderItem(bi->bf, 0.0, matrix);
+                Mat4_Scale(matrix, 0.7f, 0.7f, 0.7f);
+                Gui_RenderItem(bi->bf, 0.0f, matrix);
                 ring_item_index++;
             }
         }
@@ -724,9 +724,9 @@ void Gui_DrawNotifier(float time)
 
 gui_ItemNotifier::gui_ItemNotifier()
 {
-    SetRot(0,0);
-    SetSize(1.0);
-    SetRotateTime(1000.0);
+    SetRot(0, 0);
+    SetSize(1.0f);
+    SetRotateTime(1000.0f);
 
     mItem   = 0;
     mActive = false;
@@ -754,16 +754,16 @@ void gui_ItemNotifier::Animate(float time)
             mCurrRotX += (time * mRotateTime);
             //mCurrRotY += (time * mRotateTime);
 
-            mCurrRotX = (mCurrRotX > 360.0) ? (mCurrRotX - 360.0) : (mCurrRotX);
-            //mCurrRotY = (mCurrRotY > 360.0) ? (mCurrRotY - 360.0) : (mCurrRotY);
+            mCurrRotX = (mCurrRotX > 360.0f) ? (mCurrRotX - 360.0f) : (mCurrRotX);
+            //mCurrRotY = (mCurrRotY > 360.0f) ? (mCurrRotY - 360.0f) : (mCurrRotY);
         }
 
         float step = 0;
 
         if(mCurrTime == 0)
         {
-            step = (mCurrPosX - mEndPosX) * (time * 4.0);
-            step = (step <= 0.5) ? (0.5) : (step);
+            step = (mCurrPosX - mEndPosX) * (time * 4.0f);
+            step = (step <= 0.5f) ? (0.5f) : (step);
 
             mCurrPosX -= step;
             mCurrPosX  = (mCurrPosX < mEndPosX) ? (mEndPosX) : (mCurrPosX);
@@ -777,8 +777,8 @@ void gui_ItemNotifier::Animate(float time)
         }
         else
         {
-            step = (mCurrPosX - mEndPosX) * (time * 4.0);
-            step = (step <= 0.5) ? (0.5) : (step);
+            step = (mCurrPosX - mEndPosX) * (time * 4.0f);
+            step = (step <= 0.5f) ? (0.5f) : (step);
 
             mCurrPosX += step;
             mCurrPosX  = (mCurrPosX > mStartPosX) ? (mStartPosX) : (mCurrPosX);
@@ -792,9 +792,9 @@ void gui_ItemNotifier::Animate(float time)
 void gui_ItemNotifier::Reset()
 {
     mActive = false;
-    mCurrTime = 0.0;
-    mCurrRotX = 0.0;
-    mCurrRotY = 0.0;
+    mCurrTime = 0.0f;
+    mCurrRotX = 0.0f;
+    mCurrRotY = 0.0f;
 
     mEndPosX = 0.85f * screen_info.w;
     mPosY    = 0.15f * screen_info.h;
@@ -817,15 +817,15 @@ void gui_ItemNotifier::Draw()
             float ang = (mCurrRotX + mRotX) * M_PI / 180.0f;
             float matrix[16];
             Mat4_E_macro(matrix);
-
+           
             matrix[12 + 0] = mCurrPosX;
             matrix[12 + 1] = mPosY;
-            matrix[12 + 2] = -2048.0;
-
+            matrix[12 + 2] = -2048.0f;
+            
             Mat4_RotateY_SinCos(matrix, sinf(ang), cosf(ang));
             ang = (mCurrRotY + mRotY) * M_PI / 180.0f;
             Mat4_RotateX_SinCos(matrix, sinf(ang), cosf(ang));
-
+            
             Anim_SetAnimation(&item->bf->animations, 0, 0);
             SSBoneFrame_Update(item->bf, 0.0f);
             Gui_RenderItem(item->bf, mSize, matrix);
