@@ -224,7 +224,7 @@ int Save_Entity(entity_p ent, void *data)
                 {
                     fprintf(*f, "\nentitySSAnimSetTarget(%d, %d, %.2f, %.2f, %.2f, %.6f, %.6f, %.6f);", ent->id, i,
                         b_tag->mod.target[0], b_tag->mod.target[1], b_tag->mod.target[2],
-                        b_tag->mod.bone_direction[0], b_tag->mod.bone_direction[1], b_tag->mod.bone_direction[2]);
+                        b_tag->mod.direction[0], b_tag->mod.direction[1], b_tag->mod.direction[2]);
                 }
                 if(b_tag->is_axis_modded)
                 {
@@ -232,9 +232,9 @@ int Save_Entity(entity_p ent, void *data)
                         b_tag->mod.targeting_axis_mod[0], b_tag->mod.targeting_axis_mod[1], b_tag->mod.targeting_axis_mod[2]);
                 }
                 fprintf(*f, "\nentitySSAnimSetTargetingLimit(%d, %d, %.6f, %.6f, %.6f, %.6f);", ent->id, i,
-                    b_tag->mod.targeting_limit[0], b_tag->mod.targeting_limit[1], b_tag->mod.targeting_limit[2], b_tag->mod.targeting_limit[3]);
+                    b_tag->mod.limit[0], b_tag->mod.limit[1], b_tag->mod.limit[2], b_tag->mod.limit[3]);
                 fprintf(*f, "\nentitySSAnimSetCurrentRotation(%d, %d, %.6f, %.6f, %.6f, %.6f);", ent->id, i,
-                    b_tag->mod.current_mod[0], b_tag->mod.current_mod[1], b_tag->mod.current_mod[2], b_tag->mod.current_mod[3]);
+                    b_tag->mod.current[0], b_tag->mod.current[1], b_tag->mod.current[2], b_tag->mod.current[3]);
             }
         }
 
