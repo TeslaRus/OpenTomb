@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "core/base_types.h"
+
 struct room_sector_s;
 struct obb_s;
 struct character_s;
@@ -157,10 +159,8 @@ typedef struct entity_s
     uint32_t                            no_fix_skeletal_parts;
     struct ss_bone_frame_s             *bf;                 // current boneframe with full frame information
     struct physics_data_s              *physics;
-    float                               scaling[3];         // entity scaling
-    float                               angles[3];
-    float                               transform[16] __attribute__((packed, aligned(16))); // GL transformation matrix
-
+    struct engine_transform_s           transform;
+    
     struct obb_s                       *obb;                // oriented bounding box
     struct engine_container_s          *self;
 
@@ -202,7 +202,7 @@ void Entity_FixPenetrations(struct entity_s *ent, collision_callback_t callback,
 
 void Entity_CheckCollisionCallbacks(entity_p ent);
 void Entity_DoAnimCommands(entity_p entity, struct ss_animation_s *ss_anim);
-bool Entity_DoFlipEffect(entity_p entity, uint16_t effect_id, int16_t param);
+void Entity_DoFlipEffect(entity_p entity, uint16_t effect_id, int16_t param);
 void Entity_ProcessSector(entity_p ent);
 void Entity_SetAnimation(entity_p entity, int anim_type, int animation, int frame, float new_transform[16] = NULL);
 void Entity_MoveToSink(entity_p entity, struct static_camera_sink_s *sink);

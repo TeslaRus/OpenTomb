@@ -46,7 +46,7 @@ char *SC_ParseToken(char *data, char *token, size_t token_size)
         return NULL;
     }
     token[0] = 0;
-
+    
 // skip whitespace
     skipwhite:
     while((c = *data) <= ' ')
@@ -846,7 +846,7 @@ void Script_LoadConstants(lua_State *lua)
         LUA_EXPOSE(lua, ITEM_TYPE_SYSTEM);
         LUA_EXPOSE(lua, ITEM_TYPE_SUPPLY);
         LUA_EXPOSE(lua, ITEM_TYPE_QUEST);
-
+        
         LUA_EXPOSE(lua, ITEM_COMPASS);
         LUA_EXPOSE(lua, ITEM_PASSPORT);
         LUA_EXPOSE(lua, ITEM_LARAHOME);
@@ -856,7 +856,7 @@ void Script_LoadConstants(lua_State *lua)
         LUA_EXPOSE(lua, ITEM_LOAD);
         LUA_EXPOSE(lua, ITEM_SAVE);
         LUA_EXPOSE(lua, ITEM_MAP);
-
+        
         LUA_EXPOSE(lua, TR_FD_TRIGTYPE_TRIGGER);
         LUA_EXPOSE(lua, TR_FD_TRIGTYPE_PAD);
         LUA_EXPOSE(lua, TR_FD_TRIGTYPE_SWITCH);
