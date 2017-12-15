@@ -37,7 +37,7 @@ entity_p Entity_Create()
     Mat4_E(ret->transform.M4x4);
     vec3_set_zero(ret->transform.angles);
     vec3_set_one(ret->transform.scaling);
-    
+
     ret->state_flags = ENTITY_STATE_ENABLED | ENTITY_STATE_ACTIVE | ENTITY_STATE_VISIBLE | ENTITY_STATE_COLLIDABLE;
     ret->type_flags = ENTITY_TYPE_GENERIC;
     ret->callback_flags = 0x00000000;               // no callbacks by default
@@ -69,7 +69,7 @@ entity_p Entity_Create()
 
     ret->bf = (ss_bone_frame_p)malloc(sizeof(ss_bone_frame_t));
     SSBoneFrame_CreateFromModel(ret->bf, NULL);
-    
+
     vec3_set_zero(ret->speed);
     ret->linear_speed = 0.0f;
     ret->anim_linear_speed = 0.0f;
@@ -764,50 +764,52 @@ void Entity_DoAnimCommands(entity_p entity, struct ss_animation_s *ss_anim)
 {
     if(ss_anim->model)
     {
-        animation_frame_p next_af = ss_anim->model->animations + ss_anim->next_animation;
-        animation_frame_p current_af = ss_anim->model->animations + ss_anim->current_animation;
-        ///@DO COMMANDS
-        for(animation_command_p command = current_af->commands; command; command = command->next)
+        do
         {
-            switch(command->id)
+            animation_frame_p next_af = ss_anim->model->animations + ss_anim->next_animation;
+            animation_frame_p current_af = ss_anim->model->animations + ss_anim->current_animation;
+            ss_anim->do_jump_anim = 0x00;
+            ///@DO COMMANDS
+            for(animation_command_p command = current_af->commands; command; command = command->next)
             {
-                case TR_ANIMCOMMAND_SETPOSITION:
-                    if((ss_anim->frame_changing_state >= 0x02) && (ss_anim->current_frame >= current_af->max_frame - 1))   // This command executes ONLY at the end of animation.
-                    {
-                        float tr[3];
-                        Mat4_vec3_rot_macro(tr, entity->transform.M4x4, command->data);
-                        vec3_add(entity->transform.M4x4 + 12, entity->transform.M4x4 + 12, tr);
-                        ss_anim->do_jump_anim = 0x01;
-                        entity->no_move = 0x01;
-                    }
-                    break;
+                switch(command->id)
+                {
+                    case TR_ANIMCOMMAND_SETPOSITION:
+                        if((ss_anim->frame_changing_state >= 0x02) && (ss_anim->current_frame >= current_af->max_frame - 1))   // This command executes ONLY at the end of animation.
+                        {
+                            float tr[3];
+                            Mat4_vec3_rot_macro(tr, entity->transform.M4x4, command->data);
+                            vec3_add(entity->transform.M4x4 + 12, entity->transform.M4x4 + 12, tr);
+                            ss_anim->do_jump_anim = 0x01;
+                            entity->no_move = 0x01;
+                        }
+                        break;
 
-                case TR_ANIMCOMMAND_JUMPDISTANCE:
-                    if(entity->character && (ss_anim->frame_changing_state >= 0x02))   // This command executes ONLY at the end of animation.
-                    {
-                        Character_SetToJump(entity, -command->data[0], command->data[1]);
-                    }
-                    break;
-            };
-        }
+                    case TR_ANIMCOMMAND_JUMPDISTANCE:
+                        if(entity->character && (ss_anim->frame_changing_state >= 0x02))   // This command executes ONLY at the end of animation.
+                        {
+                            Character_SetToJump(entity, -command->data[0], command->data[1]);
+                        }
+                        break;
+                };
+            }
 
-        ///@DO EFFECTS
-        for(animation_effect_p effect = next_af->effects; effect; effect = effect->next)
-        {
-            if(ss_anim->next_frame == effect->frame)
+            ///@DO EFFECTS
+            for(animation_effect_p effect = next_af->effects; effect; effect = effect->next)
             {
-                Entity_DoFlipEffect(entity, effect->id, effect->data);
-                ss_anim->do_jump_anim = (effect->data == TR_EFFECT_CHANGEDIRECTION) ? 0x01 : ss_anim->do_jump_anim;
+                if(ss_anim->next_frame == effect->frame)
+                {
+                    Entity_DoFlipEffect(entity, effect->id, effect->data);
+                    ss_anim->do_jump_anim = (effect->data == TR_EFFECT_CHANGEDIRECTION) ? 0x01 : ss_anim->do_jump_anim;
+                }
+            }
+            if(ss_anim->do_jump_anim)
+            {
+                Anim_SetNextFrame(ss_anim, ss_anim->period);    // skip one frame
+                Entity_UpdateTransform(entity);
             }
         }
-    }
-    
-    if(ss_anim->do_jump_anim)
-    {
-        ss_anim->do_jump_anim = 0x00;
-        Anim_SetNextFrame(ss_anim, ss_anim->period);    // skip one frame
-        Entity_UpdateTransform(entity);
-        Entity_DoAnimCommands(entity, ss_anim);
+        while(ss_anim->do_jump_anim);
     }
 }
 
@@ -819,14 +821,14 @@ void Entity_DoFlipEffect(entity_p entity, uint16_t effect_id, int16_t param)
         case TR_ANIMCOMMAND_EMPTYHANDS:
             ///@FIXME: Behaviour is yet to be discovered.
             break;
-        
+
         case TR_ANIMCOMMAND_KILL:
             if(entity->character && !entity->character->state.dead)
             {
                 entity->character->state.dead = 0x01;
             }
             break;
-            
+
         case TR_ANIMCOMMAND_PLAYSOUND:
             {
                 int16_t sound_index = 0x3FFF & param;
@@ -890,7 +892,7 @@ void Entity_DoFlipEffect(entity_p entity, uint16_t effect_id, int16_t param)
                             }
                         }
                         break;
-                        
+
                     case TR_EFFECT_HIDEOBJECT:
                         entity->state_flags &= ~ENTITY_STATE_VISIBLE;
                         break;
