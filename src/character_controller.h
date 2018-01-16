@@ -165,7 +165,7 @@ enum CharParameters
 
 // CHARACTER PARAMETERS DEFAULTS
 
-#define PARAM_ABSOLUTE_MAX                (-1)
+#define PARAM_ABSOLUTE_MAX                (0x7FFFFFFF)
 
 #define LARA_PARAM_HEALTH_MAX             (1000.0)      // 1000 HP
 #define LARA_PARAM_AIR_MAX                (3600.0)      // 60 secs of air
@@ -241,6 +241,7 @@ typedef struct character_state_s
     uint32_t    crouch : 1;
     uint32_t    sprint : 1;
     uint32_t    tightrope : 1;
+    uint32_t    can_attack : 2;
 }character_state_t, *character_state_p;
 
 typedef struct character_param_s
@@ -322,7 +323,7 @@ void Character_Create(struct entity_s *ent);
 void Character_Delete(struct entity_s *ent);
 void Character_Update(struct entity_s *ent);
 void Character_UpdatePath(struct entity_s *ent, struct room_sector_s *target);
-void Character_GoByPathToTarget(struct entity_s *ent);
+void Character_GoByPathToTarget(struct entity_s *ent, struct entity_s *target);
 void Character_UpdateAI(struct entity_s *ent);
 
 void Character_GetHeightInfo(float pos[3], struct height_info_s *fc, float v_offset = 0.0);
@@ -339,6 +340,7 @@ void Character_SetToJump(struct entity_s *ent, float v_vertical, float v_horizon
 void Character_Lean(struct entity_s *ent, character_command_p cmd, float max_lean);
 void Character_LookAt(struct entity_s *ent, float target[3]);
 void Character_ClearLookAt(struct entity_s *ent);
+void Character_LookAtTarget(struct entity_s *ent, struct entity_s *target);
 
 int Character_MoveOnFloor(struct entity_s *ent);
 int Character_MoveFly(struct entity_s *ent);
