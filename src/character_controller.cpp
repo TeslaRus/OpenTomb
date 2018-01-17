@@ -412,6 +412,12 @@ void Character_UpdateAI(struct entity_s *ent)
     entity_p target = World_GetEntityByID(ent->character->target_id);
     if(target)
     {
+        if(target->character && target->character->state.dead)
+        {
+            ent->character->target_id = ENTITY_ID_NONE;
+            Character_LookAtTarget(ent, NULL);
+            return;
+        }
         Character_LookAtTarget(ent, target);
         if(target->self->sector && (ent->character->path_target != target->self->sector))
         {
