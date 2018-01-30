@@ -178,7 +178,8 @@ void Character_Update(struct entity_s *ent)
     if(mask == (ent->state_flags & mask))
     {
         bool is_player = (World_GetPlayer() == ent);
-        if(ent->character->cmd.action && (ent->type_flags & ENTITY_TYPE_TRIGGER_ACTIVATOR))
+        if(ent->character->cmd.action && (ent->type_flags & ENTITY_TYPE_TRIGGER_ACTIVATOR) &&
+           (ent->character->weapon_state == WEAPON_STATE_HIDE))
         {
             Entity_CheckActivators(ent);
         }
@@ -358,7 +359,7 @@ void Character_GoByPathToTarget(struct entity_s *ent, struct entity_s *target)
         {
             Room_GetOverlapCenter(ent->character->path[0], ent->character->path[1], dir);
             if(vec3_dist_sq(dir, ent->transform.M4x4 + 12) < 0.25f * TR_METERING_SECTORSIZE * TR_METERING_SECTORSIZE)
-            {
+            {//FIX to 2d condition
                 if(ent->character->path_dist > 2)
                 {
                     Room_GetOverlapCenter(ent->character->path[1], ent->character->path[2], dir);
@@ -400,7 +401,7 @@ void Character_GoByPathToTarget(struct entity_s *ent, struct entity_s *target)
         }
         else
         {
-            ent->character->cmd.shift = (dir[3] < 4096.0f);
+            //ent->character->cmd.shift = (dir[3] < 4096.0f);
         }
         ent->character->cmd.move[0] = (dir[3] > 32.0f) ? (0x01) : (0x00);
     }

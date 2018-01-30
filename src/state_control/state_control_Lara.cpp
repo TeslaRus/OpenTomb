@@ -3733,6 +3733,51 @@ void StateControl_LaraSetWeaponModel(struct entity_s *ent, int weapon_model, int
 {
     skeletal_model_p sm = World_GetModelByID(weapon_model);
 
+    if(weapon_state != WEAPON_STATE_HIDE)
+    {
+        switch(Anim_GetCurrentState(&ent->bf->animations))
+        {
+            case TR_STATE_LARA_UNDERWATER_STOP:
+            case TR_STATE_LARA_UNDERWATER_FORWARD:
+            case TR_STATE_LARA_UNDERWATER_INERTIA:
+            case TR_STATE_LARA_UNDERWATER_TURNAROUND:
+                if(weapon_model != 123)
+                {
+                    return;
+                }
+            case TR_STATE_LARA_WALK_FORWARD:
+            case TR_STATE_LARA_RUN_FORWARD:
+            case TR_STATE_LARA_STOP:
+            case TR_STATE_LARA_JUMP_FORWARD:
+            case TR_STATE_LARA_RUN_BACK:
+            case TR_STATE_LARA_TURN_RIGHT_SLOW:
+            case TR_STATE_LARA_TURN_LEFT_SLOW:
+            case TR_STATE_LARA_FREEFALL:
+            case TR_STATE_LARA_WALK_BACK:
+            case TR_STATE_LARA_JUMP_PREPARE:
+            case TR_STATE_LARA_TURN_FAST:
+            case TR_STATE_LARA_WALK_RIGHT:
+            case TR_STATE_LARA_WALK_LEFT:
+            case TR_STATE_LARA_ROLL_BACKWARD:
+            case TR_STATE_LARA_SLIDE_FORWARD:
+            case TR_STATE_LARA_JUMP_BACK:
+            case TR_STATE_LARA_JUMP_LEFT:
+            case TR_STATE_LARA_JUMP_RIGHT:
+            case TR_STATE_LARA_JUMP_UP:
+            case TR_STATE_LARA_FALL_BACKWARD:
+            case TR_STATE_LARA_SLIDE_BACK:
+            case TR_STATE_LARA_WADE_FORWARD:
+            case TR_STATE_LARA_CROUCH_IDLE:
+            case TR_STATE_LARA_CROUCH_TURN_LEFT:
+            case TR_STATE_LARA_CROUCH_TURN_RIGHT:   
+            case TR_STATE_LARA_JUMP_ROLL:
+                break;
+
+            default:
+                return;
+        }
+    }
+
     if(sm && (ent->bf->bone_tag_count == sm->mesh_count) && (sm->animation_count >= 4))
     {
         skeletal_model_p base_model = ent->bf->animations.model;
