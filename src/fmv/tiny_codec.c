@@ -171,7 +171,7 @@ uint32_t codec_resize_audio_buffer(struct tiny_codec_s *s, uint32_t sample_size,
     uint32_t ret = s->audio.channels * bytes_per_channel;
     if(s->audio.buff_allocated_size < ret)
     {
-        s->audio.buff_allocated_size = ret + 1024 - ret % 1024;
+        s->audio.buff_allocated_size = ret + 4096 - ret % 4096;
         if(s->audio.buff)
         {
             free(s->audio.buff);
