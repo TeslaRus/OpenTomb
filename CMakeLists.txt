@@ -9,13 +9,36 @@ project(OpenTomb)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
+option(FORCE_SYSTEM_FREETYPE "Use system-provided FreeType instead of internal library." OFF)
+
+# Detect system FreeType
+
+if (FORCE_SYSTEM_FREETYPE)
+    find_package(freetype QUIET)
+    if (NOT FREETYPE_FOUND)
+        message(WARNING "FreeType not found. Enabling internal FreeType support.")
+        set(OPENTOMB_INTERNAL_FREETYPE ON)
+    else()
+        set(OPENTOMB_INTERNAL_FREETYPE OFF)
+    endif ()
+else ()
+    set(OPENTOMB_INTERNAL_FREETYPE ON)
+endif ()
+
+if (OPENTOMB_INTERNAL_FREETYPE)
+    add_subdirectory(extern/freetype2)
+    set(FREETYPE_INCLUDE_DIRS "")
+    set(FREETYPE_LIBRARIES freetype2)
+endif ()
+
 add_subdirectory(extern/bullet)
-add_subdirectory(extern/freetype2)
-add_subdirectory(extern/ogg)
+add_subdirectory(extern/lua)
 
 set(OPENTOMB_SRCS
     src/core/avl.c
     src/core/avl.h
+    src/core/base_types.c
+    src/core/base_types.h
     src/core/console.c
     src/core/console.h
     src/core/gl_font.c
@@ -28,8 +51,6 @@ set(OPENTOMB_SRCS
     src/core/obb.h
     src/core/polygon.c
     src/core/polygon.h
-    src/core/redblack.c
-    src/core/redblack.h
     src/core/system.c
     src/core/system.h
     src/core/utf8_32.c
@@ -38,6 +59,31 @@ set(OPENTOMB_SRCS
     src/core/vmath.h
     src/gui/gui.cpp
     src/gui/gui.h
+    src/gui/gui_inventory.cpp
+    src/gui/gui_inventory.h
+    src/fmv/tiny_codec.h
+    src/fmv/tiny_codec.c
+    src/fmv/stream_codec.h
+    src/fmv/stream_codec.c
+    src/fmv/internal/avcodec.h
+    src/fmv/internal/common.h
+    src/fmv/internal/bytestream.h
+    src/fmv/internal/get_bits.h
+    src/fmv/containers/rpl.c
+    src/fmv/codecs/adpcm.h
+    src/fmv/codecs/adpcm.c
+    src/fmv/codecs/adpcm_data.c
+    src/fmv/codecs/adpcm_data.h
+    src/fmv/codecs/pcm.c
+    src/fmv/codecs/escape124.c
+    src/fmv/codecs/escape130.c
+    src/fmv/codecs/reverse.c
+    src/physics/physics.h
+    src/physics/physics_bullet.cpp
+    src/physics/hair.h
+    src/physics/hair.cpp
+    src/physics/ragdoll.h
+    src/physics/ragdoll.cpp
     src/render/bordered_texture_atlas.cpp
     src/render/bordered_texture_atlas.h
     src/render/bsp_tree.cpp
@@ -90,8 +136,41 @@ set(OPENTOMB_SRCS
     src/state_control/state_control_raptor.cpp
     src/state_control/state_control_trex.h
     src/state_control/state_control_trex.cpp
-    src/audio.cpp
-    src/audio.h
+    src/state_control/state_control_Larson.h
+    src/state_control/state_control_Larson.cpp
+    src/state_control/state_control_Pierre.h
+    src/state_control/state_control_Pierre.cpp
+    src/state_control/state_control_lion.h
+    src/state_control/state_control_lion.cpp
+    src/state_control/state_control_gorilla.h
+    src/state_control/state_control_gorilla.cpp
+    src/state_control/state_control_crocodile.h
+    src/state_control/state_control_crocodile.cpp
+    src/state_control/state_control_rat.h
+    src/state_control/state_control_rat.cpp
+    src/state_control/state_control_centaur.h
+    src/state_control/state_control_centaur.cpp
+    src/state_control/state_control_puma.h
+    src/state_control/state_control_puma.cpp
+    src/state_control/state_control_winged_mutant.h
+    src/state_control/state_control_winged_mutant.cpp
+    src/state_control/state_control_MrT.h
+    src/state_control/state_control_MrT.cpp
+    src/state_control/state_control_cowboy.h
+    src/state_control/state_control_cowboy.cpp
+    src/state_control/state_control_skateboardist.h
+    src/state_control/state_control_skateboardist.cpp
+    src/state_control/state_control_torso_boss.h
+    src/state_control/state_control_torso_boss.cpp
+    src/state_control/state_control_Natla.h
+    src/state_control/state_control_Natla.cpp
+    src/audio/audio.cpp
+    src/audio/audio.h
+    src/audio/audio_fx.cpp
+    src/audio/audio_fx.h
+    src/audio/audio_stream.cpp
+    src/audio/audio_stream.h
+    src/audio/stb_vorbis.c
     src/character_controller.cpp
     src/character_controller.h
     src/controls.cpp
@@ -113,8 +192,6 @@ set(OPENTOMB_SRCS
     src/main_SDL.cpp
     src/mesh.c
     src/mesh.h
-    src/physics.h
-    src/physics_bullet.cpp
     src/resource.cpp
     src/resource.h
     src/room.cpp
@@ -126,6 +203,11 @@ set(OPENTOMB_SRCS
     src/world.cpp
     src/world.h
 )
+
+# Disable warnings when using unsafe functions
+if(WIN32)
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+endif()
 
 if(MINGW AND CMAKE_CROSSCOMPILING)
     # Cross compiling on Linux with the MinGW toolchain.
@@ -143,14 +225,13 @@ if(MINGW AND CMAKE_CROSSCOMPILING)
     )
 
     set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
-    set(OPENTOMB_ICON "resource/icon/opentomb.rc")
 else()
     find_package(OpenAL REQUIRED)
     find_package(SDL2 REQUIRED)
 endif()
 
+set(OPENTOMB_ICON "resource/icon/opentomb.rc")
 find_package(PNG REQUIRED)
-find_package(Lua REQUIRED)
 find_package(ZLIB REQUIRED)
 
 # Check for optional OpenAL include files that are not present in all implementations of the library
@@ -159,15 +240,15 @@ set(CMAKE_REQUIRED_INCLUDES ${OPENAL_INCLUDE_DIR})
 CHECK_INCLUDE_FILES(alext.h HAVE_ALC_H)
 CHECK_INCLUDE_FILES(efx.h HAVE_EFX_H)
 CHECK_INCLUDE_FILES("efx-presets.h" HAVE_EFX_PRESETS_H)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/config-opentomb.h.in ${CMAKE_CURRENT_BINARY_DIR}/config-opentomb.h)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/config-opentomb.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/config-opentomb.h)
 
 add_executable(${PROJECT_NAME} ${OPENTOMB_SRCS} ${OPENTOMB_ICON})
 set_target_properties(${PROJECT_NAME} PROPERTIES C_STANDARD 99 CXX_STANDARD 11)
 
 target_include_directories(
     ${PROJECT_NAME} PRIVATE
+    ${FREETYPE_INCLUDE_DIRS}
     ${PNG_INCLUDE_DIRS}
-    ${LUA_INCLUDE_DIR}
     ${ZLIB_INCLUDE_DIRS}
     ${SDL2_INCLUDE_DIR}
     ${OPENAL_INCLUDE_DIR}
@@ -177,10 +258,9 @@ target_include_directories(
 target_link_libraries(
     ${PROJECT_NAME}
     bullet
-    freetype2
-    ogg
+    ${FREETYPE_LIBRARIES}
+    lua5.3
     ${PNG_LIBRARIES}
-    ${LUA_LIBRARIES}
     ${OPENAL_LIBRARY}
     ${SDL2_LIBRARY}
     ${ZLIB_LIBRARIES}

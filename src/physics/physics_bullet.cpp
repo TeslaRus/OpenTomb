@@ -193,7 +193,7 @@ struct bt_engine_OverlapFilterCallback : public btOverlapFilterCallback
                 return false;
             }
 
-            if(c1 && c1 == c0)                                                  // No self interaction
+            if(c1 && (c1 == c0) && obj0->isStaticOrKinematicObject())           // No self interaction except ragdolls
             {
                 return false;
             }
@@ -465,7 +465,7 @@ void Physics_DeletePhysicsData(struct physics_data_s *physics)
     {
         for(collision_node_p cn = physics->collision_track; cn;)
         {
-            collision_node_p next = cn->next;
+            collision_node_p next = cn->next_bucket;
             free(cn);
             cn = next;
         }
@@ -737,6 +737,7 @@ collision_node_p Physics_GetGhostCurrentCollision(struct physics_data_s *physics
     // paircache and the ghostobject's internal paircache at the same time.    /BW
 
     collision_node_p *cn = &(physics->collision_track);
+    collision_node_p *cnb = &(physics->collision_track);
     btPairCachingGhostObject *ghost = physics->ghost_objects[index];
     if(ghost && ghost->getBroadphaseHandle())
     {
@@ -783,8 +784,12 @@ collision_node_p Physics_GetGhostCurrentCollision(struct physics_data_s *physics
                             {
                                 if(*cn == NULL)
                                 {
-                                    *cn = (collision_node_p)malloc(sizeof(collision_node_t));
-                                    (*cn)->next = NULL;
+                                    *cn = *cnb = (collision_node_p)calloc(4, sizeof(collision_node_t));
+                                    for(int bi = 0; bi < 4 - 1; ++bi)
+                                    {
+                                        (*cnb)[bi].next = *cnb + bi + 1;
+                                    }
+                                    cnb = &((*cnb)->next_bucket);
                                 }
 
                                 (*cn)->obj = cont;
@@ -1891,7 +1896,7 @@ struct hair_s *Hair_Create(struct hair_setup_s *setup, struct physics_data_s *ph
         // bodies (e. g. animated meshes), or else Lara's ghost object or anything else will be able to
         // collide with hair!
         hair->elements[i].body->setUserPointer(hair->container);
-        bt_engine_dynamicsWorld->addRigidBody(hair->elements[i].body, btBroadphaseProxy::DebrisFilter, btBroadphaseProxy::DefaultFilter | btBroadphaseProxy::StaticFilter | btBroadphaseProxy::KinematicFilter | btBroadphaseProxy::CharacterFilter);
+        bt_engine_dynamicsWorld->addRigidBody(hair->elements[i].body, btBroadphaseProxy::CharacterFilter, btBroadphaseProxy::DefaultFilter | btBroadphaseProxy::StaticFilter | btBroadphaseProxy::KinematicFilter | btBroadphaseProxy::CharacterFilter);
 
         hair->elements[i].body->activate();
     }
@@ -2151,7 +2156,7 @@ bool Ragdoll_Create(struct physics_data_s *physics, struct ss_bone_frame_s *bf, 
 #else
         localA.getBasis().setEulerZYX(setup->joint_setup[i].body1_angle[0], setup->joint_setup[i].body1_angle[1], setup->joint_setup[i].body1_angle[2]);
         //localA.setOrigin(setup->joint_setup[i].body1_offset);
-        localA.setOrigin(btVector3(btB->transform[12+0], btB->transform[12+1], btB->transform[12+2]));
+        localA.setOrigin(btVector3(btB->transform[12 + 0], btB->transform[12 + 1], btB->transform[12 + 2]));
 
         localB.getBasis().setEulerZYX(setup->joint_setup[i].body2_angle[0], setup->joint_setup[i].body2_angle[1], setup->joint_setup[i].body2_angle[2]);
         //localB.setOrigin(setup->joint_setup[i].body2_offset);
