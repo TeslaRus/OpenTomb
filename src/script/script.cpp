@@ -46,7 +46,7 @@ char *SC_ParseToken(char *data, char *token, size_t token_size)
         return NULL;
     }
     token[0] = 0;
-    
+
 // skip whitespace
     skipwhite:
     while((c = *data) <= ' ')
@@ -692,7 +692,7 @@ int lua_AddFont(lua_State *lua)
 {
     if(lua_gettop(lua) != 3)
     {
-        Con_Warning("addFont: expecting arguments (font index, font path, font size)");
+        Con_Warning("addFont: expecting arguments (font_index, font_path, font_size)");
         return 0;
     }
 
@@ -742,7 +742,7 @@ int lua_RemoveFont(lua_State *lua)
 {
     if(lua_gettop(lua) != 1)
     {
-        Con_Warning("removeFont: expecting arguments (font index)");
+        Con_Warning("removeFont: expecting arguments (font_index)");
         return 0;
     }
 
@@ -759,7 +759,7 @@ int lua_RemoveFontStyle(lua_State *lua)
 {
     if(lua_gettop(lua) != 1)
     {
-        Con_Warning("removeFontStyle: expecting arguments (style index)");
+        Con_Warning("removeFontStyle: expecting arguments (style_index)");
         return 0;
     }
 
@@ -846,7 +846,7 @@ void Script_LoadConstants(lua_State *lua)
         LUA_EXPOSE(lua, ITEM_TYPE_SYSTEM);
         LUA_EXPOSE(lua, ITEM_TYPE_SUPPLY);
         LUA_EXPOSE(lua, ITEM_TYPE_QUEST);
-        
+
         LUA_EXPOSE(lua, ITEM_COMPASS);
         LUA_EXPOSE(lua, ITEM_PASSPORT);
         LUA_EXPOSE(lua, ITEM_LARAHOME);
@@ -856,7 +856,7 @@ void Script_LoadConstants(lua_State *lua)
         LUA_EXPOSE(lua, ITEM_LOAD);
         LUA_EXPOSE(lua, ITEM_SAVE);
         LUA_EXPOSE(lua, ITEM_MAP);
-        
+
         LUA_EXPOSE(lua, TR_FD_TRIGTYPE_TRIGGER);
         LUA_EXPOSE(lua, TR_FD_TRIGTYPE_PAD);
         LUA_EXPOSE(lua, TR_FD_TRIGTYPE_SWITCH);
@@ -965,6 +965,25 @@ void Script_LoadConstants(lua_State *lua)
         LUA_EXPOSE(lua, ANIM_TYPE_MISK_3);
         LUA_EXPOSE(lua, ANIM_TYPE_MISK_4);
 
+        LUA_EXPOSE(lua, BODY_PART_BODY_LOW);
+        LUA_EXPOSE(lua, BODY_PART_BODY_UPPER);
+        LUA_EXPOSE(lua, BODY_PART_HEAD);
+
+        LUA_EXPOSE(lua, BODY_PART_LEFT_HAND_1);
+        LUA_EXPOSE(lua, BODY_PART_LEFT_HAND_2);
+        LUA_EXPOSE(lua, BODY_PART_LEFT_HAND_3);
+        LUA_EXPOSE(lua, BODY_PART_RIGHT_HAND_1);
+        LUA_EXPOSE(lua, BODY_PART_RIGHT_HAND_2);
+        LUA_EXPOSE(lua, BODY_PART_RIGHT_HAND_3);
+
+        LUA_EXPOSE(lua, BODY_PART_LEFT_LEG_1);
+        LUA_EXPOSE(lua, BODY_PART_LEFT_LEG_2);
+        LUA_EXPOSE(lua, BODY_PART_LEFT_LEG_3);
+        LUA_EXPOSE(lua, BODY_PART_RIGHT_LEG_1);
+        LUA_EXPOSE(lua, BODY_PART_RIGHT_LEG_2);
+        LUA_EXPOSE(lua, BODY_PART_RIGHT_LEG_3);
+        LUA_EXPOSE(lua, BODY_PART_TAIL);    
+
         LUA_EXPOSE(lua, ZONE_TYPE_ALL);
         LUA_EXPOSE(lua, ZONE_TYPE_1);
         LUA_EXPOSE(lua, ZONE_TYPE_2);
@@ -991,6 +1010,7 @@ void Script_LoadConstants(lua_State *lua)
         LUA_EXPOSE(lua, TRIGGER_OP_AND_INV);
 
         LUA_EXPOSE(lua, CHARACTER_STATE_DEAD);
+        LUA_EXPOSE(lua, CHARACTER_STATE_WEAPON);
 
         LUA_EXPOSE(lua, TICK_IDLE);
         LUA_EXPOSE(lua, TICK_STOPPED);
