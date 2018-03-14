@@ -618,6 +618,32 @@ int lua_print(lua_State * lua)
 }
 
 
+int lua_ls(lua_State *lua)
+{
+    int top = lua_gettop(lua);
+    char path[1024] = { 0 };
+    strncpy(path, Engine_GetBasePath(), sizeof(path));
+    if((top > 0) && lua_isstring(lua, 1))
+    {
+        strncat(path, lua_tostring(lua, 1), sizeof(path) - strlen(path) - 1);
+    }
+
+    file_info_p fi = Sys_ListDir(path);
+    if(fi)
+    {
+        for(file_info_p i = fi; i; i = i->next)
+        {
+            Con_Printf((i->is_dir) ? ("[%s]") : ("%s"), i->name);
+        }
+        Sys_ListDirFree(fi);
+    }
+    else
+    {
+        Con_Warning("\"%s\" dir not found or empty", path);
+    }
+}
+
+
 int lua_BindKey(lua_State *lua)
 {
     int top = lua_gettop(lua);
@@ -982,7 +1008,7 @@ void Script_LoadConstants(lua_State *lua)
         LUA_EXPOSE(lua, BODY_PART_RIGHT_LEG_1);
         LUA_EXPOSE(lua, BODY_PART_RIGHT_LEG_2);
         LUA_EXPOSE(lua, BODY_PART_RIGHT_LEG_3);
-        LUA_EXPOSE(lua, BODY_PART_TAIL);    
+        LUA_EXPOSE(lua, BODY_PART_TAIL);
 
         LUA_EXPOSE(lua, ZONE_TYPE_ALL);
         LUA_EXPOSE(lua, ZONE_TYPE_1);
@@ -1119,6 +1145,7 @@ void Script_LuaRegisterFuncs(lua_State *lua)
     luaL_dostring(lua, CVAR_LUA_TABLE_NAME " = {};");
 
     lua_register(lua, "print", lua_print);
+    lua_register(lua, "ls", lua_ls);
 
     lua_register(lua, "getActionState", lua_GetActionState);
     lua_register(lua, "getActionChange", lua_GetActionChange);
