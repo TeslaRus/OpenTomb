@@ -27,9 +27,6 @@
 #include "gui.h"
 #include "gui_inventory.h"
 
-#define MAX_SHOWN_SAVES         (10)
-#define MAX_SAVES_NAME_LEN      (32)
-
 gui_ProgressBar     Bar[BAR_LASTINDEX];
 static GLuint       crosshairBuffer = 0;
 static GLuint       rectBuffer = 0;
@@ -38,7 +35,6 @@ GLuint      backgroundBuffer = 0;
 GLfloat     guiProjectionMatrix[16];
 
 static GLfloat screenSize[2];
-static gl_text_line_p g_save_list = NULL;
 
 static void Gui_FillCrosshairBuffer();
 static void Gui_FillBackgroundBuffer();
@@ -47,24 +43,6 @@ void Gui_Init()
 {
     Gui_InitBars();
     Gui_InitNotifier();
-
-    g_save_list = (gl_text_line_p)calloc(MAX_SHOWN_SAVES, sizeof(gl_text_line_t));
-    for(int i = 0; i < MAX_SHOWN_SAVES; ++i)
-    {
-        gl_text_line_p l = g_save_list + i;
-        l->text = (char*)calloc(MAX_SAVES_NAME_LEN, sizeof(char));
-        l->font_id = FONT_SECONDARY;
-        l->style_id = FONTSTYLE_GENERIC;
-        l->line_width = -1.0f;
-        l->line_height = 1.75f;
-        l->next = NULL;
-        l->prev = NULL;
-        l->x = 0;
-        l->y = 0;
-        l->x_align = GLTEXT_ALIGN_CENTER;
-        l->y_align = GLTEXT_ALIGN_CENTER;
-        l->show = 1;
-    }
 
     qglGenBuffersARB(1, &crosshairBuffer);
     qglGenBuffersARB(1, &backgroundBuffer);
@@ -203,16 +181,6 @@ void Gui_Destroy()
         delete main_inventory_manager;
         main_inventory_manager = NULL;
     }
-
-    for(int i = 0; i < MAX_SHOWN_SAVES; ++i)
-    {
-        gl_text_line_p l = g_save_list + i;
-        free(l->text);
-        l->text = NULL;
-        l->show = 0;
-    }
-    free(g_save_list);
-    g_save_list = NULL;
 
     qglDeleteTextures(1, &load_screen_tex);
     qglDeleteBuffersARB(1, &crosshairBuffer);

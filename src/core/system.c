@@ -140,7 +140,68 @@ static int file_info_cmp(file_info_p f1, file_info_p f2)
     return 0;
 }
 
-file_info_p Sys_ListDir(const char *path)
+#define WILD_COMPARE_SYM(strCh, wildCh) ((strCh == wildCh) || ('?' == wildCh))
+
+/*
+ * '*' (asterisk):          Matches zero or more characters.
+ * '?' (question mark):     Matches a single character.
+ */
+static int wildcmp(uint8_t *wild, uint8_t *string)
+{
+    // Written by Jack Handy - <A href="mailto:jakkhandy@hotmail.com">jakkhandy@hotmail.com</A>
+    // Taken from http://www.codeproject.com/KB/string/wildcmp.aspx
+    uint8_t *cp = NULL, *mp = NULL;
+    uint8_t *string_next, *wild_next;
+    uint32_t wild_ch, string_ch;
+    
+    // check pattern until first star or end
+    while((*string) && (*wild != '*'))
+    {
+        wild = utf8_to_utf32(wild, &wild_ch);
+        string = utf8_to_utf32(string, &string_ch);
+        if(!WILD_COMPARE_SYM(string_ch, wild_ch))
+        {
+            return 0;
+        }
+    }
+    
+    while(*string)
+    {
+        if(*wild == '*')
+        {
+            if(!*++wild)
+            {
+                return 1;
+            }
+            // save entrance for star
+            mp = wild;
+            cp = utf8_next_symbol(string);
+        }
+        else if((string_next = utf8_to_utf32(string, &string_ch)), (wild_next = utf8_to_utf32(wild, &wild_ch)), WILD_COMPARE_SYM(string_ch, wild_ch))
+        {
+            wild = wild_next;
+            string = string_next;
+        }
+        else
+        {
+            // increase star pattern part
+            wild = mp;
+            string = cp;
+            cp = utf8_next_symbol(cp);
+        }
+    }
+
+    while(*wild == '*')
+    {
+        wild++;
+    }
+
+    return !*wild;
+}
+
+#undef WILD_COMPARE_SYM
+
+file_info_p Sys_ListDir(const char *path, const char *wild)
 {
     file_info_p ret = NULL;
     DIR *dir = opendir(path);
@@ -155,19 +216,22 @@ file_info_p Sys_ListDir(const char *path)
         buff[base_len++] = '/';
         while((d = readdir(dir)))
         {
-            strncpy(buff + base_len, d->d_name, sizeof(((struct dirent*)0)->d_name));
-            if(d->d_name[0] && (d->d_name[0] != '.') && !stat(buff, &st))
+            if(!wild || wildcmp((uint8_t*)wild, (uint8_t*)d->d_name))
             {
-                int local_len = strnlen(d->d_name, sizeof(((struct dirent*)0)->d_name));
-                file_info_p p = (file_info_p)malloc(sizeof(file_info_t));
-                p->next = NULL;
-                p->full_name = (char*)malloc(base_len + local_len + 1);
-                p->name = p->full_name + base_len;
-                strncpy(p->full_name, buff, base_len + local_len + 1);
-                p->is_dir = ((st.st_mode & S_IFMT) == S_IFDIR) ? (0x01) : (0x00);
-                for(ins = &ret; *ins && (0 < file_info_cmp(p, *ins)); ins = &((*ins)->next));
-                p->next = *ins;
-                *ins = p;
+                strncpy(buff + base_len, d->d_name, sizeof(((struct dirent*)0)->d_name));
+                if(d->d_name[0] && (d->d_name[0] != '.') && !stat(buff, &st))
+                {
+                    int local_len = strnlen(d->d_name, sizeof(((struct dirent*)0)->d_name));
+                    file_info_p p = (file_info_p)malloc(sizeof(file_info_t));
+                    p->next = NULL;
+                    p->full_name = (char*)malloc(base_len + local_len + 1);
+                    p->name = p->full_name + base_len;
+                    strncpy(p->full_name, buff, base_len + local_len + 1);
+                    p->is_dir = ((st.st_mode & S_IFMT) == S_IFDIR) ? (0x01) : (0x00);
+                    for(ins = &ret; *ins && (0 < file_info_cmp(p, *ins)); ins = &((*ins)->next));
+                    p->next = *ins;
+                    *ins = p;
+                }
             }
         }
         free(buff);
@@ -194,20 +258,16 @@ void Sys_ListDirFree(file_info_p list)
 SYS TIME
 ===============================================================================
 */
-float Sys_FloatTime (void)
+
+int64_t Sys_MicroSecTime(int64_t sec_offset)
 {
-    struct              timeval tp;
-    static long int     secbase = 0;
-
+    int64_t ret;
+    struct timeval tp;
     gettimeofday(&tp, NULL);
-
-    if (!secbase)
-    {
-        secbase = tp.tv_sec;
-        return tp.tv_usec * 1.0e-6;
-    }
-
-    return (float)(tp.tv_sec - secbase) + (float)tp.tv_usec * 1.0e-6;
+    ret = tp.tv_sec - sec_offset;
+    ret *= 1.0e6;
+    ret += tp.tv_usec;
+    return ret;
 }
 
 
@@ -217,9 +277,9 @@ void Sys_Strtime(char *buf, size_t buf_size)
     static time_t t_;
 
     time(&t_);
-    tm_=gmtime(&t_);
+    tm_ = gmtime(&t_);
 
-    snprintf(buf, buf_size, "%02d:%02d:%02d",tm_->tm_hour,tm_->tm_min,tm_->tm_sec);
+    snprintf(buf, buf_size, "%02d:%02d:%02d", tm_->tm_hour, tm_->tm_min, tm_->tm_sec);
 }
 
 /*
@@ -232,9 +292,9 @@ void Sys_Error(const char *error, ...)
     va_list     argptr;
     char        string[4096];
 
-    va_start (argptr,error);
-    vsnprintf (string, 4096, error, argptr);
-    va_end (argptr);
+    va_start(argptr,error);
+    vsnprintf(string, 4096, error, argptr);
+    va_end(argptr);
 
     Sys_DebugLog(SYS_LOG_FILENAME, "System error: %s", string);
     //Engine_Shutdown(1);

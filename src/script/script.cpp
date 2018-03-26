@@ -622,13 +622,20 @@ int lua_ls(lua_State *lua)
 {
     int top = lua_gettop(lua);
     char path[1024] = { 0 };
+    const char *wild = NULL;
+    
     strncpy(path, Engine_GetBasePath(), sizeof(path));
     if((top > 0) && lua_isstring(lua, 1))
     {
         strncat(path, lua_tostring(lua, 1), sizeof(path) - strlen(path) - 1);
     }
 
-    file_info_p fi = Sys_ListDir(path);
+    if((top > 1) && lua_isstring(lua, 2))
+    {
+        wild = lua_tostring(lua, 2);
+    }
+    
+    file_info_p fi = Sys_ListDir(path, wild);
     if(fi)
     {
         for(file_info_p i = fi; i; i = i->next)
@@ -636,10 +643,6 @@ int lua_ls(lua_State *lua)
             Con_Printf((i->is_dir) ? ("[%s]") : ("%s"), i->name);
         }
         Sys_ListDirFree(fi);
-    }
-    else
-    {
-        Con_Warning("\"%s\" dir not found or empty", path);
     }
 }
 

@@ -26,6 +26,9 @@
 #include "gui.h"
 #include "gui_inventory.h"
 
+#define MAX_SHOWN_SAVES         (10)
+#define MAX_SAVES_NAME_LEN      (32)
+
 extern GLuint backgroundBuffer;
 extern GLfloat guiProjectionMatrix[16];
 gui_ItemNotifier       Notifier;
@@ -146,6 +149,26 @@ void Gui_RenderItem(struct ss_bone_frame_s *bf, float size, const float *mvMatri
  */
 gui_InventoryManager::gui_InventoryManager()
 {
+    /*saves_names = NULL;
+    
+    saves_shown_str = (gl_text_line_p)calloc(MAX_SHOWN_SAVES, sizeof(gl_text_line_t));
+    for(int i = 0; i < MAX_SHOWN_SAVES; ++i)
+    {
+        gl_text_line_p l = saves_shown_str + i;
+        l->text = (char*)calloc(MAX_SAVES_NAME_LEN, sizeof(char));
+        l->font_id = FONT_PRIMARY;
+        l->style_id = FONTSTYLE_SAVEGAMELIST;
+        l->line_width = -1.0f;
+        l->line_height = 1.75f;
+        l->next = NULL;
+        l->prev = NULL;
+        l->x = 0.0f;
+        l->y = 0.0f;
+        l->x_align = GLTEXT_ALIGN_CENTER;
+        l->y_align = GLTEXT_ALIGN_CENTER;
+        l->show = 1;
+    }*/
+    
     mCurrentState               = INVENTORY_DISABLED;
     mNextState                  = INVENTORY_DISABLED;
     mCurrentItemsType           = GUI_MENU_ITEMTYPE_SYSTEM;
@@ -211,6 +234,19 @@ gui_InventoryManager::~gui_InventoryManager()
 
     mLabel_Title.show = 0;
     GLText_DeleteLine(&mLabel_Title);
+    
+    /*for(int i = 0; i < MAX_SHOWN_SAVES; ++i)
+    {
+        gl_text_line_p l = saves_shown_str + i;
+        GLText_DeleteLine(l);
+        free(l->text);
+        l->text = NULL;
+        l->show = 0;
+    }
+    free(saves_shown_str);
+    saves_shown_str = NULL;
+    Sys_ListDirFree(saves_names);
+    saves_names = NULL;*/
 }
 
 int gui_InventoryManager::getItemElementsCountByType(int type)
@@ -582,7 +618,40 @@ void gui_InventoryManager::frameItems(float time)
                 Item_Frame(bi->bf, time);
                 if((bi->bf->animations.frame_changing_state == SS_CHANGING_END_ANIM))
                 {
-                    if(0 < Item_Use(mInventory, bi->id, mOwnerId))
+                    /*if(bi->id == ITEM_PASSPORT)
+                    {
+                        if(saves_names)
+                        {
+                            for(int i = 0; i < MAX_SHOWN_SAVES; ++i)
+                            {
+                                saves_shown_str[i].text = NULL;
+                                saves_shown_str[i].show = 0x00;
+                                GLText_RenderStringLine(saves_shown_str + i);
+                            }
+                            Sys_ListDirFree(saves_names);
+                            saves_names = NULL;
+                        }
+                        else
+                        {
+                            saves_names = Sys_ListDir("save", NULL);
+                            file_info_p fi = saves_names;
+                            for(int i = 0; i < MAX_SHOWN_SAVES; ++i)
+                            {
+                                saves_shown_str[i].text = NULL;
+                                saves_shown_str[i].show = 0x00;
+                                if(fi)
+                                {
+                                    saves_shown_str[i].text = fi->name;
+                                    saves_shown_str[i].show = 0x01;
+                                    saves_shown_str[i].x = screen_info.w / 2;
+                                    saves_shown_str[i].y = 0.8f * screen_info.h - 32 * i;
+                                    GLText_AddLine(saves_shown_str + i);
+                                    fi = fi->next;
+                                }
+                            }
+                        }
+                    }
+                    else */if(0 < Item_Use(mInventory, bi->id, mOwnerId))
                     {
                         mLabel_ItemName.show = 0;
                         mLabel_Title.show = 0;
