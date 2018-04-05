@@ -25,6 +25,7 @@
 #include "../engine_string.h"
 #include "../world.h"
 #include "gui.h"
+#include "gui_obj.h"
 #include "gui_inventory.h"
 
 gui_ProgressBar     Bar[BAR_LASTINDEX];
@@ -241,6 +242,7 @@ void Gui_Render()
 
     qglUniform1fARB(shader->colorReplace, 1.0f);
     GLText_RenderStrings();
+    Gui_DrawObjects(NULL);
     Con_Draw(engine_frame_time);
 
     qglUniform1fARB(shader->colorReplace, 0.0f);

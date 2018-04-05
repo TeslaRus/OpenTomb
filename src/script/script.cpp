@@ -623,7 +623,7 @@ int lua_ls(lua_State *lua)
     int top = lua_gettop(lua);
     char path[1024] = { 0 };
     const char *wild = NULL;
-    
+
     strncpy(path, Engine_GetBasePath(), sizeof(path));
     if((top > 0) && lua_isstring(lua, 1))
     {
@@ -634,7 +634,7 @@ int lua_ls(lua_State *lua)
     {
         wild = lua_tostring(lua, 2);
     }
-    
+
     file_info_p fi = Sys_ListDir(path, wild);
     if(fi)
     {
@@ -736,9 +736,9 @@ int lua_AddFont(lua_State *lua)
 
 int lua_AddFontStyle(lua_State *lua)
 {
-    if(lua_gettop(lua) < 12)
+    if(lua_gettop(lua) < 6)
     {
-        Con_Warning("addFontStyle: expecting arguments (index, R, G, B, A, shadow, fade, rect, border, bR, bG, bB, bA, hide)");
+        Con_Warning("addFontStyle: expecting arguments (index, R, G, B, A, shadow)");
         return 0;
     }
 
@@ -748,17 +748,10 @@ int lua_AddFontStyle(lua_State *lua)
     GLfloat     color_B     = (GLfloat)lua_tonumber(lua, 4);
     GLfloat     color_A     = (GLfloat)lua_tonumber(lua, 5);
     int         shadowed    = lua_toboolean(lua, 6);
-    int         rect        = lua_toboolean(lua, 7);
-    GLfloat     rect_border = (GLfloat)lua_tonumber(lua, 8);
-    GLfloat     rect_R      = (GLfloat)lua_tonumber(lua, 9);
-    GLfloat     rect_G      = (GLfloat)lua_tonumber(lua, 10);
-    GLfloat     rect_B      = (GLfloat)lua_tonumber(lua, 11);
-    GLfloat     rect_A      = (GLfloat)lua_tonumber(lua, 12);
 
     if(!GLText_AddFontStyle(style_index,
                          color_R, color_G, color_B, color_A,
-                         shadowed, rect, rect_border,
-                         rect_R, rect_G, rect_B, rect_A))
+                         shadowed))
     {
         Con_Warning("can't create fontstyle with id = %d", style_index);
     }
