@@ -148,10 +148,6 @@ void GLText_RenderStringLine(gl_text_line_p l)
             n_lines = 0;
             for(char *ch = glf_get_string_for_width(gl_font, l->text, w_pt, &n_sym); *begin; ch = glf_get_string_for_width(gl_font, ch, w_pt, &n_sym))
             {
-                if(!n_lines)
-                {
-                    glf_get_string_bb(gl_font, l->text, n_sym, &x0, &y0, &x1, &y1);
-                }
                 ++n_lines;
                 begin = ch;
             }
@@ -159,15 +155,6 @@ void GLText_RenderStringLine(gl_text_line_p l)
             x1 = x0 + w_pt;
             y1 = y0 + n_lines * dy * 64.0f;
         }
-        else
-        {
-            glf_get_string_bb(gl_font, l->text, -1, &x0, &y0, &x1, &y1);
-        }
-
-        l->rect[0] = (GLfloat)x0 / 64.0f;
-        l->rect[1] = (GLfloat)y0 / 64.0f;
-        l->rect[2] = (GLfloat)x1 / 64.0f;
-        l->rect[3] = (GLfloat)y1 / 64.0f;
         
         real_y = l->y - descender;
         switch(l->y_align)

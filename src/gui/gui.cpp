@@ -22,7 +22,7 @@
 #include "../entity.h"
 #include "../character_controller.h"
 #include "../engine.h"
-#include "../controls.h"
+//#include "../controls.h"
 #include "../engine_string.h"
 #include "../world.h"
 #include "gui.h"
@@ -55,6 +55,7 @@ void Gui_Init()
     Gui_FillCrosshairBuffer();
     Gui_FillBackgroundBuffer();
 
+    ///@TEST
     g_current_menu = Gui_BuildSavesList();
 
     main_inventory_manager = new gui_InventoryManager();
@@ -229,7 +230,7 @@ static void Gui_SetupMenuObj(gui_object_p root)
     root->flags.border_width = 4;
     root->flags.draw_border = 0x01;
     root->flags.draw_background = 0x01;
-    root->flags.clip_children = 0x01;
+    root->flags.clip_children = 0x00;
 }
 
 static gui_object_p Gui_AdddMenuObj(gui_object_p root)
@@ -263,7 +264,8 @@ static gui_object_p Gui_BuildSavesList()
     cont->h = root->h - obj->h - 2 * root->flags.border_width;
     cont->x = root->flags.border_width;
     cont->y = root->flags.border_width;
-    cont->flags.border_width = 0;
+
+    cont->flags.border_width = 4;
     cont->flags.clip_children = 0x01;
     cont->flags.draw_background = 0x00;
     cont->flags.draw_border = 0x00;
@@ -274,9 +276,10 @@ static gui_object_p Gui_BuildSavesList()
         if(!it->is_dir)
         {
             obj = Gui_AdddMenuObj(cont);
+            obj->w = cont->w - 2 * cont->flags.border_width;
             obj->h = 32;
-            obj->x = cont->flags.border_width + 2;
-            obj->y = ((obj->prev) ? (obj->prev->y) : (cont->h)) - (obj->h + 2);
+            obj->x = cont->flags.border_width;
+            obj->y = ((obj->prev) ? (obj->prev->y) : (cont->h - cont->flags.border_width)) - obj->h;
             obj->flags.draw_border = (obj->prev) ? (0x00) : (0x01);
             obj->flags.border_width = 3;
             obj->color_border[0] = 220;
@@ -371,9 +374,13 @@ void Gui_Render()
     /*if(g_current_menu)
     {
         if(control_states.look_up)
+        {
             Gui_ListSaves(g_current_menu->childs->next, 1);
+        }
         else if(control_states.look_down)
+        {
             Gui_ListSaves(g_current_menu->childs->next, -1);
+        }
     }*/
 
     qglUniform1fARB(shader->colorReplace, 1.0f);

@@ -89,7 +89,6 @@ typedef struct gl_text_line_s
     GLfloat                     line_height;
     GLfloat                     x;
     GLfloat                     y;
-    GLfloat                     rect[4];    //x0, y0, x1, y1
 
     struct gl_text_line_s     *next;
     struct gl_text_line_s     *prev;

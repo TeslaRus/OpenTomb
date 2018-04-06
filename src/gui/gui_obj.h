@@ -52,6 +52,7 @@ void Gui_DeleteChildObject(gui_object_p obj);
 
 void Gui_SetObjectLabel(gui_object_p obj, const char *text, uint16_t font_id, uint16_t style_id);
 void Gui_DrawObjects(gui_object_p root);
-void Gui_LayoutObjects(gui_object_p root);
+void Gui_LayoutVertical(gui_object_p root, int16_t spacing, int16_t margin);
+void Gui_LayoutHorizontal(gui_object_p root, int16_t spacing, int16_t margin);
 
 #endif
