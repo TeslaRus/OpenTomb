@@ -11,6 +11,7 @@
 typedef struct gui_object_flags_s
 {
     uint32_t    border_width : 8;
+    uint32_t    hide : 1;
     uint32_t    draw_background : 1;
     uint32_t    draw_border : 1;
     uint32_t    clip_children : 1;
@@ -37,6 +38,7 @@ typedef struct gui_object_s
     
     struct gui_object_s        *parent;
     struct gui_object_s        *next;
+    struct gui_object_s        *prev;
     struct gui_object_s        *childs;
 } gui_object_t, *gui_object_p;
 

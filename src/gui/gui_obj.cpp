@@ -60,9 +60,11 @@ void Gui_DeleteObject(gui_object_p obj)
 
 void Gui_DeleteObjects(gui_object_p root)
 {
-    for(gui_object_p obj = root->childs; obj; obj = obj->next)
+    for(gui_object_p obj = root->childs; obj; )
     {
+        gui_object_p next_obj = obj->next;
         Gui_DeleteObjects(obj);
+        obj = next_obj;
     }
     Gui_DeleteObject(root);
 }
@@ -75,7 +77,10 @@ gui_object_p Gui_CreateChildObject(gui_object_p root)
         gui_object_p *ins = &root->childs;
         ret = Gui_CreateObject();
         ret->parent = root;
-        for(; *ins; ins = &((*ins)->next));
+        for(; *ins; ins = &((*ins)->next))
+        {
+            ret->prev = *ins;
+        }
         *ins = ret;
     }
 
@@ -91,6 +96,10 @@ void Gui_DeleteChildObject(gui_object_p obj)
         {
             if(*ins == obj)
             {
+                if(obj->prev)
+                {
+                    obj->prev->next = obj->next;
+                }
                 *ins = obj->next;
                 Gui_DeleteObject(obj);
                 break;
@@ -129,155 +138,158 @@ void Gui_SetObjectLabel(gui_object_p obj, const char *text, uint16_t font_id, ui
 }
 
 
-#define to_float_cl(fv, cv) {(fv)[0] = (float)(cv)[0] / 256.0f; \
-(fv)[1] = (float)(cv)[1] / 256.0f; \
-(fv)[2] = (float)(cv)[2] / 256.0f; \
-(fv)[3] = (float)(cv)[3] / 256.0f; }
+#define to_float_cl(fv, cv) {(fv)[0] = (float)(cv)[0] / 255.0f; \
+(fv)[1] = (float)(cv)[1] / 255.0f; \
+(fv)[2] = (float)(cv)[2] / 255.0f; \
+(fv)[3] = (float)(cv)[3] / 255.0f; }
 
 static void Gui_DrawObjectsInternal(gui_object_p root)
 {
-    if(root->flags.draw_background)
+    if(!root->flags.hide)
     {
-        GLfloat x0 = root->x + root->flags.border_width;
-        GLfloat y0 = root->y + root->flags.border_width;
-        GLfloat x1 = root->x + root->w - root->flags.border_width;
-        GLfloat y1 = root->y + root->h - root->flags.border_width;
-        GLfloat *v, backgroundArray[32];
-
-        v = backgroundArray;
-       *v++ = x0; *v++ = y0;
-        to_float_cl(v, root->color_background);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-       *v++ = x1; *v++ = y0;
-        to_float_cl(v, root->color_background);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-       *v++ = x1; *v++ = y1;
-        to_float_cl(v, root->color_background);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-       *v++ = x0; *v++ = y1;
-        to_float_cl(v, root->color_background);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-        qglVertexPointer(2, GL_FLOAT, 8 * sizeof(GLfloat), backgroundArray);
-        qglColorPointer(4, GL_FLOAT, 8 * sizeof(GLfloat), backgroundArray + 2);
-        qglTexCoordPointer(2, GL_FLOAT, 8 * sizeof(GLfloat), backgroundArray + 6);
-        qglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-    }
-
-    if(root->flags.draw_border && root->flags.border_width)
-    {
-        GLfloat *v, borderArray[80];
-        GLfloat x0 = root->x + root->flags.border_width;
-        GLfloat y0 = root->y + root->flags.border_width;
-        GLfloat x1 = root->x + root->w - root->flags.border_width;
-        GLfloat y1 = root->y + root->h - root->flags.border_width;
-
-        v = borderArray;
-       *v++ = x0; *v++ = y1;
-        to_float_cl(v, root->color_border);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-       *v++ = root->x; *v++ = root->y + root->h;
-        to_float_cl(v, root->color_border);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-       *v++ = x0; *v++ = y0;
-        to_float_cl(v, root->color_border);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-       *v++ = root->x; *v++ = root->y;
-        to_float_cl(v, root->color_border);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-       *v++ = x1; *v++ = y0;
-        to_float_cl(v, root->color_border);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-       *v++ = root->x + root->w; *v++ = root->y;
-        to_float_cl(v, root->color_border);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-       *v++ = x1; *v++ = y1;
-        to_float_cl(v, root->color_border);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-       *v++ = root->x + root->w; *v++ = root->y + root->h;
-        to_float_cl(v, root->color_border);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-       *v++ = x0; *v++ = y1;
-        to_float_cl(v, root->color_border);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-       *v++ = root->x; *v++ = root->y + root->h;
-        to_float_cl(v, root->color_border);
-        v += 4;
-       *v++ = 0.0; *v++ = 0.0;
-
-        qglVertexPointer(2, GL_FLOAT, 8 * sizeof(GLfloat), borderArray);
-        qglColorPointer(4, GL_FLOAT, 8 * sizeof(GLfloat), borderArray + 2);
-        qglTexCoordPointer(2, GL_FLOAT, 8 * sizeof(GLfloat), borderArray + 6);
-        qglDrawArrays(GL_TRIANGLE_STRIP, 0, 10);
-    }
-
-    if(root->label && root->label->show)
-    {
-        if(root->label->x_align == GLTEXT_ALIGN_LEFT)
+        if(root->flags.draw_background)
         {
-            root->label->x = root->x + root->flags.border_width;
-        }
-        else if(root->label->x_align == GLTEXT_ALIGN_RIGHT)
-        {
-            root->label->x = root->x + root->w - root->flags.border_width;
-        }
-        else
-        {
-            root->label->x = root->x + root->w / 2;
+            GLfloat x0 = root->x + root->flags.border_width;
+            GLfloat y0 = root->y + root->flags.border_width;
+            GLfloat x1 = root->x + root->w - root->flags.border_width;
+            GLfloat y1 = root->y + root->h - root->flags.border_width;
+            GLfloat *v, backgroundArray[32];
+
+            v = backgroundArray;
+           *v++ = x0; *v++ = y0;
+            to_float_cl(v, root->color_background);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+           *v++ = x1; *v++ = y0;
+            to_float_cl(v, root->color_background);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+           *v++ = x1; *v++ = y1;
+            to_float_cl(v, root->color_background);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+           *v++ = x0; *v++ = y1;
+            to_float_cl(v, root->color_background);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+            qglVertexPointer(2, GL_FLOAT, 8 * sizeof(GLfloat), backgroundArray);
+            qglColorPointer(4, GL_FLOAT, 8 * sizeof(GLfloat), backgroundArray + 2);
+            qglTexCoordPointer(2, GL_FLOAT, 8 * sizeof(GLfloat), backgroundArray + 6);
+            qglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
         }
 
-        if(root->label->y_align == GLTEXT_ALIGN_BOTTOM)
+        if(root->flags.draw_border && root->flags.border_width)
         {
-            root->label->y = root->y + root->flags.border_width;
-        }
-        else if(root->label->y_align == GLTEXT_ALIGN_TOP)
-        {
-            root->label->y = root->y + root->h - root->flags.border_width;
-        }
-        else
-        {
-            root->label->y = root->y + root->h / 2;
+            GLfloat *v, borderArray[80];
+            GLfloat x0 = root->x + root->flags.border_width;
+            GLfloat y0 = root->y + root->flags.border_width;
+            GLfloat x1 = root->x + root->w - root->flags.border_width;
+            GLfloat y1 = root->y + root->h - root->flags.border_width;
+
+            v = borderArray;
+           *v++ = x0; *v++ = y1;
+            to_float_cl(v, root->color_border);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+           *v++ = root->x; *v++ = root->y + root->h;
+            to_float_cl(v, root->color_border);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+           *v++ = x0; *v++ = y0;
+            to_float_cl(v, root->color_border);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+           *v++ = root->x; *v++ = root->y;
+            to_float_cl(v, root->color_border);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+           *v++ = x1; *v++ = y0;
+            to_float_cl(v, root->color_border);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+           *v++ = root->x + root->w; *v++ = root->y;
+            to_float_cl(v, root->color_border);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+           *v++ = x1; *v++ = y1;
+            to_float_cl(v, root->color_border);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+           *v++ = root->x + root->w; *v++ = root->y + root->h;
+            to_float_cl(v, root->color_border);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+           *v++ = x0; *v++ = y1;
+            to_float_cl(v, root->color_border);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+           *v++ = root->x; *v++ = root->y + root->h;
+            to_float_cl(v, root->color_border);
+            v += 4;
+           *v++ = 0.0; *v++ = 0.0;
+
+            qglVertexPointer(2, GL_FLOAT, 8 * sizeof(GLfloat), borderArray);
+            qglColorPointer(4, GL_FLOAT, 8 * sizeof(GLfloat), borderArray + 2);
+            qglTexCoordPointer(2, GL_FLOAT, 8 * sizeof(GLfloat), borderArray + 6);
+            qglDrawArrays(GL_TRIANGLE_STRIP, 0, 10);
         }
 
-        GLText_RenderStringLine(root->label);
-    }
-
-    for(gui_object_p obj = root->childs; obj; obj = obj->next)
-    {
-        obj->x += root->content_dx;
-        obj->y += root->content_dy;
-        int intersect = Gui_CheckObjectsRects(root, obj);
-        if(intersect)
+        if(root->label && root->label->show)
         {
-            Gui_DrawObjectsInternal(obj);
+            if(root->label->x_align == GLTEXT_ALIGN_LEFT)
+            {
+                root->label->x = root->x + root->flags.border_width;
+            }
+            else if(root->label->x_align == GLTEXT_ALIGN_RIGHT)
+            {
+                root->label->x = root->x + root->w - root->flags.border_width;
+            }
+            else
+            {
+                root->label->x = root->x + root->w / 2;
+            }
+
+            if(root->label->y_align == GLTEXT_ALIGN_BOTTOM)
+            {
+                root->label->y = root->y + root->flags.border_width;
+            }
+            else if(root->label->y_align == GLTEXT_ALIGN_TOP)
+            {
+                root->label->y = root->y + root->h - root->flags.border_width;
+            }
+            else
+            {
+                root->label->y = root->y + root->h / 2;
+            }
+
+            GLText_RenderStringLine(root->label);
         }
-        obj->x -= root->content_dx;
-        obj->y -= root->content_dy;
+
+        for(gui_object_p obj = root->childs; obj; obj = obj->next)
+        {
+            obj->x += root->x + root->content_dx;
+            obj->y += root->y + root->content_dy;
+            int intersect = Gui_CheckObjectsRects(root, obj);
+            if(intersect)
+            {
+                Gui_DrawObjectsInternal(obj);
+            }
+            obj->x -= root->x + root->content_dx;
+            obj->y -= root->y + root->content_dy;
+        }
     }
 }
 
