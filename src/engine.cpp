@@ -578,7 +578,7 @@ void Engine_Resize(int nominalW, int nominalH, int pixelsW, int pixelsH)
 
     screen_info.scale_factor = (screen_info.w < screen_info.h) ? (screen_info.h / scale_coeff) : (screen_info.w / scale_coeff);
 
-    GLText_UpdateResize(screen_info.w, screen_info.h, screen_info.scale_factor);
+    GLText_UpdateResize(screen_info.scale_factor);
     Con_UpdateResize();
     Gui_UpdateResize();
 
@@ -792,7 +792,7 @@ void Engine_MainLoop()
     while(!engine_done)
     {
         newtime = Sys_MicroSecTime(sec_base_offset);
-        time = (newtime - oldtime) * 1E-6;
+        time = (newtime - oldtime) / 1E6;
         oldtime = newtime;
         time *= time_scale;
 

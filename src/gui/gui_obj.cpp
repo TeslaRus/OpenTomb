@@ -243,6 +243,37 @@ static void Gui_DrawBorderInternal(gui_object_p root)
     qglDrawArrays(GL_TRIANGLE_STRIP, 0, 10);
 }
 
+static void Gui_DrawLabelInternal(gui_object_p root)
+{
+    if(root->label->x_align == GLTEXT_ALIGN_LEFT)
+    {
+        root->label->x = root->x + root->flags.border_width;
+    }
+    else if(root->label->x_align == GLTEXT_ALIGN_RIGHT)
+    {
+        root->label->x = root->x + root->w - root->flags.border_width;
+    }
+    else
+    {
+        root->label->x = root->x + root->w / 2;
+    }
+
+    if(root->label->y_align == GLTEXT_ALIGN_BOTTOM)
+    {
+        root->label->y = root->y + root->flags.border_width;
+    }
+    else if(root->label->y_align == GLTEXT_ALIGN_TOP)
+    {
+        root->label->y = root->y + root->h - root->flags.border_width;
+    }
+    else
+    {
+        root->label->y = root->y + root->h / 2;
+    }
+
+    GLText_RenderStringLine(root->label);
+}
+
 static void Gui_DrawObjectsInternal(gui_object_p root, int stencil)
 {
     if(!root->flags.hide)
@@ -259,42 +290,19 @@ static void Gui_DrawObjectsInternal(gui_object_p root, int stencil)
 
         if(root->label && root->label->show)
         {
-            if(root->label->x_align == GLTEXT_ALIGN_LEFT)
-            {
-                root->label->x = root->x + root->flags.border_width;
-            }
-            else if(root->label->x_align == GLTEXT_ALIGN_RIGHT)
-            {
-                root->label->x = root->x + root->w - root->flags.border_width;
-            }
-            else
-            {
-                root->label->x = root->x + root->w / 2;
-            }
-
-            if(root->label->y_align == GLTEXT_ALIGN_BOTTOM)
-            {
-                root->label->y = root->y + root->flags.border_width;
-            }
-            else if(root->label->y_align == GLTEXT_ALIGN_TOP)
-            {
-                root->label->y = root->y + root->h - root->flags.border_width;
-            }
-            else
-            {
-                root->label->y = root->y + root->h / 2;
-            }
-
-            GLText_RenderStringLine(root->label);
+            Gui_DrawLabelInternal(root);
         }
 
         if(root->flags.clip_children && root->childs)
         {
-            ++stencil;
-            qglStencilFunc(GL_NEVER, 0x00, 0x00);
-            qglStencilOp(GL_INCR, GL_INCR, GL_INCR);
-            Gui_DrawBackgroundInternal(root);
+            uint8_t a = root->color_background[3];
+            root->color_background[3] = 0;
             qglStencilFunc(GL_EQUAL, stencil, 0xFF);
+            qglStencilOp(GL_KEEP, GL_INCR, GL_INCR);
+            Gui_DrawBackgroundInternal(root);
+            qglStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+            root->color_background[3] = a;
+            ++stencil;
         }
 
         for(gui_object_p obj = root->childs; obj; obj = obj->next)
@@ -303,6 +311,10 @@ static void Gui_DrawObjectsInternal(gui_object_p root, int stencil)
             obj->y += root->y + root->content_dy;
             if(Gui_CheckObjectsRects(root, obj))
             {
+                if(root->childs)
+                {
+                    qglStencilFunc(GL_EQUAL, stencil, 0xFF);
+                }
                 Gui_DrawObjectsInternal(obj, stencil);
             }
             obj->x -= root->x + root->content_dx;
@@ -311,6 +323,13 @@ static void Gui_DrawObjectsInternal(gui_object_p root, int stencil)
 
         if(root->flags.clip_children && root->childs)
         {
+            uint8_t a = root->color_background[3];
+            root->color_background[3] = 0;
+            qglStencilFunc(GL_GREATER, stencil - 1, 0xFF);
+            qglStencilOp(GL_KEEP, GL_REPLACE, GL_REPLACE);
+            Gui_DrawBackgroundInternal(root);
+            root->color_background[3] = a;
+            qglStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
             qglStencilFunc(GL_ALWAYS, 0x00, 0xFF);
         }
     }

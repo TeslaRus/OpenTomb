@@ -104,16 +104,13 @@ void GLText_Destroy()
 }
 
 
-void GLText_UpdateResize(int w, int h, float scale)
+void GLText_UpdateResize(float scale)
 {
-    if(font_data.max_fonts > 0)
+    for(uint16_t i = 0; i < font_data.max_fonts; i++)
     {
-        for(uint16_t i = 0; i < font_data.max_fonts; i++)
+        if(font_data.fonts[i].gl_font)
         {
-            if(font_data.fonts[i].gl_font)
-            {
-                glf_resize(font_data.fonts[i].gl_font, (uint16_t)(((float)font_data.fonts[i].font_size) * scale));
-            }
+            glf_resize(font_data.fonts[i].gl_font, (uint16_t)(((float)font_data.fonts[i].font_size) * scale));
         }
     }
 }
