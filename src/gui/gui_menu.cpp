@@ -25,17 +25,18 @@ static void Gui_SetupMenuObj(gui_object_p root)
     root->color_background[2] = 22;
     root->color_background[3] = 126;
     root->border_width = 4;
-    
-    root->h_align = GUI_ALIGN_CENTER;
-    root->v_align = GUI_ALIGN_TOP;
+
+    root->spacing = 4;
     root->margin_top = 8;
     root->margin_bottom = 8;
     root->margin_left = 8;
     root->margin_right = 8;
-    
+
     root->flags.draw_border = 0x01;
     root->flags.draw_background = 0x01;
     root->flags.clip_children = 0x00;
+    root->flags.h_align = GUI_ALIGN_CENTER;
+    root->flags.v_align = GUI_ALIGN_TOP;
     root->flags.layout = GUI_LAYOUT_VERTICAL;
     root->flags.fit_inside = 0x01;
 }
@@ -49,9 +50,9 @@ gui_object_p Gui_BuildSavesList()
     obj->h = 40;
     obj->flags.draw_border = 0x01;
     Gui_SetObjectLabel(obj, "Load game:", 1, 1);
-    obj->h_align = GUI_ALIGN_CENTER;
-    obj->v_align = GUI_ALIGN_CENTER;
     obj->border_width = 4;
+    obj->flags.h_align = GUI_ALIGN_CENTER;
+    obj->flags.v_align = GUI_ALIGN_CENTER;
     obj->flags.draw_label = 0x01;
     obj->flags.draw_border = 0x01;
     obj->flags.fixed_h = 0x01;
@@ -61,13 +62,12 @@ gui_object_p Gui_BuildSavesList()
     cont->w = root->w - root->margin_left - root->margin_right;
     cont->h = root->h - obj->h - root->margin_top - root->margin_bottom;
 
-    cont->margin_top = 4;
     cont->border_width = 0;
     cont->flags.clip_children = 0x01;
     cont->flags.draw_background = 0x00;
     cont->flags.draw_border = 0x00;
     cont->flags.layout = GUI_LAYOUT_VERTICAL;
-    cont->h_align = GUI_ALIGN_CENTER;
+    cont->flags.h_align = GUI_ALIGN_CENTER;
     cont->weight_y = 1;
 
     file_info_p list = Sys_ListDir("save", NULL);
@@ -85,8 +85,8 @@ gui_object_p Gui_BuildSavesList()
             obj->color_border[3] = 255;
 
             Gui_SetObjectLabel(obj, it->name, 2, 2);
-            obj->h_align = GUI_ALIGN_CENTER;
-            obj->v_align = GUI_ALIGN_CENTER;
+            obj->flags.h_align = GUI_ALIGN_CENTER;
+            obj->flags.v_align = GUI_ALIGN_CENTER;
             obj->flags.draw_label = 0x01;
             obj->flags.fixed_h = 0x01;
             obj->line_height = 0.8;
@@ -95,7 +95,7 @@ gui_object_p Gui_BuildSavesList()
     Sys_ListDirFree(list);
 
     Gui_LayoutObjects(root);
-    
+
     return root;
 }
 

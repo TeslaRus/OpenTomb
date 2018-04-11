@@ -34,6 +34,8 @@ typedef struct gui_object_flags_s
     uint32_t    fit_inside : 1;
     uint32_t    clip_children : 1;
     uint32_t    layout : 2;
+    uint32_t    v_align : 4; // for content
+    uint32_t    h_align : 4; // for content
 }gui_object_flags_t, *gui_object_flags_p;
 
 typedef struct gui_object_s
@@ -42,8 +44,6 @@ typedef struct gui_object_s
     int16_t         y;
     int16_t         w;
     int16_t         h;
-    int16_t         content_w;
-    int16_t         content_h;
     int16_t         weight_x;
     int16_t         weight_y;
     int16_t         content_dx;
@@ -60,8 +60,7 @@ typedef struct gui_object_s
     uint16_t                    style_id;
     uint16_t                    text_size;
     uint8_t                     border_width;
-    uint8_t                     v_align : 4; // for content
-    uint8_t                     h_align : 4; // for content
+    uint8_t                     spacing;
     
     struct gui_object_flags_s   flags;
 

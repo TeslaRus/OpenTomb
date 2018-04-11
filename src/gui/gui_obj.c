@@ -7,8 +7,6 @@
 #include "../core/gl_util.h"
 #include "../core/gl_font.h"
 #include "../core/gl_text.h"
-#include "../core/system.h"
-#include "../core/console.h"
 #include "../core/vmath.h"
 #include "gui_obj.h"
 
@@ -276,7 +274,7 @@ static void Gui_DrawLabelInternal(gui_object_p root)
         }
 
         real_y = root->y - root->border_width - descender;
-        switch(root->v_align)
+        switch(root->flags.v_align)
         {
             case GUI_ALIGN_TOP:
                 real_y = root->y - root->border_width - ascender - dy * (n_lines - 1);
@@ -297,7 +295,7 @@ static void Gui_DrawLabelInternal(gui_object_p root)
             glf_get_string_bb(gl_font, begin, n_sym, &x0, &y0, &x1, &y1);
 
             real_x = root->x + root->border_width - x0 / 64.0f;
-            switch(root->h_align)
+            switch(root->flags.h_align)
             {
                 case GUI_ALIGN_RIGHT:
                     real_x = root->x + root->w - root->border_width - x1 / 64.0f;
@@ -400,14 +398,11 @@ void Gui_DrawObjects(gui_object_p root)
 
 void Gui_LayoutVertical(gui_object_p root)
 {
-    int16_t spacing = 0;
     gui_object_p prev = NULL;
     int16_t free_h = root->h - root->margin_top - root->margin_bottom;
     int16_t weights_used = 0;
     int16_t weights_total = 0;
     int16_t height_used = 0;
-    root->content_w = 0;
-    root->content_h = 0;
     
     if(root->flags.fit_inside)
     {
@@ -424,7 +419,7 @@ void Gui_LayoutVertical(gui_object_p root)
         if(total_spacings)
         {
             --total_spacings;
-            free_h -= total_spacings * spacing;
+            free_h -= total_spacings * root->spacing;
         }
         weights_total = (weights_total) ? (weights_total) : (1);
     }
@@ -438,11 +433,11 @@ void Gui_LayoutVertical(gui_object_p root)
                 obj->x = root->margin_left;
                 obj->w = root->w - root->margin_left - root->margin_right;
             }
-            else if(root->h_align == GUI_ALIGN_RIGHT)
+            else if(root->flags.h_align == GUI_ALIGN_RIGHT)
             {
                 obj->x = root->w - root->margin_right - obj->w;
             }
-            else if(root->h_align == GUI_ALIGN_CENTER)
+            else if(root->flags.h_align == GUI_ALIGN_CENTER)
             {
                 obj->x = (root->margin_left + root->w - root->margin_right - obj->w) / 2;
             }
@@ -459,32 +454,20 @@ void Gui_LayoutVertical(gui_object_p root)
                 obj->h = height_used - obj->h;
             }
             
-            obj->y = (prev) ? (prev->y - obj->h - spacing)
+            obj->y = (prev) ? (prev->y - obj->h - root->spacing)
                             : (root->h - obj->h - root->margin_top);
             prev = obj;
-            if(obj->w + obj->x > root->content_w)
-            {
-                root->content_w = obj->w + obj->x;
-            }
         }
-    }
-
-    if(prev)
-    {
-        root->content_h = root->h - prev->y;
     }
 }
 
 void Gui_LayoutHorizontal(gui_object_p root)
 {
-    int16_t spacing = 0;
     gui_object_p prev = NULL;
     int16_t weights_used = 0;
     int16_t weights_total = 0;
     int16_t width_used = 0;
     int16_t free_w = root->w - root->margin_left - root->margin_right;
-    root->content_w = 0;
-    root->content_h = 0;
     
     if(root->flags.fit_inside)
     {
@@ -501,7 +484,7 @@ void Gui_LayoutHorizontal(gui_object_p root)
         if(total_spacings)
         {
             --total_spacings;
-            free_w -= total_spacings * spacing;
+            free_w -= total_spacings * root->spacing;
         }
     }
     
@@ -514,11 +497,11 @@ void Gui_LayoutHorizontal(gui_object_p root)
                 obj->y = root->y + root->margin_bottom;
                 obj->h = root->h - root->margin_bottom - root->margin_top;
             }
-            else if(root->v_align == GUI_ALIGN_BOTTOM)
+            else if(root->flags.v_align == GUI_ALIGN_BOTTOM)
             {
                 obj->y = root->margin_bottom;
             }
-            else if(root->v_align == GUI_ALIGN_CENTER)
+            else if(root->flags.v_align == GUI_ALIGN_CENTER)
             {
                 obj->y = (root->margin_bottom + root->h - root->margin_top - obj->h) / 2;
             }
@@ -535,17 +518,9 @@ void Gui_LayoutHorizontal(gui_object_p root)
                 obj->h = width_used - obj->w;
             }
             
-            obj->x = (prev) ? (prev->x + prev->w + spacing)
+            obj->x = (prev) ? (prev->x + prev->w + root->spacing)
                             : (root->margin_left);
             prev = obj;
-            if(obj->w + obj->x > root->content_w)
-            {
-                root->content_w = obj->w + obj->x;
-            }
-            if(root->h - obj->y > root->content_h)
-            {
-                root->content_h = root->h - obj->y;
-            }
         }
     }
 }
