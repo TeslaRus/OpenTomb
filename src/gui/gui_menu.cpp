@@ -35,8 +35,8 @@ static void Gui_SetupMenuObj(gui_object_p root)
     root->flags.draw_border = 0x01;
     root->flags.draw_background = 0x01;
     root->flags.clip_children = 0x00;
-    root->flags.h_align = GUI_ALIGN_CENTER;
-    root->flags.v_align = GUI_ALIGN_TOP;
+    root->flags.h_content_align = GUI_ALIGN_CENTER;
+    root->flags.v_content_align = GUI_ALIGN_TOP;
     root->flags.layout = GUI_LAYOUT_VERTICAL;
     root->flags.fit_inside = 0x01;
 }
@@ -51,8 +51,8 @@ gui_object_p Gui_BuildSavesList()
     obj->flags.draw_border = 0x01;
     Gui_SetObjectLabel(obj, "Load game:", 1, 1);
     obj->border_width = 4;
-    obj->flags.h_align = GUI_ALIGN_CENTER;
-    obj->flags.v_align = GUI_ALIGN_CENTER;
+    obj->flags.h_content_align = GUI_ALIGN_CENTER;
+    obj->flags.v_content_align = GUI_ALIGN_CENTER;
     obj->flags.draw_label = 0x01;
     obj->flags.draw_border = 0x01;
     obj->flags.fixed_h = 0x01;
@@ -67,7 +67,7 @@ gui_object_p Gui_BuildSavesList()
     cont->flags.draw_background = 0x00;
     cont->flags.draw_border = 0x00;
     cont->flags.layout = GUI_LAYOUT_VERTICAL;
-    cont->flags.h_align = GUI_ALIGN_CENTER;
+    cont->flags.h_content_align = GUI_ALIGN_CENTER;
     cont->weight_y = 1;
 
     file_info_p list = Sys_ListDir("save", NULL);
@@ -85,8 +85,8 @@ gui_object_p Gui_BuildSavesList()
             obj->color_border[3] = 255;
 
             Gui_SetObjectLabel(obj, it->name, 2, 2);
-            obj->flags.h_align = GUI_ALIGN_CENTER;
-            obj->flags.v_align = GUI_ALIGN_CENTER;
+            obj->flags.h_content_align = GUI_ALIGN_CENTER;
+            obj->flags.v_content_align = GUI_ALIGN_CENTER;
             obj->flags.draw_label = 0x01;
             obj->flags.fixed_h = 0x01;
             obj->line_height = 0.8;

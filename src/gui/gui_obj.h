@@ -32,10 +32,12 @@ typedef struct gui_object_flags_s
     uint32_t    fixed_w : 1;
     uint32_t    fixed_h : 1;
     uint32_t    fit_inside : 1;
-    uint32_t    clip_children : 1;
+    uint32_t    v_content_align : 4;
+    uint32_t    h_content_align : 4;
+    uint32_t    v_self_align : 4;
+    uint32_t    h_self_align : 4;
     uint32_t    layout : 2;
-    uint32_t    v_align : 4; // for content
-    uint32_t    h_align : 4; // for content
+    uint32_t    clip_children : 1;
 }gui_object_flags_t, *gui_object_flags_p;
 
 typedef struct gui_object_s

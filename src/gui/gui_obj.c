@@ -79,6 +79,8 @@ gui_object_p Gui_CreateChildObject(gui_object_p root)
         
         vec4_copy(ret->color_border, root->color_border);
         vec4_copy(ret->color_border, root->color_border);
+        ret->flags.v_self_align = root->flags.v_content_align;
+        ret->flags.h_self_align = root->flags.h_content_align;
     }
 
     return ret;
@@ -274,7 +276,7 @@ static void Gui_DrawLabelInternal(gui_object_p root)
         }
 
         real_y = root->y - root->border_width - descender;
-        switch(root->flags.v_align)
+        switch(root->flags.v_content_align)
         {
             case GUI_ALIGN_TOP:
                 real_y = root->y - root->border_width - ascender - dy * (n_lines - 1);
@@ -295,7 +297,7 @@ static void Gui_DrawLabelInternal(gui_object_p root)
             glf_get_string_bb(gl_font, begin, n_sym, &x0, &y0, &x1, &y1);
 
             real_x = root->x + root->border_width - x0 / 64.0f;
-            switch(root->flags.h_align)
+            switch(root->flags.h_content_align)
             {
                 case GUI_ALIGN_RIGHT:
                     real_x = root->x + root->w - root->border_width - x1 / 64.0f;
@@ -433,11 +435,11 @@ void Gui_LayoutVertical(gui_object_p root)
                 obj->x = root->margin_left;
                 obj->w = root->w - root->margin_left - root->margin_right;
             }
-            else if(root->flags.h_align == GUI_ALIGN_RIGHT)
+            else if(obj->flags.h_self_align == GUI_ALIGN_RIGHT)
             {
                 obj->x = root->w - root->margin_right - obj->w;
             }
-            else if(root->flags.h_align == GUI_ALIGN_CENTER)
+            else if(obj->flags.h_self_align == GUI_ALIGN_CENTER)
             {
                 obj->x = (root->margin_left + root->w - root->margin_right - obj->w) / 2;
             }
@@ -497,11 +499,11 @@ void Gui_LayoutHorizontal(gui_object_p root)
                 obj->y = root->y + root->margin_bottom;
                 obj->h = root->h - root->margin_bottom - root->margin_top;
             }
-            else if(root->flags.v_align == GUI_ALIGN_BOTTOM)
+            else if(obj->flags.v_self_align == GUI_ALIGN_BOTTOM)
             {
                 obj->y = root->margin_bottom;
             }
-            else if(root->flags.v_align == GUI_ALIGN_CENTER)
+            else if(obj->flags.v_self_align == GUI_ALIGN_CENTER)
             {
                 obj->y = (root->margin_bottom + root->h - root->margin_top - obj->h) / 2;
             }
