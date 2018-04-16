@@ -623,7 +623,7 @@ int lua_ls(lua_State *lua)
     int top = lua_gettop(lua);
     char path[1024] = { 0 };
     const char *wild = NULL;
-
+    
     strncpy(path, Engine_GetBasePath(), sizeof(path));
     if((top > 0) && lua_isstring(lua, 1))
     {
@@ -634,7 +634,7 @@ int lua_ls(lua_State *lua)
     {
         wild = lua_tostring(lua, 2);
     }
-
+    
     file_info_p fi = Sys_ListDir(path, wild);
     if(fi)
     {
@@ -644,6 +644,7 @@ int lua_ls(lua_State *lua)
         }
         Sys_ListDirFree(fi);
     }
+    return 0;
 }
 
 

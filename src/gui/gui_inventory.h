@@ -72,34 +72,49 @@ void Gui_RenderItem(struct ss_bone_frame_s *bf, float size, const float *mvMatri
  */
 class gui_InventoryManager
 {
+enum inventoryState
+{
+    INVENTORY_DISABLED = 0,
+    INVENTORY_IDLE,
+    INVENTORY_OPENING,
+    INVENTORY_CLOSING,
+    INVENTORY_R_LEFT,
+    INVENTORY_R_RIGHT,
+    INVENTORY_UP,
+    INVENTORY_DOWN,
+    INVENTORY_ACTIVATING,
+    INVENTORY_DEACTIVATING,
+    INVENTORY_ACTIVATED
+};
+    
 public:
-    enum inventoryState
-    {
-        INVENTORY_DISABLED = 0,
-        INVENTORY_IDLE,
-        INVENTORY_OPEN,
-        INVENTORY_CLOSE,
-        INVENTORY_R_LEFT,
-        INVENTORY_R_RIGHT,
-        INVENTORY_UP,
-        INVENTORY_DOWN,
-        INVENTORY_ACTIVATE
-    };
-
+enum Command
+{
+    NONE = 0,
+    OPEN,
+    CLOSE,
+    LEFT,
+    RIGHT,
+    UP,
+    DOWN,
+    ACTIVATE,
+    DEACTIVATE
+};
+    
     gui_InventoryManager();
    ~gui_InventoryManager();
 
-    int getCurrentState()
-    {
-        return mCurrentState;
-    }
+   bool isEnabled()
+   {
+       return mCurrentState != INVENTORY_DISABLED;
+   }
 
-    int getNextState()
-    {
-        return mNextState;
-    }
-
-    void send(inventoryState state);
+   bool isIdle()
+   {
+       return (mCurrentState == INVENTORY_IDLE) || (mCurrentState == INVENTORY_ACTIVATED);
+   }
+   
+    void send(Command cmd);
 
     int getItemsType()
     {
@@ -121,7 +136,7 @@ private:
     struct inventory_node_s   **mInventory;
     uint32_t                    mOwnerId;
     int                         mCurrentState;
-    int                         mNextState;
+    int                         mCommand;
 
     int                         mCurrentItemsType;
     int                         mNextItemsType;
@@ -139,7 +154,10 @@ private:
 
     float                       mItemRotatePeriod;
     float                       mItemTime;
-    float                       mItemAngle;
+    float                       m_item_angle_z;
+    float                       m_item_angle_x;
+    float                       m_item_offset_z;
+    float                       m_current_scale;
 
     int getItemElementsCountByType(int type);
     void updateCurrentRing();
