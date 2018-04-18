@@ -6,6 +6,7 @@
 
 #include "../core/system.h"
 #include "../core/vmath.h"
+#include "../gameflow.h"
 #include "gui.h"
 #include "gui_menu.h"
 
@@ -193,41 +194,49 @@ gui_object_p Gui_BuildNewGameMenu()
     obj->flags.draw_border = 0x01;
     Gui_SetObjectLabel(obj, "Tomb Raider I", 2, 2);
     obj->flags.draw_label = 0x01;
+    obj->data = (void*)GAME_1;
 
     obj = Gui_AddListItem(cont);
     obj->flags.draw_border = 0x00;
     Gui_SetObjectLabel(obj, "Tomb Raider I UB", 2, 2);
     obj->flags.draw_label = 0x01;
+    obj->data = (void*)GAME_1_5;
     
     obj = Gui_AddListItem(cont);
     obj->flags.draw_border = 0x00;
     Gui_SetObjectLabel(obj, "Tomb Raider II", 2, 2);
     obj->flags.draw_label = 0x01;
+    obj->data = (void*)GAME_2;
     
     obj = Gui_AddListItem(cont);
     obj->flags.draw_border = 0x00;
     Gui_SetObjectLabel(obj, "Tomb Raider II Gold", 2, 2);
     obj->flags.draw_label = 0x01;
+    obj->data = (void*)GAME_2_5;
     
     obj = Gui_AddListItem(cont);
     obj->flags.draw_border = 0x00;
     Gui_SetObjectLabel(obj, "Tomb Raider III", 2, 2);
     obj->flags.draw_label = 0x01;
+    obj->data = (void*)GAME_3;
     
     obj = Gui_AddListItem(cont);
     obj->flags.draw_border = 0x00;
     Gui_SetObjectLabel(obj, "Tomb Raider III Gold", 2, 2);
     obj->flags.draw_label = 0x01;
+    obj->data = (void*)GAME_3_5;
     
     obj = Gui_AddListItem(cont);
     obj->flags.draw_border = 0x00;
     Gui_SetObjectLabel(obj, "Tomb Raider IV", 2, 2);
     obj->flags.draw_label = 0x01;
+    obj->data = (void*)GAME_4;
     
     obj = Gui_AddListItem(cont);
     obj->flags.draw_border = 0x00;
     Gui_SetObjectLabel(obj, "Tomb Raider V", 2, 2);
     obj->flags.draw_label = 0x01;
+    obj->data = (void*)GAME_5;
     
     Gui_LayoutObjects(root);
 
