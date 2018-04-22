@@ -620,6 +620,10 @@ void gui_InventoryManager::frameItems(float time)
                     {
                         handlePassport(bi, time / 2.0f);
                     }
+                    else if(bi->id == ITEM_COMPASS)
+                    {
+                        handleCompass(bi, time / 2.0f);
+                    }
                     else if(m_command == ACTIVATE)
                     {
                         if(0 < Item_Use(m_inventory, bi->id, m_owner_id))
@@ -801,7 +805,14 @@ void gui_InventoryManager::handlePassport(struct base_item_s *bi, float time)
 
     SSBoneFrame_Update(bi->bf, 0);
     Gui_SetCurrentMenu(m_current_menu);
-    if(m_current_menu && m_current_menu->handlers.do_command)
+    if(m_command == CLOSE)
+    {
+        m_menu_mode = 4;
+        Gui_SetCurrentMenu(NULL);
+        Gui_DeleteObjects(m_current_menu);
+        m_current_menu = NULL;
+    }
+    else if(m_current_menu && m_current_menu->handlers.do_command)
     {
         if(m_current_menu->handlers.do_command(m_current_menu, m_command))
         {
@@ -813,6 +824,91 @@ void gui_InventoryManager::handlePassport(struct base_item_s *bi, float time)
         }
         m_command = NONE;
     }
+}
+
+void gui_InventoryManager::handleCompass(struct base_item_s *bi, float time)
+{
+    switch(m_menu_mode)
+    {
+    case 0:  // enter menu
+        if(m_current_menu)
+        {
+            Gui_DeleteObjects(m_current_menu);
+            m_current_menu = NULL;
+        }
+        if(m_command == CLOSE)
+        {
+            m_command = NONE;
+            m_current_state = INVENTORY_DEACTIVATING;
+            m_menu_mode = 0;
+        }
+        else if(m_command == ACTIVATE)
+        {
+            m_command = NONE;
+            m_menu_mode = 1;
+        }
+        break;
+
+    case 1:  // load game
+        if(bi->bf->animations.current_frame < 14)
+        {
+            Anim_IncTime(&bi->bf->animations, time);
+            m_command = NONE;
+            break;
+        }
+
+        if(!m_current_menu)
+        {
+            m_current_menu = Gui_BuildMainMenu();
+        }
+
+        if(m_command == CLOSE)
+        {
+            m_menu_mode = 2;
+            m_command = NONE;
+        }
+        break;
+
+    case 2:  // leave menu
+        m_command = NONE;
+        Gui_SetCurrentMenu(NULL);
+        if(m_current_menu)
+        {
+            Gui_DeleteObjects(m_current_menu);
+            m_current_menu = NULL;
+        }
+        Anim_IncTime(&bi->bf->animations, -time);
+        if((bi->bf->animations.frame_changing_state == SS_CHANGING_END_ANIM))
+        {
+            Anim_SetAnimation(&bi->bf->animations, 0, 0);
+            m_command = NONE;
+            m_current_state = INVENTORY_DEACTIVATING;
+            m_menu_mode = 0;
+        }
+        break;
+    }
+
+    SSBoneFrame_Update(bi->bf, 0);
+    Gui_SetCurrentMenu(m_current_menu);
+    if(m_command == CLOSE)
+    {
+        m_menu_mode = 4;
+        Gui_SetCurrentMenu(NULL);
+        Gui_DeleteObjects(m_current_menu);
+        m_current_menu = NULL;
+    }
+    /*else if(m_current_menu && m_current_menu->handlers.do_command)
+    {
+        if(m_current_menu->handlers.do_command(m_current_menu, m_command))
+        {
+            Gui_SetCurrentMenu(NULL);
+            Gui_DeleteObjects(m_current_menu);
+            m_current_menu = NULL;
+            m_inventory = NULL;
+            m_menu_mode = 0;
+        }
+        m_command = NONE;
+    }*/
 }
 
 void gui_InventoryManager::render()
