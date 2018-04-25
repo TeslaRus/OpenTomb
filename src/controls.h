@@ -78,10 +78,10 @@ enum AXES {
 
 typedef struct control_action_s
 {
-    int      primary;
-    int      secondary;
-    bool     state;
-    bool     already_pressed;
+    int         primary;
+    int         secondary;
+    uint16_t    state;
+    uint16_t    prev_state;
 }control_action_t, *control_action_p;
 
 typedef struct control_settings_s
@@ -112,7 +112,7 @@ typedef struct control_settings_s
 
     int8_t      joy_axis_map[AXIS_LASTINDEX];      // Axis array for action mapper.
 
-    control_action_s  action_map[ACT_LASTINDEX];         // Actions array for action mapper.
+    control_action_t  actions[ACT_LASTINDEX];         // Actions array for action mapper.
 }control_settings_t, *control_settings_p;
 
 

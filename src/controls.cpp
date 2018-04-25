@@ -30,17 +30,14 @@ extern "C" {
 void Controls_Key(int32_t button, int state)
 {
     // Fill script-driven debug keyboard input.
-
     Script_AddKey(engine_lua, button, state);
-
-    // Compare ALL mapped buttons.
 
     for(int i = 0; i < ACT_LASTINDEX; i++)
     {
-        if((button == control_mapper.action_map[i].primary) ||
-           (button == control_mapper.action_map[i].secondary))  // If button = mapped action...
+        if((button == control_mapper.actions[i].primary) ||
+           (button == control_mapper.actions[i].secondary))
         {
-            switch(i)                                           // ...Choose corresponding action.
+            switch(i)
             {
                 case ACT_UP:
                     control_states.move_forward = state;
@@ -109,17 +106,11 @@ void Controls_Key(int32_t button, int state)
                     break;
 
                 case ACT_BIGMEDI:
-                    if(!control_mapper.action_map[i].already_pressed)
-                    {
-                        control_states.use_big_medi = state;
-                    }
+                    control_states.use_big_medi = state;
                     break;
 
                 case ACT_SMALLMEDI:
-                    if(!control_mapper.action_map[i].already_pressed)
-                    {
-                        control_states.use_small_medi = state;
-                    }
+                    control_states.use_small_medi = state;
                     break;
 
                 case ACT_CONSOLE:
@@ -176,7 +167,8 @@ void Controls_Key(int32_t button, int state)
                     return;
             }
 
-            control_mapper.action_map[i].state = state;
+            control_mapper.actions[i].state = state;
+            break;
         }
     }
 }
@@ -190,7 +182,7 @@ void Controls_JoyAxis(int axis, Sint16 axisValue)
             switch(i)                                   // ...Choose corresponding action.
             {
                 case AXIS_LOOK_X:
-                    if( (axisValue < -control_mapper.joy_look_deadzone) || (axisValue > control_mapper.joy_look_deadzone) )
+                    if((axisValue < -control_mapper.joy_look_deadzone) || (axisValue > control_mapper.joy_look_deadzone))
                     {
                         if(control_mapper.joy_look_invert_x)
                         {
@@ -393,14 +385,7 @@ void Controls_RefreshStates()
 {
     for(int i = 0; i < ACT_LASTINDEX; i++)
     {
-        if(control_mapper.action_map[i].state)
-        {
-            control_mapper.action_map[i].already_pressed = true;
-        }
-        else
-        {
-            control_mapper.action_map[i].already_pressed = false;
-        }
+        control_mapper.actions[i].prev_state = control_mapper.actions[i].state;
     }
 }
 
@@ -429,31 +414,31 @@ void Controls_InitGlobals()
     control_mapper.joy_look_sensitivity = 1.5f;
     control_mapper.joy_move_sensitivity = 1.5f;
 
-    control_mapper.action_map[ACT_JUMP].primary       = SDL_SCANCODE_SPACE;
-    control_mapper.action_map[ACT_ACTION].primary     = SDL_SCANCODE_LCTRL;
-    control_mapper.action_map[ACT_ROLL].primary       = SDL_SCANCODE_X;
-    control_mapper.action_map[ACT_SPRINT].primary     = SDL_SCANCODE_CAPSLOCK;
-    control_mapper.action_map[ACT_CROUCH].primary     = SDL_SCANCODE_C;
-    control_mapper.action_map[ACT_WALK].primary       = SDL_SCANCODE_LSHIFT;
+    control_mapper.actions[ACT_JUMP].primary       = SDL_SCANCODE_SPACE;
+    control_mapper.actions[ACT_ACTION].primary     = SDL_SCANCODE_LCTRL;
+    control_mapper.actions[ACT_ROLL].primary       = SDL_SCANCODE_X;
+    control_mapper.actions[ACT_SPRINT].primary     = SDL_SCANCODE_CAPSLOCK;
+    control_mapper.actions[ACT_CROUCH].primary     = SDL_SCANCODE_C;
+    control_mapper.actions[ACT_WALK].primary       = SDL_SCANCODE_LSHIFT;
 
-    control_mapper.action_map[ACT_UP].primary         = SDL_SCANCODE_W;
-    control_mapper.action_map[ACT_DOWN].primary       = SDL_SCANCODE_S;
-    control_mapper.action_map[ACT_LEFT].primary       = SDL_SCANCODE_A;
-    control_mapper.action_map[ACT_RIGHT].primary      = SDL_SCANCODE_D;
+    control_mapper.actions[ACT_UP].primary         = SDL_SCANCODE_W;
+    control_mapper.actions[ACT_DOWN].primary       = SDL_SCANCODE_S;
+    control_mapper.actions[ACT_LEFT].primary       = SDL_SCANCODE_A;
+    control_mapper.actions[ACT_RIGHT].primary      = SDL_SCANCODE_D;
 
-    control_mapper.action_map[ACT_STEPLEFT].primary   = SDL_SCANCODE_H;
-    control_mapper.action_map[ACT_STEPRIGHT].primary  = SDL_SCANCODE_J;
+    control_mapper.actions[ACT_STEPLEFT].primary   = SDL_SCANCODE_H;
+    control_mapper.actions[ACT_STEPRIGHT].primary  = SDL_SCANCODE_J;
 
-    control_mapper.action_map[ACT_LOOK].primary       = SDL_SCANCODE_O;
-    control_mapper.action_map[ACT_LOOKUP].primary     = SDL_SCANCODE_UP;
-    control_mapper.action_map[ACT_LOOKDOWN].primary   = SDL_SCANCODE_DOWN;
-    control_mapper.action_map[ACT_LOOKLEFT].primary   = SDL_SCANCODE_LEFT;
-    control_mapper.action_map[ACT_LOOKRIGHT].primary  = SDL_SCANCODE_RIGHT;
+    control_mapper.actions[ACT_LOOK].primary       = SDL_SCANCODE_O;
+    control_mapper.actions[ACT_LOOKUP].primary     = SDL_SCANCODE_UP;
+    control_mapper.actions[ACT_LOOKDOWN].primary   = SDL_SCANCODE_DOWN;
+    control_mapper.actions[ACT_LOOKLEFT].primary   = SDL_SCANCODE_LEFT;
+    control_mapper.actions[ACT_LOOKRIGHT].primary  = SDL_SCANCODE_RIGHT;
 
-    control_mapper.action_map[ACT_SCREENSHOT].primary = SDL_SCANCODE_PRINTSCREEN;
-    control_mapper.action_map[ACT_CONSOLE].primary    = SDL_SCANCODE_GRAVE;
-    control_mapper.action_map[ACT_SAVEGAME].primary   = SDL_SCANCODE_F5;
-    control_mapper.action_map[ACT_LOADGAME].primary   = SDL_SCANCODE_F6;
+    control_mapper.actions[ACT_SCREENSHOT].primary = SDL_SCANCODE_PRINTSCREEN;
+    control_mapper.actions[ACT_CONSOLE].primary    = SDL_SCANCODE_GRAVE;
+    control_mapper.actions[ACT_SAVEGAME].primary   = SDL_SCANCODE_F5;
+    control_mapper.actions[ACT_LOADGAME].primary   = SDL_SCANCODE_F6;
 }
 
 void Controls_DebugKeys(int button, int state)
@@ -463,41 +448,6 @@ void Controls_DebugKeys(int button, int state)
         extern float time_scale;
         switch(button)
         {
-            case SDL_SCANCODE_RETURN:
-                if(main_inventory_manager)
-                {
-                    main_inventory_manager->send(gui_command_e::ACTIVATE);
-                }
-                break;
-
-            case SDL_SCANCODE_UP:
-                if(main_inventory_manager)
-                {
-                    main_inventory_manager->send(gui_command_e::UP);
-                }
-                break;
-
-            case SDL_SCANCODE_DOWN:
-                if(main_inventory_manager)
-                {
-                    main_inventory_manager->send(gui_command_e::DOWN);
-                }
-                break;
-
-            case SDL_SCANCODE_LEFT:
-                if(main_inventory_manager)
-                {
-                    main_inventory_manager->send(gui_command_e::LEFT);
-                }
-                break;
-
-            case SDL_SCANCODE_RIGHT:
-                if(main_inventory_manager)
-                {
-                    main_inventory_manager->send(gui_command_e::RIGHT);
-                }
-                break;
-
             case SDL_SCANCODE_Y:
                 screen_info.debug_view_state++;
                 break;

@@ -596,6 +596,7 @@ void Engine_PollSDLEvents()
     const float color[3] = {1.0f, 0.0f, 0.0f};
     static float from[3], to[3];
 
+    Controls_RefreshStates();
     while(SDL_PollEvent(&event))
     {
         switch(event.type)

@@ -588,17 +588,46 @@ int Game_UpdateEntity(entity_p ent, void *data)
 
 int Game_ProcessMenu(entity_p player)
 {
-    // GUI and controls should be updated at all times!
+    extern struct control_settings_s control_mapper;
+    control_action_p act = control_mapper.actions;
+    if(main_inventory_manager && main_inventory_manager->isEnabled())
+    {
+        if(act[ACT_INVENTORY].state && !act[ACT_INVENTORY].prev_state)
+        {
+            main_inventory_manager->send(gui_command_e::CLOSE);
+        }
+        else if(act[ACT_ACTION].state && !act[ACT_ACTION].prev_state)
+        {
+            main_inventory_manager->send(gui_command_e::ACTIVATE);
+        }
+        else if(act[ACT_LOOKUP].state && !act[ACT_LOOKUP].prev_state)
+        {
+            main_inventory_manager->send(gui_command_e::UP);
+        }
+        else if(act[ACT_LOOKDOWN].state && !act[ACT_LOOKDOWN].prev_state)
+        {
+            main_inventory_manager->send(gui_command_e::DOWN);
+        }
+        else if(act[ACT_LOOKLEFT].state && !act[ACT_LOOKLEFT].prev_state)
+        {
+            main_inventory_manager->send(gui_command_e::LEFT);
+        }
+        else if(act[ACT_LOOKRIGHT].state && !act[ACT_LOOKRIGHT].prev_state)
+        {
+            main_inventory_manager->send(gui_command_e::RIGHT);
+        }
+        else
+        {
+            main_inventory_manager->send(gui_command_e::NONE);
+        }
+    }
+
     if(control_states.gui_inventory && main_inventory_manager)
     {
         if(player && !main_inventory_manager->isEnabled())
         {
             main_inventory_manager->setInventory(&player->inventory, player->id);
             main_inventory_manager->send(gui_command_e::OPEN);
-        }
-        if(main_inventory_manager->isIdle() || Gui_GetCurrentMenu())
-        {
-            main_inventory_manager->send(gui_command_e::CLOSE);
         }
     }
 
@@ -739,10 +768,7 @@ void Game_Frame(float time)
     }
 
     World_IterateAllEntities(Game_UpdateEntity, NULL);
-
     Physics_StepSimulation(time);
-
-    Controls_RefreshStates();
     renderer.UpdateAnimTextures();
 }
 
