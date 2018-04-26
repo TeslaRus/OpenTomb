@@ -623,7 +623,7 @@ int lua_ls(lua_State *lua)
     int top = lua_gettop(lua);
     char path[1024] = { 0 };
     const char *wild = NULL;
-
+    
     strncpy(path, Engine_GetBasePath(), sizeof(path));
     if((top > 0) && lua_isstring(lua, 1))
     {
@@ -634,7 +634,7 @@ int lua_ls(lua_State *lua)
     {
         wild = lua_tostring(lua, 2);
     }
-
+    
     file_info_p fi = Sys_ListDir(path, wild);
     if(fi)
     {
@@ -660,12 +660,12 @@ int lua_BindKey(lua_State *lua)
 
     else if(top == 2)
     {
-        control_mapper.actions[act].primary = lua_tointeger(lua, 2);
+        control_states.actions[act].primary = lua_tointeger(lua, 2);
     }
     else if(top == 3)
     {
-        control_mapper.actions[act].primary   = lua_tointeger(lua, 2);
-        control_mapper.actions[act].secondary = lua_tointeger(lua, 3);
+        control_states.actions[act].primary   = lua_tointeger(lua, 2);
+        control_states.actions[act].secondary = lua_tointeger(lua, 3);
     }
     else
     {
@@ -684,7 +684,7 @@ int lua_BindKey(lua_State *lua)
 
         if((act >= 0) && (act < ACT_LASTINDEX))
         {
-            lua_pushinteger(lua, (int)(control_mapper.actions[act].state));
+            lua_pushinteger(lua, (int)(control_states.actions[act].state));
             return 1;
         }
 
@@ -704,7 +704,7 @@ int lua_GetActionChange(lua_State *lua)
         int index = lua_tointeger(lua, 1);
         if((index >= 0) && (index < ACT_LASTINDEX))
         {
-            control_action_p act = control_mapper.actions + index;
+            control_action_p act = control_states.actions + index;
             lua_pushinteger(lua, (int)(act->state != act->prev_state));
             return 1;
         }
