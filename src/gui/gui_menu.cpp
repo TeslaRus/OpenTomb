@@ -6,6 +6,7 @@
 
 #include "../core/system.h"
 #include "../core/vmath.h"
+#include "../controls.h"
 #include "../game.h"
 #include "../gameflow.h"
 #include "gui.h"
@@ -21,6 +22,7 @@ extern "C" int handle_load_game_cont(struct gui_object_s *obj, enum gui_command_
 extern "C" int handle_save_game_cont(struct gui_object_s *obj, enum gui_command_e cmd);
 extern "C" int handle_new_game_cont(struct gui_object_s *obj, enum gui_command_e cmd);
 extern "C" int handle_home_cont(struct gui_object_s *obj, enum gui_command_e cmd);
+extern "C" int handle_controls_cont(struct gui_object_s *obj, enum gui_command_e cmd);
 extern "C" int handle_main_menu(struct gui_object_s *obj, enum gui_command_e cmd);
 extern "C" void handle_screen_resized_inv(struct gui_object_s *obj, int w, int h);
 extern "C" void handle_screen_resized_main(struct gui_object_s *obj, int w, int h);
@@ -254,6 +256,74 @@ static gui_object_p Gui_AddHomeContainer(gui_object_p root)
     return cont;
 }
 
+static void Gui_AddControlsHObj(gui_object_p cont, int ctrl)
+{
+    if((ctrl >= 0) && (ctrl < ACT_LASTINDEX))
+    {
+        control_action_p act = control_states.actions + ctrl;
+        gui_object_p obj = Gui_AddListItem(cont);
+        char buff[128];
+        obj->border_width = 2;
+        obj->spacing = 4;
+        obj->margin_bottom = 4;
+        obj->margin_top = 4;
+        obj->margin_left = 4;
+        obj->margin_right = 4;
+        obj->flags.draw_border = 0x00;
+        obj->flags.fit_inside = 0x01;
+        obj->flags.layout = GUI_LAYOUT_HORIZONTAL;
+        gui_object_p name = Gui_CreateChildObject(obj);
+        Controls_ActionToStr(buff, (enum ACTIONS)ctrl);
+        Gui_SetObjectLabel(name, buff, 2, 2);
+        name->flags.draw_label = 0x01;
+        name->line_height = 0.8f;
+        name->weight_x = 1;
+        name->flags.v_content_align = GUI_ALIGN_CENTER;
+        name->flags.h_content_align = GUI_ALIGN_CENTER;
+        gui_object_p value = Gui_CreateChildObject(obj);
+        Controls_KeyToStr(buff, act->primary);
+        Gui_SetObjectLabel(value, buff, 2, 2);
+        value->flags.draw_label = 0x01;
+        value->border_width = 2;
+        value->line_height = 0.8f;
+        value->weight_x = 1;
+        value->flags.v_content_align = GUI_ALIGN_CENTER;
+        value->flags.h_content_align = GUI_ALIGN_CENTER;
+        value = Gui_CreateChildObject(obj);
+        Controls_KeyToStr(buff, act->secondary);
+        Gui_SetObjectLabel(value, buff, 2, 2);
+        value->flags.draw_label = 0x01;
+        value->border_width = 2;
+        value->line_height = 0.8f;
+        value->weight_x = 1;
+        value->flags.v_content_align = GUI_ALIGN_CENTER;
+        value->flags.h_content_align = GUI_ALIGN_CENTER;
+    }
+}
+
+static gui_object_p Gui_AddControlsContainer(gui_object_p root)
+{
+    gui_object_p cont = Gui_CreateChildObject(root);
+    cont->handlers.do_command = handle_controls_cont;
+    cont->w = root->w - root->margin_left - root->margin_right;
+
+    cont->border_width = 0;
+    cont->flags.clip_children = 0x01;
+    cont->flags.draw_background = 0x00;
+    cont->flags.draw_border = 0x00;
+    cont->flags.layout = GUI_LAYOUT_VERTICAL;
+    cont->flags.h_content_align = GUI_ALIGN_CENTER;
+    cont->weight_y = 1;
+
+    for(int i = 0; i < ACT_LASTINDEX; ++i)
+    {
+        Gui_AddControlsHObj(cont, i);
+    }
+    cont->childs->flags.draw_border = 0x01;
+    
+    return cont;
+}
+
 gui_object_p Gui_BuildMainMenu()
 {
     gui_object_p root = Gui_CreateMenuRoot();
@@ -278,10 +348,11 @@ gui_object_p Gui_BuildMainMenu()
     title->flags.clip_children = 0x01;
 
     gui_object_p cont = Gui_CreateChildObject(root);
-    cont->w = root->w - root->margin_left - root->margin_right;
-    cont->h = root->h - title->h - root->margin_top - root->margin_bottom;
-
-    cont->border_width = 0;
+    cont->margin_left = 6;
+    cont->margin_right = 6;
+    cont->margin_top = 6;
+    cont->margin_bottom = 6;
+    cont->border_width = 4;
     cont->flags.clip_children = 0x01;
     cont->flags.fit_inside = 0x01;
     cont->flags.draw_background = 0x00;
@@ -342,6 +413,8 @@ gui_object_p Gui_BuildMainMenu()
     obj->flags.v_content_align = GUI_ALIGN_CENTER;
 
     obj = Gui_CreateChildObject(title);
+    obj->data = Gui_AddControlsContainer(cont);
+    ((gui_object_p)obj->data)->flags.hide = 0x01;
     Gui_SetObjectLabel(obj, "Controls", 1, 1);
     obj->w = 172;
     obj->line_height = 0.8;
@@ -432,6 +505,102 @@ gui_object_p Gui_BuildNewGameMenu()
     return root;
 }
 
+gui_object_p Gui_BuildControlsMenu()
+{
+    gui_object_p root = Gui_CreateMenuRoot();
+    gui_object_p obj = Gui_CreateChildObject(root);
+
+    root->handlers.screen_resized = handle_screen_resized_inv;
+    root->handlers.do_command = handle_to_container;
+    obj->h = 40;
+    obj->flags.draw_border = 0x01;
+    Gui_SetObjectLabel(obj, "Controls", 1, 1);
+    obj->border_width = 4;
+    obj->flags.h_content_align = GUI_ALIGN_CENTER;
+    obj->flags.v_content_align = GUI_ALIGN_CENTER;
+    obj->flags.draw_label = 0x01;
+    obj->flags.draw_border = 0x01;
+    obj->flags.fixed_h = 0x01;
+    obj->line_height = 0.8;
+
+    Gui_AddControlsContainer(root);
+    handle_screen_resized_inv(root, screen_info.w, screen_info.h);
+    Gui_LayoutObjects(root);
+
+    return root;
+}
+
+static void Gui_AddKeyValueHObj(gui_object_p cont, const char *name_str, const char *value_str)
+{
+    gui_object_p obj = Gui_AddListItem(cont);
+    obj->flags.draw_border = 0x00;
+    obj->flags.fit_inside = 0x01;
+    obj->flags.layout = GUI_LAYOUT_HORIZONTAL;
+    gui_object_p name = Gui_CreateChildObject(obj);
+    Gui_SetObjectLabel(name, name_str, 2, 2);
+    name->flags.draw_label = 0x01;
+    name->weight_x = 1;
+    name->flags.v_content_align = GUI_ALIGN_CENTER;
+    name->flags.h_content_align = GUI_ALIGN_CENTER;
+    gui_object_p value = Gui_CreateChildObject(obj);
+    Gui_SetObjectLabel(value, value_str, 2, 2);
+    value->flags.draw_label = 0x01;
+    value->weight_x = 1;
+    value->flags.v_content_align = GUI_ALIGN_CENTER;
+    value->flags.h_content_align = GUI_ALIGN_CENTER;
+}
+
+gui_object_p Gui_BuildStatisticsMenu()
+{
+    gui_object_p root = Gui_CreateMenuRoot();
+    gui_object_p obj = Gui_CreateChildObject(root);
+
+    root->handlers.screen_resized = handle_screen_resized_inv;
+    obj->h = 40;
+    obj->flags.draw_border = 0x01;
+    Gui_SetObjectLabel(obj, "Statistics", 1, 1);
+    obj->border_width = 4;
+    obj->flags.h_content_align = GUI_ALIGN_CENTER;
+    obj->flags.v_content_align = GUI_ALIGN_CENTER;
+    obj->flags.draw_label = 0x01;
+    obj->flags.draw_border = 0x01;
+    obj->flags.fixed_h = 0x01;
+    obj->line_height = 0.8;
+
+    gui_object_p cont = Gui_CreateChildObject(root);
+    cont->handlers.do_command = handle_new_game_cont;
+    cont->w = root->w - root->margin_left - root->margin_right;
+
+    cont->border_width = 0;
+    cont->flags.clip_children = 0x01;
+    cont->flags.draw_background = 0x00;
+    cont->flags.draw_border = 0x00;
+    cont->flags.layout = GUI_LAYOUT_VERTICAL;
+    cont->flags.v_content_align = GUI_ALIGN_TOP;
+    cont->flags.h_content_align = GUI_ALIGN_CENTER;
+    cont->weight_y = 1;
+
+    char buff[128];
+    Gui_AddKeyValueHObj(cont, "Level time", "Too late");
+    {
+        int secrets = 0;
+        for(int i = 0; i < GF_MAX_SECRETS; ++i)
+        {
+            secrets += Gameflow_GetSecretStateAtIndex(i);
+        }
+        snprintf(buff, sizeof(buff), "%d", secrets);
+        Gui_AddKeyValueHObj(cont, "Secrets found", buff);
+    }
+    Gui_AddKeyValueHObj(cont, "Items found", "N/A");
+    Gui_AddKeyValueHObj(cont, "Kills", "N/A");
+    Gui_AddKeyValueHObj(cont, "Meds used", "N/A");
+    
+    handle_screen_resized_inv(root, screen_info.w, screen_info.h);
+    Gui_LayoutObjects(root);
+
+    return root;
+}
+
 gui_object_p Gui_ListInventoryMenu(gui_object_p root, int dy)
 {
     gui_object_p ret = NULL;
@@ -498,6 +667,8 @@ extern "C" int handle_main_menu(struct gui_object_s *obj, enum gui_command_e cmd
     gui_object_p cont = title->next;
     if(!cont->handlers.do_command)
     {
+        title->flags.draw_border = 0x01;
+        cont->flags.draw_border = 0x00;
         if((cmd == LEFT) && (curr_in_title->prev))
         {
             curr_in_title->border_width = 2;
@@ -528,6 +699,8 @@ extern "C" int handle_main_menu(struct gui_object_s *obj, enum gui_command_e cmd
         }
         else if(curr_menu && (cmd == ACTIVATE))
         {
+            title->flags.draw_border = 0x00;
+            cont->flags.draw_border = 0x01;
             cont->handlers.do_command = curr_menu->handlers.do_command;
         }
         else if(cmd == CLOSE)
@@ -537,6 +710,8 @@ extern "C" int handle_main_menu(struct gui_object_s *obj, enum gui_command_e cmd
     }
     else if(!cont->handlers.do_command(curr_menu, cmd) && (cmd == CLOSE))
     {
+        title->flags.draw_border = 0x01;
+        cont->flags.draw_border = 0x00;
         cont->handlers.do_command = NULL;
     }
 
@@ -676,6 +851,55 @@ extern "C" int handle_home_cont(struct gui_object_s *obj, enum gui_command_e cmd
             }
             ret = 1;
         }
+    }
+    return ret;
+}
+
+extern "C" int handle_controls_cont(struct gui_object_s *obj, enum gui_command_e cmd)
+{
+    int ret = 0;
+    if(cmd == UP)
+    {
+        gui_object_p curr = Gui_ListInventoryMenu(obj, 1);
+        if(curr->next)
+        {
+            for(gui_object_p it = curr->next->childs; it; it = it->next)
+            {
+                it->flags.draw_border = 0x00;
+            }
+        }
+        curr->childs->next->flags.draw_border = 0x01;
+        ret = (curr) ? (1) : (0);
+    }
+    else if(cmd == DOWN)
+    {
+        gui_object_p curr = Gui_ListInventoryMenu(obj, -1);
+        if(curr->prev)
+        {
+            for(gui_object_p it = curr->prev->childs; it; it = it->next)
+            {
+                it->flags.draw_border = 0x00;
+            }
+        }
+        curr->childs->next->flags.draw_border = 0x01;
+        ret = (curr) ? (1) : (0);
+    }
+    if(cmd == LEFT)
+    {
+        gui_object_p curr = Gui_ListInventoryMenu(obj, 0);
+        curr->childs->next->next->flags.draw_border = 0x00;
+        curr->childs->next->flags.draw_border = 0x01;
+        ret = 1;
+    }
+    else if(cmd == RIGHT)
+    {
+        gui_object_p curr = Gui_ListInventoryMenu(obj, 0);
+        curr->childs->next->next->flags.draw_border = 0x01;
+        curr->childs->next->flags.draw_border = 0x00;
+        ret = 1;
+    }
+    else if(cmd == ACTIVATE)
+    {
     }
     return ret;
 }

@@ -90,10 +90,11 @@ typedef struct control_action_s
 
 typedef struct engine_control_state_s
 {
-    int8_t              look;                              // Look (camera) keys.
-    int8_t              free_look;
-    int8_t              mouse_look;
-    int8_t              noclip;
+    uint32_t            menumode : 4;
+    uint32_t            look : 1;
+    uint32_t            free_look : 1;
+    uint32_t            mouse_look : 1;
+    uint32_t            noclip : 1;
 
     float               free_look_speed;
     float               cam_distance;
@@ -141,6 +142,9 @@ extern struct engine_control_state_s            control_states;
 void Controls_DebugKeys(int button, int state);
 void Controls_PrimaryMouseDown(float from[3], float to[3]);
 void Controls_SecondaryMouseDown(struct engine_container_s **cont, float dot[3]);
+
+void Controls_ActionToStr(char buff[128], enum ACTIONS act);
+void Controls_KeyToStr(char buff[128], int key);
 
 void Controls_Key(int32_t button, int state);
 void Controls_WrapGameControllerKey(int button, int state);

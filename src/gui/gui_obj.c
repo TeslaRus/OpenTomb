@@ -331,6 +331,8 @@ static void Gui_DrawObjectsInternal(gui_object_p root, int stencil)
 {
     if(!root->flags.hide && (root->w > 0) && (root->h > 0))
     {
+        qglBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+        BindWhiteTexture();
         if(root->flags.draw_background)
         {
             Gui_DrawBackgroundInternal(root);
@@ -392,8 +394,6 @@ void Gui_DrawObjects(gui_object_p root)
 {
     if(root)
     {
-        qglBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
-        BindWhiteTexture();
         qglEnable(GL_STENCIL_TEST);
         qglClear(GL_STENCIL_BUFFER_BIT);
         qglStencilFunc(GL_ALWAYS, 0, 0xFF);
@@ -522,7 +522,7 @@ void Gui_LayoutHorizontal(gui_object_p root)
                 weights_used += obj->weight_x;
                 obj->w = width_used;
                 width_used = (int32_t)weights_used * (int32_t)free_w / (int32_t)weights_total;
-                obj->h = width_used - obj->w;
+                obj->w = width_used - obj->w;
             }
             
             obj->x = (prev) ? (prev->x + prev->w + root->spacing)
