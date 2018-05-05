@@ -496,6 +496,7 @@ void Engine_LoadConfig(const char *filename)
             lua_register(lua, "bind", lua_BindKey);                             // get and set key bindings
             lua_pushstring(lua, Engine_GetBasePath());
             lua_setglobal(lua, "base_path");
+            Script_LuaRegisterConfigFuncs(lua);
             luaL_dofile(lua, filename);
 
             Script_ParseScreen(lua, &screen_info);
