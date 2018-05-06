@@ -264,6 +264,13 @@ const char *Engine_GetBasePath()
 
 void Engine_SetDone()
 {
+    char path[1024];
+    size_t path_base_len = sizeof(path) - 1;
+    strncpy(path, Engine_GetBasePath(), path_base_len);
+    path[path_base_len] = 0;
+    strncat(path, "/config.lua", path_base_len - strlen(path));
+    Script_ExportConfig(path);
+
     stream_codec_stop(&engine_video, 0);
     StreamTrack_Stop(Audio_GetStreamExternal());
     engine_done = 1;
@@ -493,7 +500,7 @@ void Engine_LoadConfig(const char *filename)
         if(lua != NULL)
         {
             luaL_openlibs(lua);
-            lua_register(lua, "bind", lua_BindKey);                             // get and set key bindings
+            lua_register(lua, "bind", lua_Bind);                                // get and set key bindings
             lua_pushstring(lua, Engine_GetBasePath());
             lua_setglobal(lua, "base_path");
             Script_LuaRegisterConfigFuncs(lua);
@@ -761,6 +768,11 @@ void Engine_PollSDLEvents()
                 if(event.window.event == SDL_WINDOWEVENT_RESIZED)
                 {
                     Engine_Resize(event.window.data1, event.window.data2, event.window.data1, event.window.data2);
+                }
+                else if(event.window.event == SDL_WINDOWEVENT_MOVED)
+                {
+                    screen_info.x = event.window.data1;
+                    screen_info.y = event.window.data2;
                 }
                 break;
 

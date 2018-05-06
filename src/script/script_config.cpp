@@ -11,10 +11,11 @@ extern "C" {
 
 #include "script.h"
 #include "../core/system.h"
+#include "../core/console.h"
 #include "../controls.h"
 #include "../render/camera.h"
 #include "../render/render.h"
-#include "../core/console.h"
+#include "../audio/audio.h"
 
 /*
  * Game structures parse
@@ -94,7 +95,6 @@ int Script_ParseControls(lua_State *lua, struct control_settings_s *cs)
         lua_getfield(lua, -1, "joy_move_deadzone");
         cs->joy_move_deadzone = lua_tonumber(lua, -1);
         lua_pop(lua, 1);
-
 
         lua_settop(lua, top);
         return 1;
@@ -231,6 +231,35 @@ int Script_ParseRender(lua_State *lua, struct render_settings_s *rs)
     return -1;
 }
 
+int Script_ParseAudio(lua_State *lua, struct audio_settings_s *as)
+{
+    if(lua)
+    {
+        int top = lua_gettop(lua);
+
+        lua_getglobal(lua, "audio");
+        lua_getfield(lua, -1, "music_volume");
+        as->music_volume = lua_tonumber(lua, -1);
+        lua_pop(lua, 1);
+
+        lua_getfield(lua, -1, "sound_volume");
+        as->sound_volume = lua_tonumber(lua, -1);
+        lua_pop(lua, 1);
+
+        lua_getfield(lua, -1, "use_effects");
+        as->use_effects  = lua_tointeger(lua, -1);
+        lua_pop(lua, 1);
+
+        lua_getfield(lua, -1, "listener_is_player");
+        as->listener_is_player = lua_tointeger(lua, -1);
+        lua_pop(lua, 1);
+
+        lua_settop(lua, top);
+        return 1;
+    }
+
+    return -1;
+}
 
 int Script_ParseConsole(lua_State *lua)
 {
@@ -308,5 +337,96 @@ void Script_LuaRegisterConfigFuncs(lua_State *lua)
 
 void Script_ExportConfig(const char *path)
 {
+    FILE *f = fopen(path, "wb");
+    char buff[128];
 
+    if(f)
+    {
+        fprintf(f, "-- LUA config file\n");
+        fprintf(f, "screen =\n{\n");
+        fprintf(f, "    x = %d;\n    y = %d;\n", screen_info.x, screen_info.y);
+        fprintf(f, "    width = %d;\n    height = %d;\n", screen_info.w, screen_info.h);
+        fprintf(f, "    fov = %.1f;\n", screen_info.fov);
+        fprintf(f, "    debug_view_state = %d;\n", screen_info.debug_view_state);
+        fprintf(f, "    fullscreen = %d;\n", screen_info.fullscreen);
+        fprintf(f, "    crosshair = %d;\n", screen_info.crosshair);
+        fprintf(f, "}\n\n");
+
+        fprintf(f, "audio =\n{\n");
+        fprintf(f, "    sound_volume = %.2f;\n", 0.8f);
+        fprintf(f, "    music_volume = %.2f;\n", 0.9f);
+        fprintf(f, "    use_effects = %d;\n", 1);
+        fprintf(f, "    listener_is_player = %d;\n", 0);
+        fprintf(f, "}\n\n");
+
+        fprintf(f, "render =\n{\n");
+        fprintf(f, "    mipmap_mode = %d;\n", 3);
+        fprintf(f, "    mipmaps = %d;\n", 3);
+        fprintf(f, "    lod_bias = %d;\n", 0);
+        fprintf(f, "    anisotropy = %d;\n", 4);
+        fprintf(f, "    antialias = %d;\n", 1);
+        fprintf(f, "    antialias_samples = %d;\n", 4);
+        fprintf(f, "    z_depth = %d;\n", 24);
+        fprintf(f, "    texture_border = %d;\n", 16);
+        fprintf(f, "    fog_color = {r = %d, g = %d, b = %d};\n", 255, 255, 255);
+        fprintf(f, "}\n\n");
+
+        fprintf(f, "controls =\n{\n");
+        fprintf(f, "    mouse_sensitivity_x = %.2f;\n", 0.25f);
+        fprintf(f, "    mouse_sensitivity_y = %.2f;\n\n", 0.25f);
+        fprintf(f, "    use_joy = %d;\n", 0);
+        fprintf(f, "    joy_number = %d;\n", 0);
+        fprintf(f, "    joy_rumble = %d;\n\n", 0);
+        fprintf(f, "    joy_move_axis_x = %d;\n", 0);
+        fprintf(f, "    joy_move_axis_y = %d;\n", 1);
+        fprintf(f, "    joy_move_invert_x = %d;\n", 0);
+        fprintf(f, "    joy_move_invert_y = %d;\n", 0);
+        fprintf(f, "    joy_move_sensitivity = %.2f;\n", 1.5f);
+        fprintf(f, "    joy_move_deadzone = %d;\n\n", 1500);
+        fprintf(f, "    joy_look_axis_x = %d;\n", 2);
+        fprintf(f, "    joy_look_axis_y = %d;\n", 3);
+        fprintf(f, "    joy_look_invert_x = %d;\n", 0);
+        fprintf(f, "    joy_look_invert_y = %d;\n", 1);
+        fprintf(f, "    joy_look_sensitivity = %.2f;\n", 1.5f);
+        fprintf(f, "    joy_look_deadzone = %d;\n", 1500);
+        fprintf(f, "}\n\n");
+
+        fprintf(f, "console =\n{\n");
+        fprintf(f, "    background_color = {r = %d, g = %d, b = %d, a = %d};\n", 0, 0, 0, 200);
+        fprintf(f, "    commands_count = %d;\n", 128);
+        fprintf(f, "    lines_count = %d;\n", 128);
+        fprintf(f, "    height = %d;\n", 320);
+        fprintf(f, "    spacing = %.2f;\n", 0.5f);
+        fprintf(f, "    show_cursor_period = %.2f;\n", 0.5f);
+        fprintf(f, "    show = %d;\n", 0);
+        fprintf(f, "}\n\n");
+
+        fprintf(f, "-- Keys binding\n"
+                   "-- Please note that on XInput game controllers (XBOX360 and such), triggers are NOT\n"
+                   "-- coded as joystick buttons. Instead, they have unique names: JOY_TRIGGERLEFT and\n"
+                   "-- JOY_TRIGGERRIGHT.\n\n"
+                   "dofile(base_path .. \"scripts/config/control_constants.lua\");\n\n");
+
+        for(int i = 0; i < ACT_LASTINDEX; ++i)
+        {
+            control_action_p act = control_states.actions + i;
+            if(act->primary)
+            {
+                Controls_ActionToStr(buff, (enum ACTIONS)i);
+                fprintf(f, "bind(");
+                fprintf(f, buff);
+                fprintf(f, ", ");
+                Controls_KeyToStr(buff, act->primary);
+                fprintf(f, buff);
+                if(act->secondary)
+                {
+                    fprintf(f, ", ");
+                    Controls_KeyToStr(buff, act->secondary);
+                    fprintf(f, buff);
+                }
+                fprintf(f, ");\n");
+            }
+        }
+        fclose(f);
+    }
 }
