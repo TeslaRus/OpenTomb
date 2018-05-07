@@ -261,7 +261,7 @@ int Script_ParseAudio(lua_State *lua, struct audio_settings_s *as)
     return -1;
 }
 
-int Script_ParseConsole(lua_State *lua)
+int Script_ParseConsole(lua_State *lua, struct console_params_s *cp)
 {
     if(lua)
     {
@@ -271,48 +271,46 @@ int Script_ParseConsole(lua_State *lua)
         lua_getfield(lua, -1, "background_color");
         if(lua_istable(lua, -1))
         {
-            float color[4];
             lua_getfield(lua, -1, "r");
-            color[0] = lua_tonumber(lua, -1) / 255.0;
+            cp->background_color[0] = lua_tointeger(lua, -1) & 0xFF;
             lua_pop(lua, 1);
 
             lua_getfield(lua, -1, "g");
-            color[1] = lua_tonumber(lua, -1) / 255.0;
+            cp->background_color[1] = lua_tointeger(lua, -1) & 0xFF;
             lua_pop(lua, 1);
 
             lua_getfield(lua, -1, "b");
-            color[2] = lua_tonumber(lua, -1) / 255.0;
+            cp->background_color[2] = lua_tointeger(lua, -1) & 0xFF;
             lua_pop(lua, 1);
 
             lua_getfield(lua, -1, "a");
-            color[3] = lua_tonumber(lua, -1) / 255.0;
+            cp->background_color[3] = lua_tointeger(lua, -1) & 0xFF;
             lua_pop(lua, 1);
-            Con_SetBackgroundColor(color);
         }
         lua_pop(lua, 1);
 
         lua_getfield(lua, -1, "spacing");
-        Con_SetLineInterval(lua_tonumber(lua, -1));
+        cp->spacing = lua_tonumber(lua, -1);
         lua_pop(lua, 1);
 
         lua_getfield(lua, -1, "height");
-        Con_SetHeight(lua_tonumber(lua, -1));
+        cp->height = lua_tointeger(lua, -1);
         lua_pop(lua, 1);
 
         lua_getfield(lua, -1, "lines_count");
-        Con_SetLinesHistorySize(lua_tonumber(lua, -1));
+        cp->lines_count = lua_tointeger(lua, -1);
         lua_pop(lua, 1);
 
         lua_getfield(lua, -1, "commands_count");
-        Con_SetCommandsHistorySize(lua_tonumber(lua, -1));
+        cp->commands_count = lua_tointeger(lua, -1);
         lua_pop(lua, 1);
 
         lua_getfield(lua, -1, "show");
-        Con_SetShown(lua_tonumber(lua, -1));
+        cp->show = (lua_tointeger(lua, -1)) ? (0x01) : (0x00);
         lua_pop(lua, 1);
 
         lua_getfield(lua, -1, "show_cursor_period");
-        Con_SetShowCursorPeriod(lua_tonumber(lua, -1));
+        cp->show_cursor_period = lua_tonumber(lua, -1);
         lua_pop(lua, 1);
 
         lua_settop(lua, top);
@@ -344,62 +342,75 @@ void Script_ExportConfig(const char *path)
     {
         fprintf(f, "-- LUA config file\n");
         fprintf(f, "screen =\n{\n");
-        fprintf(f, "    x = %d;\n    y = %d;\n", screen_info.x, screen_info.y);
-        fprintf(f, "    width = %d;\n    height = %d;\n", screen_info.w, screen_info.h);
+        fprintf(f, "    x = %d;\n    y = %d;\n", (int)screen_info.x, (int)screen_info.y);
+        fprintf(f, "    width = %d;\n    height = %d;\n", (int)screen_info.w, (int)screen_info.h);
         fprintf(f, "    fov = %.1f;\n", screen_info.fov);
-        fprintf(f, "    debug_view_state = %d;\n", screen_info.debug_view_state);
-        fprintf(f, "    fullscreen = %d;\n", screen_info.fullscreen);
-        fprintf(f, "    crosshair = %d;\n", screen_info.crosshair);
+        fprintf(f, "    debug_view_state = %d;\n", (int)screen_info.debug_view_state);
+        fprintf(f, "    fullscreen = %d;\n", (int)screen_info.fullscreen);
+        fprintf(f, "    crosshair = %d;\n", (int)screen_info.crosshair);
         fprintf(f, "}\n\n");
 
         fprintf(f, "audio =\n{\n");
-        fprintf(f, "    sound_volume = %.2f;\n", 0.8f);
-        fprintf(f, "    music_volume = %.2f;\n", 0.9f);
-        fprintf(f, "    use_effects = %d;\n", 1);
-        fprintf(f, "    listener_is_player = %d;\n", 0);
+        fprintf(f, "    sound_volume = %.2f;\n", audio_settings.sound_volume);
+        fprintf(f, "    music_volume = %.2f;\n", audio_settings.music_volume);
+        fprintf(f, "    use_effects = %d;\n", (int)audio_settings.use_effects);
+        fprintf(f, "    listener_is_player = %d;\n", (int)audio_settings.listener_is_player);
         fprintf(f, "}\n\n");
 
         fprintf(f, "render =\n{\n");
-        fprintf(f, "    mipmap_mode = %d;\n", 3);
-        fprintf(f, "    mipmaps = %d;\n", 3);
-        fprintf(f, "    lod_bias = %d;\n", 0);
-        fprintf(f, "    anisotropy = %d;\n", 4);
-        fprintf(f, "    antialias = %d;\n", 1);
-        fprintf(f, "    antialias_samples = %d;\n", 4);
-        fprintf(f, "    z_depth = %d;\n", 24);
-        fprintf(f, "    texture_border = %d;\n", 16);
-        fprintf(f, "    fog_color = {r = %d, g = %d, b = %d};\n", 255, 255, 255);
+        fprintf(f, "    mipmap_mode = %d;\n", renderer.settings.mipmap_mode);
+        fprintf(f, "    mipmaps = %d;\n", renderer.settings.mipmaps);
+        fprintf(f, "    lod_bias = %.3f;\n", renderer.settings.lod_bias);
+        fprintf(f, "    anisotropy = %d;\n", renderer.settings.anisotropy);
+        fprintf(f, "    antialias = %d;\n", renderer.settings.antialias);
+        fprintf(f, "    antialias_samples = %d;\n", renderer.settings.antialias_samples);
+        fprintf(f, "    z_depth = %d;\n", renderer.settings.z_depth);
+        fprintf(f, "    texture_border = %d;\n", renderer.settings.texture_border);
+        {
+            int r = renderer.settings.fog_color[0] * 255.5f;
+            int g = renderer.settings.fog_color[1] * 255.5f;
+            int b = renderer.settings.fog_color[2] * 255.5f;
+            fprintf(f, "    fog_color = {r = %d, g = %d, b = %d};\n", r, g, b);
+        }
         fprintf(f, "}\n\n");
 
         fprintf(f, "controls =\n{\n");
-        fprintf(f, "    mouse_sensitivity_x = %.2f;\n", 0.25f);
-        fprintf(f, "    mouse_sensitivity_y = %.2f;\n\n", 0.25f);
-        fprintf(f, "    use_joy = %d;\n", 0);
-        fprintf(f, "    joy_number = %d;\n", 0);
-        fprintf(f, "    joy_rumble = %d;\n\n", 0);
-        fprintf(f, "    joy_move_axis_x = %d;\n", 0);
-        fprintf(f, "    joy_move_axis_y = %d;\n", 1);
-        fprintf(f, "    joy_move_invert_x = %d;\n", 0);
-        fprintf(f, "    joy_move_invert_y = %d;\n", 0);
-        fprintf(f, "    joy_move_sensitivity = %.2f;\n", 1.5f);
-        fprintf(f, "    joy_move_deadzone = %d;\n\n", 1500);
-        fprintf(f, "    joy_look_axis_x = %d;\n", 2);
-        fprintf(f, "    joy_look_axis_y = %d;\n", 3);
-        fprintf(f, "    joy_look_invert_x = %d;\n", 0);
-        fprintf(f, "    joy_look_invert_y = %d;\n", 1);
-        fprintf(f, "    joy_look_sensitivity = %.2f;\n", 1.5f);
-        fprintf(f, "    joy_look_deadzone = %d;\n", 1500);
+        fprintf(f, "    mouse_sensitivity_x = %.2f;\n", control_settings.mouse_sensitivity_x);
+        fprintf(f, "    mouse_sensitivity_y = %.2f;\n\n", control_settings.mouse_sensitivity_y);
+        fprintf(f, "    use_joy = %d;\n", (int)control_settings.use_joy);
+        fprintf(f, "    joy_number = %d;\n", (int)control_settings.joy_number);
+        fprintf(f, "    joy_rumble = %d;\n\n", (int)control_settings.joy_rumble);
+        fprintf(f, "    joy_move_axis_x = %d;\n", (int)control_settings.joy_axis_map[AXIS_MOVE_X]);
+        fprintf(f, "    joy_move_axis_y = %d;\n", (int)control_settings.joy_axis_map[AXIS_MOVE_Y]);
+        fprintf(f, "    joy_move_invert_x = %d;\n", (int)control_settings.joy_move_invert_x);
+        fprintf(f, "    joy_move_invert_y = %d;\n", (int)control_settings.joy_move_invert_y);
+        fprintf(f, "    joy_move_sensitivity = %.2f;\n", control_settings.joy_move_sensitivity);
+        fprintf(f, "    joy_move_deadzone = %d;\n\n", (int)control_settings.joy_move_deadzone);
+        fprintf(f, "    joy_look_axis_x = %d;\n", (int)control_settings.joy_axis_map[AXIS_LOOK_X]);
+        fprintf(f, "    joy_look_axis_y = %d;\n", (int)control_settings.joy_axis_map[AXIS_LOOK_Y]);
+        fprintf(f, "    joy_look_invert_x = %d;\n", (int)control_settings.joy_look_invert_x);
+        fprintf(f, "    joy_look_invert_y = %d;\n", (int)control_settings.joy_look_invert_y);
+        fprintf(f, "    joy_look_sensitivity = %.2f;\n", control_settings.joy_look_sensitivity);
+        fprintf(f, "    joy_look_deadzone = %d;\n", (int)control_settings.joy_look_deadzone);
         fprintf(f, "}\n\n");
 
-        fprintf(f, "console =\n{\n");
-        fprintf(f, "    background_color = {r = %d, g = %d, b = %d, a = %d};\n", 0, 0, 0, 200);
-        fprintf(f, "    commands_count = %d;\n", 128);
-        fprintf(f, "    lines_count = %d;\n", 128);
-        fprintf(f, "    height = %d;\n", 320);
-        fprintf(f, "    spacing = %.2f;\n", 0.5f);
-        fprintf(f, "    show_cursor_period = %.2f;\n", 0.5f);
-        fprintf(f, "    show = %d;\n", 0);
-        fprintf(f, "}\n\n");
+        {
+            console_params_t cp = { 0 };
+            Con_GetParams(&cp);
+            fprintf(f, "console =\n{\n");
+            fprintf(f, "    background_color = {r = %d, g = %d, b = %d, a = %d};\n",
+                cp.background_color[0],
+                cp.background_color[1],
+                cp.background_color[2],
+                cp.background_color[3]);
+            fprintf(f, "    commands_count = %d;\n", cp.commands_count);
+            fprintf(f, "    lines_count = %d;\n", cp.lines_count);
+            fprintf(f, "    height = %d;\n", cp.height);
+            fprintf(f, "    spacing = %.2f;\n", cp.spacing);
+            fprintf(f, "    show_cursor_period = %.2f;\n", cp.show_cursor_period);
+            fprintf(f, "    show = %d;\n", cp.show);
+            fprintf(f, "}\n\n");
+        }
 
         fprintf(f, "-- Keys binding\n"
                    "-- Please note that on XInput game controllers (XBOX360 and such), triggers are NOT\n"
@@ -414,15 +425,15 @@ void Script_ExportConfig(const char *path)
             {
                 Controls_ActionToStr(buff, (enum ACTIONS)i);
                 fprintf(f, "bind(");
-                fprintf(f, buff);
+                fputs(buff, f);
                 fprintf(f, ", ");
                 Controls_KeyToStr(buff, act->primary);
-                fprintf(f, buff);
+                fputs(buff, f);
                 if(act->secondary)
                 {
                     fprintf(f, ", ");
                     Controls_KeyToStr(buff, act->secondary);
-                    fprintf(f, buff);
+                    fputs(buff, f);
                 }
                 fprintf(f, ");\n");
             }

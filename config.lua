@@ -2,9 +2,9 @@
 screen =
 {
     x = 0;
-    y = 87;
-    width = 903;
-    height = 526;
+    y = 117;
+    width = 1057;
+    height = 632;
     fov = 75.0;
     debug_view_state = 0;
     fullscreen = 0;
@@ -23,7 +23,7 @@ render =
 {
     mipmap_mode = 3;
     mipmaps = 3;
-    lod_bias = 0;
+    lod_bias = 0.000;
     anisotropy = 4;
     antialias = 1;
     antialias_samples = 4;

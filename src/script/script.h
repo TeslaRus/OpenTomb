@@ -41,7 +41,7 @@ void Script_ExportConfig(const char *path);
 int Script_ParseScreen(lua_State *lua, struct screen_info_s *sc);
 int Script_ParseRender(lua_State *lua, struct render_settings_s *rs);
 int Script_ParseAudio(lua_State *lua, struct audio_settings_s *as);
-int Script_ParseConsole(lua_State *lua);
+int Script_ParseConsole(lua_State *lua, struct console_params_s *cp);
 int Script_ParseControls(lua_State *lua, struct control_settings_s *cs);
 
 bool Script_GetOverridedSamplesInfo(lua_State *lua, int *num_samples, int *num_sounds, char *sample_name_mask);
