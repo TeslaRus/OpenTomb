@@ -8,7 +8,7 @@ screen =
     fov = 75.0;
     debug_view_state = 0;
     fullscreen = 0;
-    crosshair = 1;
+    crosshair = 0;
 }
 
 audio =
@@ -64,7 +64,7 @@ console =
     height = 320;
     spacing = 0.50;
     show_cursor_period = 0.50;
-    show = 0;
+    show = 1;
 }
 
 -- Keys binding
