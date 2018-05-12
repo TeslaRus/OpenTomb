@@ -31,8 +31,6 @@
 #define R_DRAW_AI_OBJECTS       0x00100000      // AI objects drawing
 #define R_DRAW_AI_PATH          0x00200000      // AI character target path drawing
 
-#define STENCIL_FRUSTUM 1
-
 struct portal_s;
 struct frustum_s;
 struct world_s;
