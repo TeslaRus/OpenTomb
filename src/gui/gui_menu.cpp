@@ -6,6 +6,8 @@
 
 #include "../core/system.h"
 #include "../core/vmath.h"
+#include "../core/utf8_32.h"
+#include "../engine.h"
 #include "../controls.h"
 #include "../game.h"
 #include "../gameflow.h"
@@ -29,6 +31,7 @@ extern "C" int handle_controls_cont(struct gui_object_s *obj, enum gui_command_e
 extern "C" int handle_main_menu(struct gui_object_s *obj, enum gui_command_e cmd);
 extern "C" void handle_screen_resized_inv(struct gui_object_s *obj, int w, int h);
 extern "C" void handle_screen_resized_main(struct gui_object_s *obj, int w, int h);
+extern "C" int handle_save_name_edit_complete(struct gui_object_s *obj, enum gui_command_e cmd);
 
 struct gui_controls_data_s
 {
@@ -110,6 +113,94 @@ static gui_object_p Gui_AddLoadGameContainer(gui_object_p root)
     Sys_ListDirFree(list);
 
     return cont;
+}
+
+void gui_handle_edit_text(const char *text, void *data)
+{
+    gui_object_p edit = (gui_object_p)data;
+    if(edit && edit->text)
+    {
+        uint8_t *utf8 = (uint8_t*)text;
+        uint32_t oldLength = utf8_strlen(edit->text);
+        uint32_t key;
+        while(*utf8)
+        {
+            utf8 = utf8_to_utf32(utf8, &key);
+            switch(key)
+            {
+                case SDLK_RETURN:
+                    if(edit->handlers.do_command)
+                    {
+                        edit->handlers.do_command(edit, gui_command_e::ACTIVATE);
+                    }
+                    break;
+
+                case SDLK_ESCAPE:
+                    if(edit->handlers.do_command)
+                    {
+                        edit->handlers.do_command(edit, gui_command_e::CLOSE);
+                    }
+                    break;
+
+                case SDLK_LEFT:
+                    if(edit->cursor_pos > 0)
+                    {
+                        edit->cursor_pos--;
+                    }
+                    break;
+
+                case SDLK_RIGHT:
+                    if(edit->cursor_pos < oldLength)
+                    {
+                        edit->cursor_pos++;
+                    }
+                    break;
+
+                case SDLK_HOME:
+                    edit->cursor_pos = 0;
+                    break;
+
+                case SDLK_END:
+                    edit->cursor_pos = oldLength;
+                    break;
+
+                case SDLK_BACKSPACE:
+                    if(edit->cursor_pos > 0)
+                    {
+                        edit->cursor_pos--;
+                        utf8_delete_char((uint8_t*)edit->text, edit->cursor_pos);
+                    }
+                    break;
+
+                case SDLK_DELETE:
+                    if((edit->cursor_pos < oldLength))
+                    {
+                        utf8_delete_char((uint8_t*)edit->text, edit->cursor_pos);
+                    }
+                    break;
+
+                default:
+                    if(oldLength + 8 >= edit->text_size)
+                    {
+                        char *new_buff = (char*)calloc(edit->text_size * 2, sizeof(char));
+                        if(new_buff)
+                        {
+                            memcpy(new_buff, edit->text, edit->text_size);
+                            free(edit->text);
+                            edit->text = new_buff;
+                            edit->text_size *= 2;
+                        }
+                    }
+                    if((oldLength + 8 < edit->text_size) && (key >= SDLK_SPACE))
+                    {
+                        utf8_insert_char((uint8_t*)edit->text, key, edit->cursor_pos, edit->text_size);
+                        ++oldLength;
+                        ++edit->cursor_pos;
+                    }
+                    break;
+            };
+        }
+    }
 }
 
 static gui_object_p Gui_AddSaveGameContainer(gui_object_p root)
@@ -817,10 +908,11 @@ extern "C" int handle_save_game_cont(struct gui_object_s *obj, enum gui_command_
     else if(cmd == ACTIVATE)
     {
         gui_object_p item = Gui_ListInventoryMenu(obj, 0);
-        if(item && item->text)
-        {
-            ret = Game_Save(item->text);
-        }
+        item->cursor_pos = 0;
+        item->flags.edit_text = 0x01;
+        item->handlers.do_command = handle_save_name_edit_complete;
+        Engine_SetTextInputHandler(gui_handle_edit_text, item);
+        ret = 0;
     }
     return ret;
 }
@@ -1028,5 +1120,30 @@ extern "C" int handle_controls_cont(struct gui_object_s *obj, enum gui_command_e
 extern "C" int handle_on_crosshair(struct gui_object_s *obj, enum gui_command_e cmd)
 {
     screen_info.crosshair = !screen_info.crosshair;
+    return 1;
+}
+
+extern "C" int handle_save_name_edit_complete(struct gui_object_s *obj, enum gui_command_e cmd)
+{
+    switch(cmd)
+    {
+        case gui_command_e::ACTIVATE:
+            if(Game_Save(obj->text))
+            {
+                Engine_SetTextInputHandler(NULL, NULL);
+                obj->handlers.do_command = NULL;
+                obj->flags.edit_text = 0x00;
+            }
+            break;
+            
+        case gui_command_e::CLOSE:
+            Engine_SetTextInputHandler(NULL, NULL);
+            obj->handlers.do_command = NULL;
+            obj->flags.edit_text = 0x00;
+            break;
+            
+        default:
+            return 0;
+    }
     return 1;
 }

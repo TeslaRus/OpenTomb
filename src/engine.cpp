@@ -46,6 +46,7 @@ extern "C" {
 #include "trigger.h"
 #include "character_controller.h"
 #include "image.h"
+#include "core/utf8_32.h"
 
 
 static SDL_Window              *sdl_window     = NULL;
@@ -65,6 +66,8 @@ float                           engine_frame_time = 0.0;
 lua_State                      *engine_lua = NULL;
 struct camera_s                 engine_camera;
 struct camera_state_s           engine_camera_state;
+static void (*g_text_handler)(const char *text, void *data) = NULL;
+static void *g_text_handler_data;
 
 
 extern "C" int  Engine_ExecCmd(char *ch);
@@ -693,6 +696,10 @@ void Engine_PollSDLEvents()
                     Con_Filter(event.text.text);
                     return;
                 }
+                if(g_text_handler && event.key.state)
+                {
+                    g_text_handler(event.text.text, g_text_handler_data);
+                }
                 break;
 
             case SDL_KEYUP:
@@ -730,6 +737,32 @@ void Engine_PollSDLEvents()
                 }
                 else
                 {
+                    if(g_text_handler && event.key.state)
+                    {
+                        char text[8] = { 0 };
+                        switch(event.key.keysym.sym)
+                        {
+                            case SDLK_ESCAPE:
+                            case SDLK_RETURN:
+                            case SDLK_UP:
+                            case SDLK_DOWN:
+                            case SDLK_LEFT:
+                            case SDLK_RIGHT:
+                            case SDLK_HOME:
+                            case SDLK_END:
+                            case SDLK_PAGEUP:
+                            case SDLK_PAGEDOWN:
+                            case SDLK_BACKSPACE:
+                            case SDLK_DELETE:
+                                utf32_to_utf8((uint8_t*)text, event.key.keysym.sym);
+                                g_text_handler(text, g_text_handler_data);
+                                break;
+
+                            default:
+                                break;
+                        }
+                        break;
+                    }
                     Controls_Key(event.key.keysym.scancode, event.key.state);
                     // DEBUG KEYBOARD COMMANDS
                     Controls_DebugKeys(event.key.keysym.scancode, event.key.state);
@@ -884,6 +917,20 @@ void Engine_MainLoop()
 /*
  * MISC ENGINE FUNCTIONALITY
  */
+
+void Engine_SetTextInputHandler(void (*f)(const char *text, void *data), void *data)
+{
+    g_text_handler = f;
+    g_text_handler_data = data;
+    if(f)
+    {
+        SDL_StartTextInput();
+    }
+    else
+    {
+        SDL_StopTextInput();
+    }
+}
 
 void Engine_TakeScreenShot()
 {

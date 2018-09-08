@@ -1,8 +1,8 @@
 -- LUA config file
 screen =
 {
-    x = 0;
-    y = 87;
+    x = 95;
+    y = 105;
     width = 1057;
     height = 632;
     fov = 75.0;

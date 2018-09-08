@@ -53,6 +53,7 @@ typedef struct gui_object_flags_s
     uint32_t    h_self_align : 4;
     uint32_t    layout : 2;
     uint32_t    clip_children : 1;
+    uint32_t    edit_text : 1;
 }gui_object_flags_t, *gui_object_flags_p;
 
 typedef struct gui_handlers_s
@@ -84,8 +85,9 @@ typedef struct gui_object_s
     uint16_t                    font_id;
     uint16_t                    style_id;
     uint16_t                    text_size;
-    uint8_t                     border_width;
-    uint8_t                     spacing;
+    uint16_t                    cursor_pos;
+    uint16_t                    border_width;
+    uint16_t                    spacing;
     
     struct gui_object_flags_s   flags;
 
