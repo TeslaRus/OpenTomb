@@ -66,7 +66,7 @@ float                           engine_frame_time = 0.0;
 lua_State                      *engine_lua = NULL;
 struct camera_s                 engine_camera;
 struct camera_state_s           engine_camera_state;
-static void (*g_text_handler)(const char *text, void *data) = NULL;
+static void (*g_text_handler)(uint32_t key, void *data) = NULL;
 static void *g_text_handler_data;
 
 
@@ -693,12 +693,24 @@ void Engine_PollSDLEvents()
             case SDL_TEXTEDITING:
                 if(Con_IsShown() && event.key.state)
                 {
-                    Con_Filter(event.text.text);
+                    uint8_t *utf8 = (uint8_t*)event.text.text;
+                    uint32_t utf32;
+                    while(*utf8)
+                    {
+                        utf8 = utf8_to_utf32(utf8, &utf32);
+                        Con_Edit(utf32);
+                    }
                     return;
                 }
                 if(g_text_handler && event.key.state)
                 {
-                    g_text_handler(event.text.text, g_text_handler_data);
+                    uint8_t *utf8 = (uint8_t*)event.text.text;
+                    uint32_t utf32;
+                    while(*utf8)
+                    {
+                        utf8 = utf8_to_utf32(utf8, &utf32);
+                        g_text_handler(utf32, g_text_handler_data);
+                    }
                 }
                 break;
 
@@ -739,7 +751,6 @@ void Engine_PollSDLEvents()
                 {
                     if(g_text_handler && event.key.state)
                     {
-                        char text[8] = { 0 };
                         switch(event.key.keysym.sym)
                         {
                             case SDLK_ESCAPE:
@@ -754,8 +765,7 @@ void Engine_PollSDLEvents()
                             case SDLK_PAGEDOWN:
                             case SDLK_BACKSPACE:
                             case SDLK_DELETE:
-                                utf32_to_utf8((uint8_t*)text, event.key.keysym.sym);
-                                g_text_handler(text, g_text_handler_data);
+                                g_text_handler(event.key.keysym.sym, g_text_handler_data);
                                 break;
 
                             default:
@@ -918,7 +928,7 @@ void Engine_MainLoop()
  * MISC ENGINE FUNCTIONALITY
  */
 
-void Engine_SetTextInputHandler(void (*f)(const char *text, void *data), void *data)
+void Engine_SetTextInputHandler(void (*f)(uint32_t key, void *data), void *data)
 {
     g_text_handler = f;
     g_text_handler_data = data;

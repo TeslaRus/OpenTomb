@@ -63,6 +63,16 @@ typedef struct gui_handlers_s
     void (*delete_user_data)(void *data);
 }gui_handlers_t, *gui_handlers_p;
 
+typedef struct gui_object_text_s
+{
+    char                       *text;
+    float                       line_height;
+    uint16_t                    font_id;
+    uint16_t                    style_id;
+    uint16_t                    text_size;
+    uint16_t                    cursor_pos;
+}gui_object_text_t, *gui_object_text_p;
+
 typedef struct gui_object_s
 {
     int16_t         x;
@@ -77,15 +87,11 @@ typedef struct gui_object_s
     int16_t         margin_right;
     int16_t         margin_top;
     int16_t         margin_bottom;
-
+    
     struct gui_handlers_s       handlers;
     void                       *data;
-    char                       *text;
-    float                       line_height;
-    uint16_t                    font_id;
-    uint16_t                    style_id;
-    uint16_t                    text_size;
-    uint16_t                    cursor_pos;
+    struct gui_object_text_s   *label;
+    
     uint16_t                    border_width;
     uint16_t                    spacing;
     

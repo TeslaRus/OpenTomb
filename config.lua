@@ -1,8 +1,8 @@
 -- LUA config file
 screen =
 {
-    x = 95;
-    y = 105;
+    x = 23;
+    y = 63;
     width = 1057;
     height = 632;
     fov = 75.0;
@@ -64,7 +64,7 @@ console =
     height = 320;
     spacing = 0.50;
     show_cursor_period = 0.50;
-    show = 1;
+    show = 0;
 }
 
 -- Keys binding
