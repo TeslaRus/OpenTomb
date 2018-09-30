@@ -771,14 +771,15 @@ void Engine_PollSDLEvents()
                             default:
                                 break;
                         }
-                        break;
                     }
-                    Controls_Key(event.key.keysym.scancode, event.key.state);
-                    // DEBUG KEYBOARD COMMANDS
-                    Controls_DebugKeys(event.key.keysym.scancode, event.key.state);
-                    if((screen_info.debug_view_state == debug_view_state_e::model_view) && event.key.state)
+                    else if(!g_text_handler)
                     {
-                        TestModelApplyKey(event.key.keysym.scancode);
+                        Controls_Key(event.key.keysym.scancode, event.key.state);
+                        Controls_DebugKeys(event.key.keysym.scancode, event.key.state);
+                        if((screen_info.debug_view_state == debug_view_state_e::model_view) && event.key.state)
+                        {
+                            TestModelApplyKey(event.key.keysym.scancode);
+                        }
                     }
                 }
                 break;

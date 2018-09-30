@@ -366,7 +366,7 @@ static void Gui_DrawLabelInternal(gui_object_p root)
             vec4_copy(gl_font->gl_font_color, style->font_color);
             glf_render_str(gl_font, real_x, real_y + line * dy, begin, n_sym);
             
-            if(root->flags.edit_text && (label->cursor_pos < total_chars + n_sym) && (label->cursor_pos >= total_chars))
+            if(root->flags.edit_text && (label->cursor_pos <= total_chars + n_sym) && ((label->cursor_pos > total_chars) || (label->cursor_pos == 0)))
             {
                 int cursor_x = glf_get_string_len(gl_font, begin, label->cursor_pos - total_chars) / 64;
                 Gui_DrawCursorInternal(real_x + cursor_x, real_y + line * dy, dy);
