@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 #include "../core/gl_text.h"
-#include "gui_obj.h"
+#include "../core/gui/gui_obj.h"
 
 struct inventory_node_s;
 
@@ -101,7 +101,7 @@ public:
        return (m_current_state == INVENTORY_IDLE) || (m_current_state == INVENTORY_ACTIVATED);
    }
    
-    void send(enum gui_command_e cmd);
+    void send(int cmd);
 
     int getItemsType()
     {
@@ -124,7 +124,7 @@ private:
     struct inventory_node_s   **m_inventory;
     uint32_t                    m_owner_id;
     int                         m_current_state;
-    gui_command_e               m_command;
+    int                         m_command;
 
     int                         m_current_items_type;
     int                         m_next_items_type;

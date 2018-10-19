@@ -8,8 +8,8 @@
 extern "C" {
 #endif
 
-#include "../core/gl_util.h"
-#include "../core/gl_font.h"
+#include "../gl_util.h"
+#include "../gl_font.h"
 
 #define GUI_ALIGN_NONE      (0)
 #define GUI_ALIGN_CENTER    (1)
@@ -22,20 +22,23 @@ extern "C" {
 #define GUI_LAYOUT_VERTICAL     (1)
 #define GUI_LAYOUT_HORIZONTAL   (2)
 
+#define GUI_COMMAND_NONE        (0)
+#define GUI_COMMAND_TEXT        (1)
+#define GUI_COMMAND_OPEN        (2)
+#define GUI_COMMAND_CLOSE       (3)
+#define GUI_COMMAND_LEFT        (4)
+#define GUI_COMMAND_RIGHT       (5)
+#define GUI_COMMAND_UP          (6)
+#define GUI_COMMAND_DOWN        (7)
+#define GUI_COMMAND_HOME        (8)
+#define GUI_COMMAND_END         (9)
+#define GUI_COMMAND_DELETE      (10)
+#define GUI_COMMAND_BACKSPACE   (11)
+#define GUI_COMMAND_ACTIVATE    (12)
+#define GUI_COMMAND_DEACTIVATE  (13)
+
 struct gui_object_s;
-    
-enum gui_command_e
-{
-    NONE = 0,
-    OPEN,
-    CLOSE,
-    LEFT,
-    RIGHT,
-    UP,
-    DOWN,
-    ACTIVATE,
-    DEACTIVATE
-};
+
 
 typedef struct gui_object_flags_s
 {
@@ -54,11 +57,12 @@ typedef struct gui_object_flags_s
     uint32_t    layout : 2;
     uint32_t    clip_children : 1;
     uint32_t    edit_text : 1;
+    uint32_t    autoheight : 1;
 }gui_object_flags_t, *gui_object_flags_p;
 
 typedef struct gui_handlers_s
 {
-    int  (*do_command)(struct gui_object_s *obj, enum gui_command_e cmd);
+    int  (*do_command)(struct gui_object_s *obj, int cmd);
     void (*screen_resized)(struct gui_object_s *obj, int w, int h);
     void (*delete_user_data)(void *data);
 }gui_handlers_t, *gui_handlers_p;
@@ -67,6 +71,7 @@ typedef struct gui_object_text_s
 {
     char                       *text;
     float                       line_height;
+    float                       cursor_time;
     uint16_t                    font_id;
     uint16_t                    style_id;
     uint16_t                    text_size;
@@ -106,6 +111,7 @@ typedef struct gui_object_s
     struct gui_object_s        *childs;
 } gui_object_t, *gui_object_p;
 
+void Gui_SetFrameTime(float time);
 
 gui_object_p Gui_CreateObject();
 void Gui_DeleteObject(gui_object_p obj);
@@ -115,12 +121,14 @@ gui_object_p Gui_CreateChildObject(gui_object_p root);
 void Gui_DeleteChildObject(gui_object_p obj);
 
 void Gui_SetObjectLabel(gui_object_p obj, const char *text, uint16_t font_id, uint16_t style_id);
+void Gui_SetExternalObjectLabel(gui_object_p obj, const char *text, uint16_t font_id, uint16_t style_id);
 void Gui_DrawObjects(gui_object_p root);
 void Gui_LayoutVertical(gui_object_p root);
 void Gui_LayoutHorizontal(gui_object_p root);
 void Gui_LayoutObjects(gui_object_p root);
 void Gui_EnsureVisible(gui_object_p obj);
 
+void Gui_ApplyEditCommands(gui_object_p edit, int cmd, uint32_t key);
 
 #ifdef	__cplusplus
 }

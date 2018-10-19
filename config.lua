@@ -1,10 +1,10 @@
 -- LUA config file
 screen =
 {
-    x = 1;
-    y = 71;
-    width = 982;
-    height = 632;
+    x = 0;
+    y = 97;
+    width = 1120;
+    height = 620;
     fov = 75.0;
     debug_view_state = 0;
     fullscreen = 0;
@@ -30,6 +30,7 @@ render =
     z_depth = 24;
     texture_border = 16;
     fog_color = {r = 255, g = 255, b = 255};
+    show_fps = 0;
 }
 
 controls =
@@ -60,11 +61,9 @@ console =
 {
     background_color = {r = 0, g = 0, b = 0, a = 200};
     commands_count = 128;
-    lines_count = 128;
+    lines_count = 18;
     height = 320;
-    spacing = 0.50;
-    show_cursor_period = 0.50;
-    show = 0;
+    spacing = 1.25;
 }
 
 -- Keys binding

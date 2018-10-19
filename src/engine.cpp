@@ -59,6 +59,7 @@ static stream_codec_t           engine_video;
 
 static char                     base_path[1024] = {0};
 static volatile int             engine_done   = 0;
+static int                      g_menu_mode = 0x00;
 static int                      engine_set_zero_time = 0;
 float                           time_scale = 1.0f;
 float                           engine_frame_time = 0.0;
@@ -66,7 +67,7 @@ float                           engine_frame_time = 0.0;
 lua_State                      *engine_lua = NULL;
 struct camera_s                 engine_camera;
 struct camera_state_s           engine_camera_state;
-static void (*g_text_handler)(uint32_t key, void *data) = NULL;
+static void (*g_text_handler)(int cmd, uint32_t key, void *data) = NULL;
 static void *g_text_handler_data;
 
 
@@ -303,7 +304,6 @@ void Engine_Init_Post()
 {
     Script_CallVoidFunc(engine_lua, "loadscript_post", true);
 
-    Con_InitFont();
     Gui_Init();
 
     Con_AddLine("Engine inited!", FONTSTYLE_CONSOLE_EVENT);
@@ -421,7 +421,7 @@ void Engine_InitSDLSubsystems()
             return;
         }
 
-        if(SDL_IsGameController(control_settings.joy_number))                     // If joystick has mapping (e.g. X360 controller)
+        if(SDL_IsGameController(control_settings.joy_number))                   // If joystick has mapping (e.g. X360 controller)
         {
             SDL_GameControllerEventState(SDL_ENABLE);                           // Use GameController API
             sdl_controller = SDL_GameControllerOpen(control_settings.joy_number);
@@ -432,7 +432,7 @@ void Engine_InitSDLSubsystems()
                 SDL_GameControllerEventState(SDL_DISABLE);                      // If controller init failed, close state.
                 control_settings.use_joy = 0;
             }
-            else if(control_settings.joy_rumble)                                  // Create force feedback interface.
+            else if(control_settings.joy_rumble)                                // Create force feedback interface.
             {
                 sdl_haptic = SDL_HapticOpenFromJoystick(SDL_GameControllerGetJoystick(sdl_controller));
                 if(!sdl_haptic)
@@ -452,7 +452,7 @@ void Engine_InitSDLSubsystems()
                 SDL_JoystickEventState(SDL_DISABLE);                            // If joystick init failed, close state.
                 control_settings.use_joy = 0;
             }
-            else if(control_settings.joy_rumble)                                  // Create force feedback interface.
+            else if(control_settings.joy_rumble)                                // Create force feedback interface.
             {
                 sdl_haptic = SDL_HapticOpenFromJoystick(sdl_joystick);
                 if(!sdl_haptic)
@@ -482,6 +482,7 @@ void Engine_LoadConfig(const char *filename)
         lua_State *lua = luaL_newstate();
         if(lua)
         {
+            console_params_t cp = { 0 };
             luaL_openlibs(lua);
             lua_register(lua, "bind", lua_Bind);                                // get and set key bindings
             lua_pushstring(lua, Engine_GetBasePath());
@@ -494,21 +495,9 @@ void Engine_LoadConfig(const char *filename)
             Script_ParseAudio(lua, &audio_settings);
             Script_ParseControls(lua, &control_settings);
 
+            if(0 < Script_ParseConsole(lua, &cp))
             {
-                console_params_t cp = { 0 };
-                float color[4];
-                Script_ParseConsole(lua, &cp);
-                color[0] = cp.background_color[0] / 255.0f;
-                color[1] = cp.background_color[1] / 255.0f;
-                color[2] = cp.background_color[2] / 255.0f;
-                color[3] = cp.background_color[3] / 255.0f;
-                Con_SetBackgroundColor(color);
-                Con_SetLineInterval(cp.spacing);
-                Con_SetHeight(cp.height);
-                Con_SetLinesHistorySize(cp.lines_count);
-                Con_SetCommandsHistorySize(cp.commands_count);
-                Con_SetShown(cp.show);
-                Con_SetShowCursorPeriod(cp.show_cursor_period);
+                Con_SetParams(&cp);
             }
             lua_close(lua);
         }
@@ -584,7 +573,6 @@ void Engine_Resize(int nominalW, int nominalH, int pixelsW, int pixelsH)
     screen_info.scale_factor = (screen_info.w < screen_info.h) ? (screen_info.h / scale_coeff) : (screen_info.w / scale_coeff);
 
     GLText_UpdateResize(screen_info.scale_factor);
-    Con_UpdateResize();
     Gui_UpdateResize();
 
     Cam_SetFovAspect(&engine_camera, screen_info.fov, (float)nominalW / (float)nominalH);
@@ -600,7 +588,7 @@ void Engine_PollSDLEvents()
     static int mouse_setup = 0;
     const float color[3] = {1.0f, 0.0f, 0.0f};
     static float from[3], to[3];
-
+    
     for(int i = 0; i < ACT_LASTINDEX; i++)
     {
         control_states.actions[i].prev_state = control_states.actions[i].state;
@@ -609,10 +597,11 @@ void Engine_PollSDLEvents()
 
     while(SDL_PollEvent(&event))
     {
+        g_menu_mode = g_text_handler ? ((Gui_ConIsShown()) ? (0x01) : (0x02)) : 0x00;
         switch(event.type)
         {
             case SDL_MOUSEMOTION:
-                if(!Con_IsShown() && control_states.mouse_look != 0 &&
+                if(!g_menu_mode && (control_states.mouse_look != 0) &&
                     ((event.motion.x != (screen_info.w / 2)) ||
                      (event.motion.y != (screen_info.h / 2))))
                 {
@@ -634,9 +623,9 @@ void Engine_PollSDLEvents()
                 break;
 
             case SDL_MOUSEWHEEL:
-                if(Con_IsShown())
+                if(Gui_ConIsShown())
                 {
-                    Con_Scroll(event.wheel.y);
+                    Gui_ConScroll(event.wheel.y);
                 }
                 break;
 
@@ -654,12 +643,12 @@ void Engine_PollSDLEvents()
             // Controller events are only invoked when joystick is initialized as
             // game controller, otherwise, generic joystick event will be used.
             case SDL_CONTROLLERAXISMOTION:
-                Controls_WrapGameControllerAxis(event.caxis.axis, event.caxis.value);
+                Controls_WrapGameControllerAxis(event.caxis.axis, event.caxis.value, g_menu_mode);
                 break;
 
             case SDL_CONTROLLERBUTTONDOWN:
             case SDL_CONTROLLERBUTTONUP:
-                Controls_WrapGameControllerKey(event.cbutton.button, event.cbutton.state);
+                Controls_WrapGameControllerKey(event.cbutton.button, event.cbutton.state, g_menu_mode);
                 break;
 
             // Joystick events are still invoked, even if joystick is initialized as game
@@ -676,7 +665,7 @@ void Engine_PollSDLEvents()
             case SDL_JOYHATMOTION:
                 if(sdl_joystick)
                 {
-                    Controls_JoyHat(event.jhat.value);
+                    Controls_JoyHat(event.jhat.value, g_menu_mode);
                 }
                 break;
 
@@ -685,23 +674,12 @@ void Engine_PollSDLEvents()
                 // NOTE: Joystick button numbers are passed with added JOY_BUTTON_MASK (1000).
                 if(sdl_joystick)
                 {
-                    Controls_Key((event.jbutton.button + JOY_BUTTON_MASK), event.jbutton.state);
+                    Controls_Key((event.jbutton.button + JOY_BUTTON_MASK), event.jbutton.state, g_menu_mode);
                 }
                 break;
 
             case SDL_TEXTINPUT:
             case SDL_TEXTEDITING:
-                if(Con_IsShown() && event.key.state)
-                {
-                    uint8_t *utf8 = (uint8_t*)event.text.text;
-                    uint32_t utf32;
-                    while(*utf8)
-                    {
-                        utf8 = utf8_to_utf32(utf8, &utf32);
-                        Con_Edit(utf32);
-                    }
-                    return;
-                }
                 if(g_text_handler && event.key.state)
                 {
                     uint8_t *utf8 = (uint8_t*)event.text.text;
@@ -709,7 +687,7 @@ void Engine_PollSDLEvents()
                     while(*utf8)
                     {
                         utf8 = utf8_to_utf32(utf8, &utf32);
-                        g_text_handler(utf32, g_text_handler_data);
+                        g_text_handler(GUI_COMMAND_TEXT, utf32, g_text_handler_data);
                     }
                 }
                 break;
@@ -724,64 +702,62 @@ void Engine_PollSDLEvents()
                     break;
                 }
 
-                if(Con_IsShown() && event.key.state)
+                if(g_text_handler && event.key.state)
                 {
+                    int cmd = GUI_COMMAND_NONE;
                     switch(event.key.keysym.sym)
                     {
                         case SDLK_RETURN:
-                        case SDLK_UP:
-                        case SDLK_DOWN:
+                            cmd = GUI_COMMAND_ACTIVATE;
+                            break;
+
+                        case SDLK_ESCAPE:
+                            cmd = GUI_COMMAND_CLOSE;
+                            break;
+
                         case SDLK_LEFT:
+                            cmd = GUI_COMMAND_LEFT;
+                            break;
+
                         case SDLK_RIGHT:
+                            cmd = GUI_COMMAND_RIGHT;
+                            break;
+
+                        case SDLK_UP:
+                            cmd = GUI_COMMAND_UP;
+                            break;
+
+                        case SDLK_DOWN:
+                            cmd = GUI_COMMAND_DOWN;
+                            break;
+
                         case SDLK_HOME:
+                            cmd = GUI_COMMAND_HOME;
+                            break;
+
                         case SDLK_END:
-                        case SDLK_PAGEUP:
-                        case SDLK_PAGEDOWN:
+                            cmd = GUI_COMMAND_END;
+                            break;
+
                         case SDLK_BACKSPACE:
+                            cmd = GUI_COMMAND_BACKSPACE;
+                            break;
+
                         case SDLK_DELETE:
-                            Con_Edit(event.key.keysym.sym);
+                            cmd = GUI_COMMAND_DELETE;
                             break;
-
-                        default:
-                            break;
-                    }
-                    return;
+                    };
+                    g_text_handler(cmd, event.key.keysym.sym, g_text_handler_data);
                 }
-                else
+                else if(!g_text_handler)
                 {
-                    if(g_text_handler && event.key.state)
+                    Controls_DebugKeys(event.key.keysym.scancode, event.key.state);
+                    if((screen_info.debug_view_state == debug_view_state_e::model_view) && event.key.state)
                     {
-                        switch(event.key.keysym.sym)
-                        {
-                            case SDLK_ESCAPE:
-                            case SDLK_RETURN:
-                            case SDLK_UP:
-                            case SDLK_DOWN:
-                            case SDLK_LEFT:
-                            case SDLK_RIGHT:
-                            case SDLK_HOME:
-                            case SDLK_END:
-                            case SDLK_PAGEUP:
-                            case SDLK_PAGEDOWN:
-                            case SDLK_BACKSPACE:
-                            case SDLK_DELETE:
-                                g_text_handler(event.key.keysym.sym, g_text_handler_data);
-                                break;
-
-                            default:
-                                break;
-                        }
-                    }
-                    else if(!g_text_handler)
-                    {
-                        Controls_Key(event.key.keysym.scancode, event.key.state);
-                        Controls_DebugKeys(event.key.keysym.scancode, event.key.state);
-                        if((screen_info.debug_view_state == debug_view_state_e::model_view) && event.key.state)
-                        {
-                            TestModelApplyKey(event.key.keysym.scancode);
-                        }
+                        TestModelApplyKey(event.key.keysym.scancode);
                     }
                 }
+                Controls_Key(event.key.keysym.scancode, event.key.state, g_menu_mode);
                 break;
 
             case SDL_QUIT:
@@ -803,6 +779,7 @@ void Engine_PollSDLEvents()
             default:
                 break;
         }
+        g_menu_mode = g_text_handler ? ((Gui_ConIsShown()) ? (0x01) : (0x02)) : 0x00;
     }
     renderer.debugDrawer->DrawLine(from, to, color, color);
 }
@@ -857,7 +834,7 @@ void Engine_MainLoop()
         else
         {
             screen_info.fps = ((float)max_cycles / time_cycl);
-            snprintf(fps_str, 32, "%.1f", screen_info.fps);
+            snprintf(fps_str, sizeof(fps_str), "%.1f", screen_info.fps);
             cycles = 0;
             time_cycl = 0.0f;
         }
@@ -865,13 +842,16 @@ void Engine_MainLoop()
         Sys_ResetTempMem();
         Engine_PollSDLEvents();
 
-        gl_text_line_p fps = GLText_OutTextXY(screen_info.w - 10.0f, 10.0f, fps_str);
-        if(fps)
+        if (renderer.settings.show_fps)
         {
-            fps->x_align    = GLTEXT_ALIGN_RIGHT;
-            fps->y_align    = GLTEXT_ALIGN_BOTTOM;
-            fps->font_id    = FONT_PRIMARY;
-            fps->style_id   = FONTSTYLE_MENU_TITLE;
+            gl_text_line_p fps = GLText_OutTextXY(screen_info.w - 10.0f, 10.0f, fps_str);
+            if (fps)
+            {
+                fps->x_align = GLTEXT_ALIGN_RIGHT;
+                fps->y_align = GLTEXT_ALIGN_BOTTOM;
+                fps->font_id = FONT_PRIMARY;
+                fps->style_id = FONTSTYLE_MENU_TITLE;
+            }
         }
 
         int codec_end_state = stream_codec_check_end(&engine_video);
@@ -882,7 +862,7 @@ void Engine_MainLoop()
 
         if(codec_end_state >= 0)
         {
-            if(!Con_IsShown() && (screen_info.debug_view_state != debug_view_state_e::model_view))
+            if(!g_menu_mode && (screen_info.debug_view_state != debug_view_state_e::model_view))
             {
                 Game_Frame(time);
                 Gameflow_ProcessCommands();
@@ -929,7 +909,7 @@ void Engine_MainLoop()
  * MISC ENGINE FUNCTIONALITY
  */
 
-void Engine_SetTextInputHandler(void (*f)(uint32_t key, void *data), void *data)
+void Engine_SetTextInputHandler(void (*f)(int cmd, uint32_t key, void *data), void *data)
 {
     g_text_handler = f;
     g_text_handler_data = data;
@@ -1145,7 +1125,7 @@ int  Engine_PlayVideo(const char *name)
                 stream_track_p s = Audio_GetStreamExternal();
                 StreamTrack_Stop(s);
                 Audio_StopStreams(-1);
-                Con_SetShown(0);
+                Gui_ConShow(0);
 
                 s->current_volume = audio_settings.sound_volume;
                 while(StreamTrack_IsNeedUpdateBuffer(s))
@@ -1191,8 +1171,6 @@ extern "C" int Engine_ExecCmd(char *ch)
             Con_AddLine("exit - close program\0", FONTSTYLE_CONSOLE_NOTIFY);
             Con_AddLine("cls - clean console\0", FONTSTYLE_CONSOLE_NOTIFY);
             Con_AddLine("show_fps - switch show fps flag\0", FONTSTYLE_CONSOLE_NOTIFY);
-            Con_AddLine("spacing - read and write spacing\0", FONTSTYLE_CONSOLE_NOTIFY);
-            Con_AddLine("con_height - console area height in pixels\0", FONTSTYLE_CONSOLE_NOTIFY);
             Con_AddLine("cvars - lua's table of cvar's, to see them type: show_table(cvars)\0", FONTSTYLE_CONSOLE_NOTIFY);
             Con_AddLine("free_look - switch camera mode\0", FONTSTYLE_CONSOLE_NOTIFY);
             Con_AddLine("r_crosshair - switch crosshair visibility\0", FONTSTYLE_CONSOLE_NOTIFY);
@@ -1238,29 +1216,9 @@ extern "C" int Engine_ExecCmd(char *ch)
             Con_Clean();
             return 1;
         }
-        else if(!strcmp(token, "spacing"))
+        else if(!strcmp(token, "show_fps"))
         {
-            ch = SC_ParseToken(ch, token, sizeof(token));
-            if(NULL == ch)
-            {
-                Con_Notify("spacing = %d", Con_GetLineInterval());
-                return 1;
-            }
-            Con_SetLineInterval(atof(token));
-            return 1;
-        }
-        else if(!strcmp(token, "con_height"))
-        {
-            ch = SC_ParseToken(ch, token, sizeof(token));
-            if(NULL == ch)
-            {
-                Con_Notify("console height = %dpx", (int)Con_GetHeight());
-                return 1;
-            }
-            else
-            {
-                Con_SetHeight(atoi(token));
-            }
+            renderer.settings.show_fps = !renderer.settings.show_fps;
             return 1;
         }
         else if(!strcmp(token, "r_wireframe"))

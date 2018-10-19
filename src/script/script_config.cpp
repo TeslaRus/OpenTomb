@@ -200,6 +200,9 @@ int Script_ParseRender(lua_State *lua, struct render_settings_s *rs)
         rs->fog_end_depth = lua_tonumber(lua, -1);
         lua_pop(lua, 1);
 
+        lua_getfield(lua, -1, "show_fps");
+        rs->show_fps = lua_tonumber(lua, -1);
+        lua_pop(lua, 1);
 
         lua_getfield(lua, -1, "fog_color");
         if(lua_istable(lua, -1))
@@ -305,14 +308,6 @@ int Script_ParseConsole(lua_State *lua, struct console_params_s *cp)
         cp->commands_count = lua_tointeger(lua, -1);
         lua_pop(lua, 1);
 
-        lua_getfield(lua, -1, "show");
-        cp->show = (lua_tointeger(lua, -1)) ? (0x01) : (0x00);
-        lua_pop(lua, 1);
-
-        lua_getfield(lua, -1, "show_cursor_period");
-        cp->show_cursor_period = lua_tonumber(lua, -1);
-        lua_pop(lua, 1);
-
         lua_settop(lua, top);
         return 1;
     }
@@ -372,6 +367,7 @@ void Script_ExportConfig(const char *path)
             int b = renderer.settings.fog_color[2] * 255.5f;
             fprintf(f, "    fog_color = {r = %d, g = %d, b = %d};\n", r, g, b);
         }
+        fprintf(f, "    show_fps = %d;\n", renderer.settings.show_fps);
         fprintf(f, "}\n\n");
 
         fprintf(f, "controls =\n{\n");
@@ -407,8 +403,6 @@ void Script_ExportConfig(const char *path)
             fprintf(f, "    lines_count = %d;\n", cp.lines_count);
             fprintf(f, "    height = %d;\n", cp.height);
             fprintf(f, "    spacing = %.2f;\n", cp.spacing);
-            fprintf(f, "    show_cursor_period = %.2f;\n", cp.show_cursor_period);
-            fprintf(f, "    show = 0;\n");
             fprintf(f, "}\n\n");
         }
 
