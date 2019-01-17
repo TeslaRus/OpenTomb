@@ -8,6 +8,8 @@
 /* Define if we have the SDL audio backend */
 #define HAVE_SDL 1
 
+#define HAVE_C11_ATOMIC
+
 /* Define if we have the C11 aligned_alloc function */
 //#define HAVE_ALIGNED_ALLOC
 

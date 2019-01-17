@@ -168,8 +168,207 @@ static char *expdup(const char *str)
 }
 
 
+static void LoadConfigFromFile(FILE *f)
+{
+    char curSection[128] = "";
+    char *buffer = NULL;
+    size_t maxlen = 0;
+    ConfigEntry *ent;
+
+    while(readline(f, &buffer, &maxlen))
+    {
+        char *line, *comment;
+        char key[256] = "";
+        char value[256] = "";
+
+        comment = strchr(buffer, '#');
+        if(comment) *(comment++) = 0;
+
+        line = rstrip(lstrip(buffer));
+        if(!line[0])
+            continue;
+
+        if(line[0] == '[')
+        {
+            char *section = line+1;
+            char *endsection;
+
+            endsection = strchr(section, ']');
+            if(!endsection || section == endsection || endsection[1] != 0)
+            {
+                 ERR("config parse error: bad line \"%s\"\n", line);
+                 continue;
+            }
+            *endsection = 0;
+
+            if(strcasecmp(section, "general") == 0)
+                curSection[0] = 0;
+            else
+            {
+                strncpy(curSection, section, sizeof(curSection)-1);
+                curSection[sizeof(curSection)-1] = 0;
+            }
+
+            continue;
+        }
+
+        if(sscanf(line, "%255[^=] = \"%255[^\"]\"", key, value) == 2 ||
+           sscanf(line, "%255[^=] = '%255[^\']'", key, value) == 2 ||
+           sscanf(line, "%255[^=] = %255[^\n]", key, value) == 2)
+        {
+            /* sscanf doesn't handle '' or "" as empty values, so clip it
+             * manually. */
+            if(strcmp(value, "\"\"") == 0 || strcmp(value, "''") == 0)
+                value[0] = 0;
+        }
+        else if(sscanf(line, "%255[^=] %255[=]", key, value) == 2)
+        {
+            /* Special case for 'key =' */
+            value[0] = 0;
+        }
+        else
+        {
+            ERR("config parse error: malformed option line: \"%s\"\n\n", line);
+            continue;
+        }
+        rstrip(key);
+
+        if(curSection[0] != 0)
+        {
+            size_t len = strlen(curSection);
+            memmove(&key[len+1], key, sizeof(key)-1-len);
+            key[len] = '/';
+            memcpy(key, curSection, len);
+        }
+
+        /* Check if we already have this option set */
+        ent = cfgBlock.entries;
+        while((unsigned int)(ent-cfgBlock.entries) < cfgBlock.entryCount)
+        {
+            if(strcasecmp(ent->key, key) == 0)
+                break;
+            ent++;
+        }
+
+        if((unsigned int)(ent-cfgBlock.entries) >= cfgBlock.entryCount)
+        {
+            /* Allocate a new option entry */
+            ent = realloc(cfgBlock.entries, (cfgBlock.entryCount+1)*sizeof(ConfigEntry));
+            if(!ent)
+            {
+                 ERR("config parse error: error reallocating config entries\n");
+                 continue;
+            }
+            cfgBlock.entries = ent;
+            ent = cfgBlock.entries + cfgBlock.entryCount;
+            cfgBlock.entryCount++;
+
+            ent->key = strdup(key);
+            ent->value = NULL;
+        }
+
+        free(ent->value);
+        ent->value = expdup(value);
+
+        TRACE("found '%s' = '%s'\n", ent->key, ent->value);
+    }
+
+    free(buffer);
+}
+
 void ReadALConfig(void)
 {
+    char buffer[PATH_MAX];
+    const char *str;
+    FILE *f;
+
+    str = "/etc/openal/alsoft.conf";
+
+    TRACE("Loading config %s...\n", str);
+    f = al_fopen(str, "r");
+    if(f)
+    {
+        LoadConfigFromFile(f);
+        fclose(f);
+    }
+
+    if(!(str=getenv("XDG_CONFIG_DIRS")) || str[0] == 0)
+        str = "/etc/xdg";
+    strncpy(buffer, str, sizeof(buffer)-1);
+    buffer[sizeof(buffer)-1] = 0;
+    /* Go through the list in reverse, since "the order of base directories
+     * denotes their importance; the first directory listed is the most
+     * important". Ergo, we need to load the settings from the later dirs
+     * first so that the settings in the earlier dirs override them.
+     */
+    while(1)
+    {
+        char *next = strrchr(buffer, ':');
+        if(next) *(next++) = 0;
+        else next = buffer;
+
+        if(next[0] != '/')
+            WARN("Ignoring XDG config dir: %s\n", next);
+        else
+        {
+            size_t len = strlen(next);
+            strncpy(next+len, "/alsoft.conf", buffer+sizeof(buffer)-next-len);
+            buffer[sizeof(buffer)-1] = 0;
+
+            TRACE("Loading config %s...\n", next);
+            f = al_fopen(next, "r");
+            if(f)
+            {
+                LoadConfigFromFile(f);
+                fclose(f);
+            }
+        }
+        if(next == buffer)
+            break;
+    }
+
+    if((str=getenv("HOME")) != NULL && *str)
+    {
+        snprintf(buffer, sizeof(buffer), "%s/.alsoftrc", str);
+
+        TRACE("Loading config %s...\n", buffer);
+        f = al_fopen(buffer, "r");
+        if(f)
+        {
+            LoadConfigFromFile(f);
+            fclose(f);
+        }
+    }
+
+    if((str=getenv("XDG_CONFIG_HOME")) != NULL && str[0] != 0)
+        snprintf(buffer, sizeof(buffer), "%s/%s", str, "alsoft.conf");
+    else
+    {
+        buffer[0] = 0;
+        if((str=getenv("HOME")) != NULL && str[0] != 0)
+            snprintf(buffer, sizeof(buffer), "%s/.config/%s", str, "alsoft.conf");
+    }
+    if(buffer[0] != 0)
+    {
+        TRACE("Loading config %s...\n", buffer);
+        f = al_fopen(buffer, "r");
+        if(f)
+        {
+            LoadConfigFromFile(f);
+            fclose(f);
+        }
+    }
+
+    if((str=getenv("ALSOFT_CONF")) != NULL && *str)
+    {
+        TRACE("Loading config %s...\n", str);
+        f = al_fopen(str, "r");
+        if(f)
+        {
+            LoadConfigFromFile(f);
+            fclose(f);
+        }
+    }
 }
 
 void FreeALConfig(void)

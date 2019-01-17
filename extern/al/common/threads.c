@@ -31,6 +31,7 @@
 #include <pthread.h>
 #ifdef _TIMESPEC_DEFINED         // make MinGW workable
 #include <pthread_time.h>
+#define HAVE_PTHREAD_SETNAME_NP
 #endif
 #ifdef HAVE_PTHREAD_NP_H
 #include <pthread_np.h>
