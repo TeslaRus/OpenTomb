@@ -54,17 +54,19 @@ struct base_mesh_s;
 typedef struct ss_bone_tag_s
 {
     struct ss_bone_tag_s   *parent;
+    uint32_t                body_part;                                          // flag: BODY, LEFT_LEG_1, RIGHT_HAND_2, HEAD...
     uint16_t                index;
     uint16_t                is_hidden : 1;
     uint16_t                is_targeted : 1;
     uint16_t                is_axis_modded : 1;
     struct
     {
-        float               direction[3];
-        float               target[3];
+        float               bone_local_direction[3];
+        float               target_pos[3];
         float               limit[4];                                           // x, y, z, cos(alpha_limit)
-        float               current[4];
+        float               current_q[4];
         float               axis_mod[3];
+        float               current_slerp;
     }                       mod;
     struct base_mesh_s     *mesh_base;                                          // base mesh - pointer to the first mesh in array
     struct base_mesh_s     *mesh_replace;
@@ -75,25 +77,47 @@ typedef struct ss_bone_tag_s
     float                   offset[3];                                          // model position offset
 
     float                   qrotate[4];                                         // quaternion rotation
-    float                   transform[16]      __attribute__((packed, aligned(16)));    // 4x4 OpenGL matrix for stack usage
-    float                   full_transform[16] __attribute__((packed, aligned(16)));    // 4x4 OpenGL matrix for global usage
-    float                   orig_transform[16] __attribute__((packed, aligned(16)));    // 4x4 OpenGL matrix for global usage (no targeting modifications)
     
-    uint32_t                body_part;                                          // flag: BODY, LEFT_LEG_1, RIGHT_HAND_2, HEAD...
+#ifdef __GNUC__
+    float                   local_transform[16] __attribute__((packed, aligned(16)));       // 4x4 OpenGL matrix for stack usage
+    float                   current_transform[16]  __attribute__((packed, aligned(16)));    // 4x4 OpenGL matrix for global usage
+#else
+    float                   local_transform[16];       // 4x4 OpenGL matrix for stack usage
+    float                   current_transform[16];    // 4x4 OpenGL matrix for global usage
+#endif
 }ss_bone_tag_t, *ss_bone_tag_p;
+
+typedef struct bone_tag_s
+{
+    float               offset[3];                                              // bone vector
+    float               qrotate[4];                                             // rotation quaternion
+}bone_tag_t, *bone_tag_p;
+
+typedef struct bone_frame_s
+{
+    uint16_t            bone_tag_count;                                         // number of bones
+    uint16_t            unused;                                                
+    struct bone_tag_s  *bone_tags;                                              // bones data
+    float               pos[3];                                                 // position (base offset)
+    float               bb_min[3];                                              // bounding box min coordinates
+    float               bb_max[3];                                              // bounding box max coordinates
+    float               centre[3];                                              // bounding box centre
+}bone_frame_t, *bone_frame_p ;
 
 typedef struct ss_animation_s
 {
     uint16_t                    type;
     uint16_t                    enabled : 1;
-    uint16_t                    do_jump_anim : 1;
+    uint16_t                    heavy_state : 1;
     uint16_t                    frame_changing_state : 14;
-    int16_t                     next_state;
-    int16_t                     next_state_heavy;
+    int16_t                     target_state;
     int16_t                     prev_animation;
     int16_t                     prev_frame;
     int16_t                     current_animation;
     int16_t                     current_frame;
+    
+    struct bone_frame_s         current_bf;
+    struct bone_frame_s         prev_bf;
     
     uint16_t                    anim_frame_flags;                               // base animation control flags
     uint16_t                    anim_ext_flags;                                 // additional animation control flags
@@ -125,29 +149,6 @@ typedef struct ss_bone_frame_s
 
     struct ss_animation_s       animations;                                     // animations list
 }ss_bone_frame_t, *ss_bone_frame_p;
-
-/*
- * ORIGINAL ANIMATIONS
- */
-typedef struct bone_tag_s
-{
-    float               offset[3];                                              // bone vector
-    float               qrotate[4];                                             // rotation quaternion
-}bone_tag_t, *bone_tag_p;
-
-/*
- * base frame of animated skeletal model
- */
-typedef struct bone_frame_s
-{
-    uint16_t            bone_tag_count;                                         // number of bones
-    uint16_t            unused;                                                
-    struct bone_tag_s  *bone_tags;                                              // bones data
-    float               pos[3];                                                 // position (base offset)
-    float               bb_min[3];                                              // bounding box min coordinates
-    float               bb_max[3];                                              // bounding box max coordinates
-    float               centre[3];                                              // bounding box centre
-}bone_frame_t, *bone_frame_p ;
 
 /*
  * mesh tree base element structure
@@ -184,19 +185,12 @@ typedef struct state_change_s
 typedef struct animation_command_s
 {
     uint16_t                    id;
+    uint16_t                    extra;
     int16_t                     frame;
+    int16_t                     effect;
     float                       data[3];
     struct animation_command_s *next;
 }animation_command_t, *animation_command_p;
-
-typedef struct animation_effect_s
-{
-    uint16_t                    id;
-    int16_t                     frame;
-    int16_t                     data;
-    uint16_t                    extra;
-    struct animation_effect_s  *next;
-}animation_effect_t, *animation_effect_p;
 
 /*
  * one animation frame structure
@@ -210,9 +204,7 @@ typedef struct animation_frame_s
     uint16_t                    state_change_count;     // Number of animation statechanges
     struct bone_frame_s        *frames;                 // Frame data
     struct state_change_s      *state_change;           // Animation statechanges data
-    
     struct animation_command_s *commands;
-    struct animation_effect_s  *effects;
     
     float                       speed_x;                // Forward-backward speed
     float                       accel_x;                // Forward-backward accel
@@ -251,11 +243,13 @@ void SkeletalModel_GenParentsIndexes(skeletal_model_p model);
 void SkeletalModel_FillTransparency(skeletal_model_p model);
 void SkeletalModel_CopyMeshes(mesh_tree_tag_p dst, mesh_tree_tag_p src, int tags_count);
 void SkeletalModel_CopyAnims(skeletal_model_p dst, skeletal_model_p src);
-void BoneFrame_Copy(bone_frame_p dst, bone_frame_p src);
+void BoneFrame_Copy(bone_frame_p dst, const bone_frame_p src);
 
 void SSBoneFrame_CreateFromModel(ss_bone_frame_p bf, skeletal_model_p model);
 void SSBoneFrame_Clear(ss_bone_frame_p bf);
 void SSBoneFrame_Copy(struct ss_bone_frame_s *dst, struct ss_bone_frame_s *src);
+void SSBoneFrame_UpdateMoveCommand(struct ss_animation_s *ss_anim, float move[3]);
+void SSBoneFrame_UpdateChangeDirCommand(struct ss_bone_frame_s *bf);
 void SSBoneFrame_Update(struct ss_bone_frame_s *bf, float time);
 void SSBoneFrame_RotateBone(struct ss_bone_frame_s *bf, const float q_rotate[4], int bone);
 int  SSBoneFrame_CheckTargetBoneLimit(struct ss_bone_frame_s *bf, struct ss_bone_tag_s *b_tag, float target[3]);
@@ -272,11 +266,10 @@ void SSBoneFrame_DisableOverrideAnim(struct ss_bone_frame_s *bf, struct ss_anima
 void SSBoneFrame_FillSkinnedMeshMap(ss_bone_frame_p model);
 
 void Anim_AddCommand(struct animation_frame_s *anim, const animation_command_p command);
-void Anim_AddEffect(struct animation_frame_s *anim, const animation_effect_p effect);
-struct state_change_s *Anim_FindStateChangeByAnim(struct animation_frame_s *anim, int state_change_anim);
 struct state_change_s *Anim_FindStateChangeByID(struct animation_frame_s *anim, uint32_t id);
 int  Anim_GetAnimDispatchCase(struct ss_animation_s *ss_anim, uint32_t id);
 void Anim_SetAnimation(struct ss_animation_s *ss_anim, int animation, int frame);
+
 int  Anim_SetNextFrame(struct ss_animation_s *ss_anim, float time);
 int  Anim_IncTime(struct ss_animation_s *ss_anim, float time);
 inline uint16_t Anim_GetCurrentState(struct ss_animation_s *ss_anim)

@@ -11,7 +11,7 @@
 #include "skeletal_model.h"
 
 
-void SSBoneFrame_InitSSAnim(struct ss_animation_s *ss_anim, uint32_t anim_type_id);
+void SSBoneFrame_InitSSAnim(struct ss_animation_s *ss_anim, skeletal_model_p model, uint32_t anim_type_id);
 void Anim_Clear(struct animation_frame_s *anim);
 
 
@@ -49,13 +49,19 @@ void SkeletalModel_Clear(skeletal_model_p model)
 void SkeletalModel_GenParentsIndexes(skeletal_model_p model)
 {
     int stack = 0;
+#ifndef __GNUC__
+    uint16_t *parents = malloc(sizeof(model->mesh_count));
+#else
     uint16_t parents[model->mesh_count];
+#endif
 
     parents[0] = 0;
-    model->mesh_tree[0].parent = 0;                                             // root
+    model->mesh_tree[0].parent = 0;      // root
+
     for(uint16_t i = 1; i < model->mesh_count; i++)
     {
         model->mesh_tree[i].parent = i - 1;
+
         if(model->mesh_tree[i].flag & 0x01)                                     // POP
         {
             if(stack > 0)
@@ -66,7 +72,7 @@ void SkeletalModel_GenParentsIndexes(skeletal_model_p model)
         }
         if(model->mesh_tree[i].flag & 0x02)                                     // PUSH
         {
-            if(stack + 1 < (int16_t)model->mesh_count)
+            if(stack + 1 < (uint16_t) model->mesh_count)
             {
                 stack++;
                 parents[stack] = model->mesh_tree[i].parent;
@@ -80,6 +86,7 @@ void SkeletalModel_GenParentsIndexes(skeletal_model_p model)
         {
             uint16_t m1 = model->collision_map[j];
             uint16_t m2 = model->collision_map[j + 1];
+
             if(model->mesh_tree[m1].parent > model->mesh_tree[m2].parent)
             {
                 uint16_t t = model->collision_map[j];
@@ -88,6 +95,10 @@ void SkeletalModel_GenParentsIndexes(skeletal_model_p model)
             }
         }
     }
+
+#ifndef __GNUC__
+    free(parents);
+#endif
 }
 
 
@@ -123,7 +134,6 @@ void SkeletalModel_CopyAnims(skeletal_model_p dst, skeletal_model_p src)
     for(uint16_t i = 0; i < src->animation_count; ++i, ++dst_a, ++src_a)
     {
         animation_command_p *last_cmd = &dst_a->commands;
-        animation_effect_p *last_effect = &dst_a->effects;
         
         for(animation_command_p cmd = src_a->commands; cmd; cmd = cmd->next)
         {
@@ -131,14 +141,6 @@ void SkeletalModel_CopyAnims(skeletal_model_p dst, skeletal_model_p src)
             **last_cmd = *cmd;
             (*last_cmd)->next = NULL;
             last_cmd = &((*last_cmd)->next);
-        }
-
-        for(animation_effect_p effect = src_a->effects; effect; effect = effect->next)
-        {
-            *last_effect = (animation_effect_p)malloc(sizeof(animation_effect_t));
-            **last_effect = *effect;
-            (*last_effect)->next = NULL;
-            last_effect = &((*last_effect)->next);
         }
 
         dst_a->frames_count = src_a->frames_count;
@@ -186,7 +188,7 @@ void SkeletalModel_CopyAnims(skeletal_model_p dst, skeletal_model_p src)
 }
 
 
-void BoneFrame_Copy(bone_frame_p dst, bone_frame_p src)
+void BoneFrame_Copy(bone_frame_p dst, const bone_frame_p src)
 {
     if(dst->bone_tag_count < src->bone_tag_count)
     {
@@ -197,12 +199,7 @@ void BoneFrame_Copy(bone_frame_p dst, bone_frame_p src)
     vec3_copy(dst->centre, src->centre);
     vec3_copy(dst->bb_max, src->bb_max);
     vec3_copy(dst->bb_min, src->bb_min);
-
-    for(uint16_t i = 0; i < dst->bone_tag_count; i++)
-    {
-        vec4_copy(dst->bone_tags[i].qrotate, src->bone_tags[i].qrotate);
-        vec3_copy(dst->bone_tags[i].offset, src->bone_tags[i].offset);
-    }
+    memcpy(dst->bone_tags, src->bone_tags, src->bone_tag_count * sizeof(struct bone_tag_s));
 }
 
 
@@ -217,7 +214,7 @@ void SSBoneFrame_CreateFromModel(ss_bone_frame_p bf, skeletal_model_p model)
     bf->bone_tag_count = 0;
     bf->bone_tags = NULL;
     
-    SSBoneFrame_InitSSAnim(&bf->animations, ANIM_TYPE_BASE);
+    SSBoneFrame_InitSSAnim(&bf->animations, model, ANIM_TYPE_BASE);
     bf->animations.model = model;
     if(model)
     {
@@ -241,18 +238,19 @@ void SSBoneFrame_CreateFromModel(ss_bone_frame_p bf, skeletal_model_p model)
 
             vec3_copy(b_tag->offset, model->mesh_tree[i].offset);
             vec4_set_zero(b_tag->qrotate);
-            Mat4_E_macro(b_tag->transform);
-            Mat4_E_macro(b_tag->full_transform);
+            Mat4_E_macro(b_tag->local_transform);
+            Mat4_E_macro(b_tag->current_transform);
 
-            vec3_set_zero(b_tag->mod.target);
-            vec4_set_zero_angle(b_tag->mod.current);
-            b_tag->mod.direction[0] = 0.0f;
-            b_tag->mod.direction[1] = 1.0f;
-            b_tag->mod.direction[2] = 0.0f;
+            vec3_set_zero(b_tag->mod.target_pos);
+            vec4_set_zero_angle(b_tag->mod.current_q);
+            b_tag->mod.bone_local_direction[0] = 0.0f;
+            b_tag->mod.bone_local_direction[1] = 1.0f;
+            b_tag->mod.bone_local_direction[2] = 0.0f;
             b_tag->mod.limit[0] = 0.0f;
             b_tag->mod.limit[1] = 1.0f;
             b_tag->mod.limit[2] = 0.0f;
             b_tag->mod.limit[3] =-1.0f;
+            b_tag->mod.current_slerp = 1.0f;
             vec3_set_one(b_tag->mod.axis_mod);
             
             if(i > 0)
@@ -264,20 +262,34 @@ void SSBoneFrame_CreateFromModel(ss_bone_frame_p bf, skeletal_model_p model)
 }
 
 
-void SSBoneFrame_InitSSAnim(struct ss_animation_s *ss_anim, uint32_t anim_type_id)
+void SSBoneFrame_InitSSAnim(struct ss_animation_s *ss_anim, skeletal_model_p model, uint32_t anim_type_id)
 {
     ss_anim->anim_ext_flags = 0x00;
     ss_anim->anim_frame_flags = 0x00;
     ss_anim->type = anim_type_id;
     ss_anim->enabled = 0x01;
-    ss_anim->do_jump_anim = 0x00;
-    ss_anim->model = NULL;
+    ss_anim->heavy_state = 0x00;
+    
+    memset(&ss_anim->prev_bf, 0x00, sizeof(ss_anim->prev_bf));
+    memset(&ss_anim->current_bf, 0x00, sizeof(ss_anim->current_bf));   
+    if(model)
+    {
+        size_t sz = model->mesh_count * sizeof(bone_tag_t);
+        ss_anim->prev_bf.bone_tag_count = model->mesh_count;
+        ss_anim->prev_bf.bone_tags = (bone_tag_p)malloc(sz);
+        BoneFrame_Copy(&ss_anim->prev_bf, model->animations->frames);
+        
+        ss_anim->current_bf.bone_tag_count = model->mesh_count;
+        ss_anim->current_bf.bone_tags = (bone_tag_p)malloc(sz);
+        BoneFrame_Copy(&ss_anim->current_bf, model->animations->frames);
+    }
+    
+    ss_anim->model = model;
     ss_anim->onFrame = NULL;
     ss_anim->onEndFrame = NULL;
 
     ss_anim->frame_time = 0.0f;
-    ss_anim->next_state = 0;
-    ss_anim->next_state_heavy = -1;
+    ss_anim->target_state = -1;
     ss_anim->lerp = 0.0;
     ss_anim->prev_animation = 0;
     ss_anim->prev_frame = 0;
@@ -311,6 +323,8 @@ void SSBoneFrame_Clear(ss_bone_frame_p bf)
     {
         ss_animation_p ss_anim_next = ss_anim->next;
         ss_anim->next = NULL;
+        free(ss_anim->current_bf.bone_tags);
+        free(ss_anim->prev_bf.bone_tags);
         free(ss_anim);
         ss_anim = ss_anim_next;
     }
@@ -336,6 +350,8 @@ void SSBoneFrame_Copy(struct ss_bone_frame_s *dst, struct ss_bone_frame_s *src)
             {
                 dst_a = SSBoneFrame_AddOverrideAnim(dst, src_a->model, src_a->type);
             }
+            BoneFrame_Copy(&dst_a->prev_bf, &src_a->prev_bf);
+            BoneFrame_Copy(&dst_a->current_bf, &src_a->current_bf);
             dst_a->enabled = src_a->enabled;
             dst_a->model = src_a->model;
             dst_a->prev_animation = src_a->prev_animation;
@@ -344,7 +360,7 @@ void SSBoneFrame_Copy(struct ss_bone_frame_s *dst, struct ss_bone_frame_s *src)
             dst_a->current_frame = src_a->current_frame;
             dst_a->lerp = src_a->lerp;
             dst_a->frame_time = src_a->frame_time;
-            dst_a->next_state = src_a->next_state;
+            dst_a->target_state = src_a->target_state;
         }
         
         for(uint16_t i = 0; i < src->bone_tag_count; ++i)
@@ -356,32 +372,79 @@ void SSBoneFrame_Copy(struct ss_bone_frame_s *dst, struct ss_bone_frame_s *src)
 }
 
 
+void SSBoneFrame_UpdateMoveCommand(struct ss_animation_s *ss_anim, float move[3])
+{
+    vec3_sub(ss_anim->prev_bf.pos, ss_anim->prev_bf.pos, move);
+    vec3_sub(ss_anim->prev_bf.centre, ss_anim->prev_bf.centre, move);
+    vec3_sub(ss_anim->prev_bf.bb_min, ss_anim->prev_bf.bb_min, move);
+    vec3_sub(ss_anim->prev_bf.bb_max, ss_anim->prev_bf.bb_max, move);
+}
+
+
+void SSBoneFrame_UpdateChangeDirCommand(struct ss_bone_frame_s *bf)
+{
+    float q[4], r[4], t[4], tt[4];
+    //vec4_copy(q, bf->transform->M4x4 + 8);
+    q[0] = 0.0f; q[1] = 0.0f; q[2] = 1.0f; q[3] = 0.0f;
+    vec4_copy_inv(r, q);
+
+    vec3_copy(t, bf->animations.prev_bf.pos);
+    t[3] = 0.0f;
+    vec4_mul(tt, q, t);
+    vec4_mul(t, tt, r);
+    vec3_copy(bf->animations.prev_bf.pos, t);
+    
+    vec3_copy(t, bf->animations.prev_bf.centre);
+    t[3] = 0.0f;
+    vec4_mul(tt, q, t);
+    vec4_mul(t, tt, r);
+    vec3_copy(bf->animations.prev_bf.centre, t);
+    
+    vec3_copy(t, bf->animations.prev_bf.bb_min);
+    vec4_mul(tt, q, t);
+    vec4_mul(t, tt, r);
+    vec3_copy(bf->animations.prev_bf.bb_min, t);
+    
+    vec3_copy(t, bf->animations.prev_bf.bb_max);
+    vec4_mul(tt, q, t);
+    vec4_mul(t, tt, r);
+    vec3_copy(bf->animations.prev_bf.bb_max, t);
+    
+    vec3_copy(t, bf->animations.prev_bf.bone_tags->offset);
+    vec4_mul(tt, q, t);
+    vec4_mul(t, tt, r);
+    vec3_copy(bf->animations.prev_bf.bone_tags->offset, t);
+    
+    vec3_copy(t, bf->animations.prev_bf.bone_tags->qrotate);
+    t[3] = 0.0f;
+    vec4_mul(tt, q, t);
+    vec3_copy(bf->animations.prev_bf.bone_tags->qrotate, tt);
+}
+
+
 void SSBoneFrame_Update(struct ss_bone_frame_s *bf, float time)
 {
     float t = 1.0f - bf->animations.lerp;
     ss_bone_tag_p btag = bf->bone_tags;
     bone_tag_p src_btag, next_btag;
-    skeletal_model_p model = bf->animations.model;
-    animation_frame_p curr_anim = model->animations + bf->animations.prev_animation;
-    animation_frame_p next_anim = model->animations + bf->animations.current_animation;
-    bone_frame_p curr_bf = curr_anim->frames + bf->animations.prev_frame;
-    bone_frame_p next_bf = next_anim->frames + bf->animations.current_frame;
+    bone_frame_p prev_bf = &bf->animations.prev_bf;
+    bone_frame_p curr_bf = &bf->animations.current_bf;
     
-    vec3_interpolate_macro(bf->bb_max, curr_bf->bb_max, next_bf->bb_max, bf->animations.lerp, t);
-    vec3_interpolate_macro(bf->bb_min, curr_bf->bb_min, next_bf->bb_min, bf->animations.lerp, t);
-    vec3_interpolate_macro(bf->centre, curr_bf->centre, next_bf->centre, bf->animations.lerp, t);
-    vec3_interpolate_macro(bf->pos, curr_bf->pos, next_bf->pos, bf->animations.lerp, t);
+    vec3_interpolate_macro(bf->bb_max, prev_bf->bb_max, curr_bf->bb_max, bf->animations.lerp, t);
+    vec3_interpolate_macro(bf->bb_min, prev_bf->bb_min, curr_bf->bb_min, bf->animations.lerp, t);
+    vec3_interpolate_macro(bf->centre, prev_bf->centre, curr_bf->centre, bf->animations.lerp, t);
+    vec3_interpolate_macro(bf->pos, prev_bf->pos, curr_bf->pos, bf->animations.lerp, t);
     
-    next_btag = next_bf->bone_tags;
-    src_btag = curr_bf->bone_tags;
-    for(uint16_t k = 0; k < curr_bf->bone_tag_count; k++, btag++, src_btag++, next_btag++)
+    next_btag = curr_bf->bone_tags;
+    src_btag = prev_bf->bone_tags;
+    for(uint16_t k = 0; k < prev_bf->bone_tag_count; k++, btag++, src_btag++, next_btag++)
     {
         vec3_interpolate_macro(btag->offset, src_btag->offset, next_btag->offset, bf->animations.lerp, t);
-        vec3_copy(btag->transform + 12, btag->offset);
-        btag->transform[15] = 1.0f;
+        vec3_copy(btag->local_transform + 12, btag->offset);
+        btag->local_transform[15] = 1.0f;
         if(k == 0)
         {
-            vec3_add(btag->transform + 12, btag->transform + 12, bf->pos);
+            vec3_add(btag->local_transform + 12, btag->local_transform + 12, bf->pos);
             vec4_slerp(btag->qrotate, src_btag->qrotate, next_btag->qrotate, bf->animations.lerp);
         }
         else
@@ -391,30 +454,26 @@ void SSBoneFrame_Update(struct ss_bone_frame_s *bf, float time)
             float ov_lerp = bf->animations.lerp;
             if(btag->alt_anim && btag->alt_anim->model && btag->alt_anim->enabled && (btag->alt_anim->model->mesh_tree[k].replace_anim != 0))
             {
-                curr_anim = btag->alt_anim->model->animations + btag->alt_anim->prev_animation;
-                next_anim = btag->alt_anim->model->animations + btag->alt_anim->current_animation;
-                bone_frame_p ov_curr_bf = curr_anim->frames + btag->alt_anim->prev_frame;
-                bone_frame_p ov_next_bf = next_anim->frames + btag->alt_anim->current_frame;
+                bone_frame_p ov_curr_bf = &btag->alt_anim->prev_bf;
+                bone_frame_p ov_next_bf = &btag->alt_anim->current_bf;
                 ov_lerp = btag->alt_anim->lerp;
                 ov_src_btag = ov_curr_bf->bone_tags + k;
                 ov_next_btag = ov_next_bf->bone_tags + k;
             }
             vec4_slerp(btag->qrotate, ov_src_btag->qrotate, ov_next_btag->qrotate, ov_lerp);
         }
-        Mat4_set_qrotation(btag->transform, btag->qrotate);
+        Mat4_set_qrotation(btag->local_transform, btag->qrotate);
     }
 
     /*
      * build absolute coordinate matrix system
      */
     btag = bf->bone_tags;
-    Mat4_Copy(btag->full_transform, btag->transform);
-    Mat4_Copy(btag->orig_transform, btag->transform);
+    Mat4_Copy(btag->current_transform, btag->local_transform);
     btag++;
-    for(uint16_t k = 1; k < curr_bf->bone_tag_count; k++, btag++)
+    for(uint16_t k = 1; k < prev_bf->bone_tag_count; k++, btag++)
     {
-        Mat4_Mat4_mul(btag->full_transform, btag->parent->full_transform, btag->transform);
-        Mat4_Copy(btag->orig_transform, btag->full_transform);
+        Mat4_Mat4_mul(btag->current_transform, btag->parent->current_transform, btag->local_transform);
         SSBoneFrame_TargetBoneToSlerp(bf, btag, time);
     }
 }
@@ -422,25 +481,23 @@ void SSBoneFrame_Update(struct ss_bone_frame_s *bf, float time)
 
 void SSBoneFrame_RotateBone(struct ss_bone_frame_s *bf, const float q_rotate[4], int bone)
 {
-    float tr[16], q[4];
     ss_bone_tag_p b_tag = b_tag = bf->bone_tags + bone;
-    
-    vec4_copy(q, q_rotate);
-    Mat4_E(tr);
-    Mat4_RotateQuaternion(tr, q);
-    vec4_copy(q, b_tag->transform + 12);
-    Mat4_Mat4_mul(b_tag->transform, tr, b_tag->transform);
-    vec4_copy(b_tag->transform + 12, q);
+
+    Mat4_RotateRByQuaternion(b_tag->local_transform, q_rotate);
     for(uint16_t i = bone; i < bf->bone_tag_count; i++)
     {
         ss_bone_tag_p btag = bf->bone_tags + i;
         if(btag->parent)
         {
-            Mat4_Mat4_mul(btag->full_transform, btag->parent->full_transform, btag->transform);
+            Mat4_Mat4_mul(btag->current_transform, btag->parent->current_transform, btag->local_transform);
+            if(btag->parent->index < bone)
+            {
+                break;
+            }
         }
         else
         {
-            Mat4_Copy(btag->full_transform, btag->transform);
+            Mat4_Copy(btag->current_transform, btag->local_transform);
         }
     }
 }
@@ -453,9 +510,9 @@ int  SSBoneFrame_CheckTargetBoneLimit(struct ss_bone_frame_s *bf, struct ss_bone
     Mat4_vec3_mul_inv(target_local, bf->transform->M4x4, target);
     if(b_tag->parent)
     {
-        Mat4_vec3_mul_inv(target_local, b_tag->parent->full_transform, target_local);
+        Mat4_vec3_mul_inv(target_local, b_tag->parent->current_transform, target_local);
     }
-    vec3_sub(target_dir, target_local, b_tag->transform + 12);
+    vec3_sub(target_dir, target_local, b_tag->local_transform + 12);
     vec3_norm(target_dir, t);
     vec3_copy(limit_dir, b_tag->mod.limit);
 
@@ -471,17 +528,18 @@ int  SSBoneFrame_CheckTargetBoneLimit(struct ss_bone_frame_s *bf, struct ss_bone
 
 void SSBoneFrame_TargetBoneToSlerp(struct ss_bone_frame_s *bf, struct ss_bone_tag_s *b_tag, float time)
 {
+    b_tag->mod.current_slerp = 1.0f;
     if(b_tag->is_targeted)
     {
         float clamped_q[4], q[4], target_dir[3], target_local[3], bone_dir[3];
 
-        Mat4_vec3_mul_inv(target_local, bf->transform->M4x4, b_tag->mod.target);
+        Mat4_vec3_mul_inv(target_local, bf->transform->M4x4, b_tag->mod.target_pos);
         if(b_tag->parent)
         {
-            Mat4_vec3_mul_inv(target_local, b_tag->parent->full_transform, target_local);
+            Mat4_vec3_mul_inv(target_local, b_tag->parent->current_transform, target_local);
         }
-        vec3_sub(target_dir, target_local, b_tag->transform + 12);
-        vec3_copy(bone_dir, b_tag->mod.direction);
+        vec3_sub(target_dir, target_local, b_tag->local_transform + 12);
+        vec3_copy(bone_dir, b_tag->mod.bone_local_direction);
 
         vec4_GetQuaternionRotation(q, bone_dir, target_dir);
         if(q[3] < b_tag->mod.limit[3])
@@ -496,23 +554,23 @@ void SSBoneFrame_TargetBoneToSlerp(struct ss_bone_frame_s *bf, struct ss_bone_ta
             q[3] = 1.0f - vec3_sqabs(q);
             q[3] = sqrtf(q[3]);
         }
-        vec4_slerp_to(clamped_q, b_tag->mod.current, q, time * M_PI / 1.3f);
-        vec4_copy(b_tag->mod.current, clamped_q);
-        SSBoneFrame_RotateBone(bf, b_tag->mod.current, b_tag->index);
+        b_tag->mod.current_slerp = vec4_slerp_to(clamped_q, b_tag->mod.current_q, q, time * M_PI / 1.3f);
+        vec4_copy(b_tag->mod.current_q, clamped_q);
+        SSBoneFrame_RotateBone(bf, b_tag->mod.current_q, b_tag->index);
     }
-    else if(b_tag->mod.current[3] < 1.0f)
+    else if(b_tag->mod.current_q[3] < 1.0f)
     {       
-        if(b_tag->mod.current[3] < 0.99f)
+        if(b_tag->mod.current_q[3] < 0.99f)
         {
             float zero_ang[4] = {0.0f, 0.0f, 0.0f, 1.0f};
             float clamped_q[4];
-            vec4_slerp_to(clamped_q, b_tag->mod.current, zero_ang, time * M_PI / 1.3f);
-            vec4_copy(b_tag->mod.current, clamped_q);
-            SSBoneFrame_RotateBone(bf, b_tag->mod.current, b_tag->index);
+            vec4_slerp_to(clamped_q, b_tag->mod.current_q, zero_ang, time * M_PI / 1.3f);
+            vec4_copy(b_tag->mod.current_q, clamped_q);
+            SSBoneFrame_RotateBone(bf, b_tag->mod.current_q, b_tag->index);
         }
         else
         {
-            vec4_set_zero_angle(b_tag->mod.current);
+            vec4_set_zero_angle(b_tag->mod.current_q);
         }
     }
 }
@@ -521,8 +579,8 @@ void SSBoneFrame_TargetBoneToSlerp(struct ss_bone_frame_s *bf, struct ss_bone_ta
 void SSBoneFrame_SetTarget(struct ss_bone_tag_s *b_tag, const float target_pos[3], const float bone_dir[3])
 {
     b_tag->is_targeted = 0x01;
-    vec3_copy(b_tag->mod.target, target_pos);
-    vec3_copy(b_tag->mod.direction, bone_dir);
+    vec3_copy(b_tag->mod.target_pos, target_pos);
+    vec3_copy(b_tag->mod.bone_local_direction, bone_dir);
 }
 
 
@@ -562,8 +620,7 @@ struct ss_animation_s *SSBoneFrame_AddOverrideAnim(struct ss_bone_frame_s *bf, s
     if(!sm || (sm->mesh_count == bf->bone_tag_count))
     {
         ss_animation_p ss_anim = (ss_animation_p)malloc(sizeof(ss_animation_t));
-        SSBoneFrame_InitSSAnim(ss_anim, anim_type_id);
-        ss_anim->model = sm;
+        SSBoneFrame_InitSSAnim(ss_anim, sm, anim_type_id);
 
         ss_anim->next = bf->animations.next;
         if(bf->animations.next)
@@ -703,13 +760,6 @@ void Anim_Clear(struct animation_frame_s *anim)
         free(anim->commands);
         anim->commands = next_command;
     }
-
-    while(anim->effects)
-    {
-        animation_effect_p next_effect = anim->effects->next;
-        free(anim->effects);
-        anim->effects = next_effect;
-    }
 }
 
 
@@ -720,37 +770,6 @@ void Anim_AddCommand(struct animation_frame_s *anim, const animation_command_p c
     *ptr = (animation_command_p)malloc(sizeof(animation_command_t));
     **ptr = *command;
     (*ptr)->next = NULL;
-}
-
-
-void Anim_AddEffect(struct animation_frame_s *anim, const animation_effect_p effect)
-{
-    animation_effect_p *ptr = &anim->effects;
-    for(; *ptr; ptr = &((*ptr)->next));
-    *ptr = (animation_effect_p)malloc(sizeof(animation_effect_t));
-    **ptr = *effect;
-    (*ptr)->next = NULL;
-}
-
-
-struct state_change_s *Anim_FindStateChangeByAnim(struct animation_frame_s *anim, int state_change_anim)
-{
-    if(state_change_anim >= 0)
-    {
-        state_change_p ret = anim->state_change;
-        for(uint16_t i = 0; i < anim->state_change_count; i++, ret++)
-        {
-            for(uint16_t j = 0; j < ret->anim_dispatch_count; j++)
-            {
-                if(ret->anim_dispatch[j].next_anim == state_change_anim)
-                {
-                    return ret;
-                }
-            }
-        }
-    }
-
-    return NULL;
 }
 
 
@@ -805,8 +824,10 @@ void Anim_SetAnimation(struct ss_animation_s *ss_anim, int animation, int frame)
 
         ss_anim->frame_changing_state = 0x04;
 
-        ss_anim->next_state = anim->state_id;
-
+        ss_anim->target_state = -1;
+        
+        BoneFrame_Copy(&ss_anim->current_bf, anim->frames + frame);
+        BoneFrame_Copy(&ss_anim->prev_bf, anim->frames + frame);
         ss_anim->current_animation = animation;
         ss_anim->current_frame = frame;
         ss_anim->prev_animation = animation;
@@ -823,31 +844,17 @@ int  Anim_SetNextFrame(struct ss_animation_s *ss_anim, float time)
 {
     float dt;
     int32_t new_frame;
-    animation_frame_p next_anim = ss_anim->model->animations + ss_anim->current_animation;
-    state_change_p stc = Anim_FindStateChangeByID(next_anim, ss_anim->next_state);
+    animation_frame_p current_anim = ss_anim->model->animations + ss_anim->current_animation;
+    state_change_p stc = (ss_anim->target_state >= 0) ? (Anim_FindStateChangeByID(current_anim, ss_anim->target_state)) : (NULL);
     
-    if((next_anim->state_id == ss_anim->next_state_heavy) && (next_anim->next_anim->state_id == ss_anim->next_state_heavy))
+    if(ss_anim->heavy_state && (current_anim->state_id == ss_anim->target_state) && (current_anim->next_anim->state_id == ss_anim->target_state))
     {
-        ss_anim->next_state_heavy = -1;
-    }
-    
-    if(ss_anim->next_state_heavy >= 0)
-    {
-        state_change_p stc_heavy = Anim_FindStateChangeByID(next_anim, ss_anim->next_state_heavy);
-        stc = (stc_heavy) ? (stc_heavy) : (stc);
+        ss_anim->heavy_state = 0x00;
     }
     
     ss_anim->frame_time = (ss_anim->frame_time >= 0.0f) ? (ss_anim->frame_time) : (0.0f);
     ss_anim->frame_time += time;
     new_frame = ss_anim->frame_time / ss_anim->period;
-    if((ss_anim->current_animation == ss_anim->prev_animation) && 
-       (ss_anim->current_frame == ss_anim->prev_frame) && 
-       (ss_anim->current_frame == new_frame))
-    {
-        ++new_frame;
-        ss_anim->frame_time += ss_anim->period;
-    }
-    
     dt = ss_anim->frame_time - (float)new_frame * ss_anim->period;
     ss_anim->lerp = dt / ss_anim->period;
     
@@ -865,9 +872,9 @@ int  Anim_SetNextFrame(struct ss_animation_s *ss_anim, float time)
         ss_anim->frame_time = 0.0f;
         return 0x00;
     }
-    else if((new_frame + 1 >= next_anim->max_frame) && (ss_anim->anim_frame_flags == ANIM_LOOP_LAST_FRAME))
+    else if((new_frame + 1 >= current_anim->max_frame) && (ss_anim->anim_frame_flags == ANIM_LOOP_LAST_FRAME))
     {
-        ss_anim->current_frame = next_anim->max_frame - 1;
+        ss_anim->current_frame = current_anim->max_frame - 1;
         ss_anim->prev_frame = ss_anim->current_frame;
         ss_anim->prev_animation = ss_anim->current_animation;
         ss_anim->lerp = 0.0f;
@@ -883,7 +890,7 @@ int  Anim_SetNextFrame(struct ss_animation_s *ss_anim, float time)
         anim_dispatch_p disp = stc->anim_dispatch;
         for(uint16_t i = 0; i < stc->anim_dispatch_count; i++, disp++)
         {
-            if((next_anim->max_frame == 1) || 
+            if((current_anim->max_frame == 1) || 
                (new_frame >= disp->frame_low) && (new_frame <= disp->frame_high) || 
                (ss_anim->current_frame <= disp->frame_high) && (new_frame >= disp->frame_high))
             {
@@ -891,25 +898,26 @@ int  Anim_SetNextFrame(struct ss_animation_s *ss_anim, float time)
                 ss_anim->prev_frame = ss_anim->current_frame;
                 ss_anim->current_animation = disp->next_anim;
                 ss_anim->current_frame = disp->next_frame;
+                BoneFrame_Copy(&ss_anim->prev_bf, &ss_anim->current_bf);
+                BoneFrame_Copy(&ss_anim->current_bf, ss_anim->model->animations[ss_anim->current_animation].frames + ss_anim->current_frame);
                 ss_anim->frame_time = (float)ss_anim->current_frame * ss_anim->period + dt;
-                ss_anim->next_state = ss_anim->model->animations[ss_anim->current_animation].state_id;
+                ss_anim->target_state = ss_anim->heavy_state ? ss_anim->target_state : -1;
                 ss_anim->frame_changing_state = 0x03;
                 return 0x03;
             }
         }
     }
-    
-    /*
-     * Check next anim if frame >= max_frame
-     */
-    if(new_frame >= next_anim->max_frame)
+
+    if(new_frame >= current_anim->max_frame)
     {
         ss_anim->prev_animation = ss_anim->current_animation;
         ss_anim->prev_frame = ss_anim->current_frame;
-        ss_anim->current_frame = next_anim->next_frame;
-        ss_anim->current_animation = next_anim->next_anim->id;
+        ss_anim->current_frame = current_anim->next_frame;
+        ss_anim->current_animation = current_anim->next_anim->id;
+        BoneFrame_Copy(&ss_anim->prev_bf, &ss_anim->current_bf);
+        BoneFrame_Copy(&ss_anim->current_bf, ss_anim->model->animations[ss_anim->current_animation].frames + ss_anim->current_frame);
         ss_anim->frame_time = (float)ss_anim->current_frame * ss_anim->period + dt;
-        ss_anim->next_state = ss_anim->model->animations[ss_anim->current_animation].state_id;
+        ss_anim->target_state = ss_anim->heavy_state ? ss_anim->target_state : -1;
         ss_anim->frame_changing_state = 0x02;
         return 0x02;
     }
@@ -919,6 +927,8 @@ int  Anim_SetNextFrame(struct ss_animation_s *ss_anim, float time)
         ss_anim->prev_animation = ss_anim->current_animation;
         ss_anim->prev_frame = ss_anim->current_frame;
         ss_anim->current_frame = new_frame;
+        BoneFrame_Copy(&ss_anim->prev_bf, &ss_anim->current_bf);
+        BoneFrame_Copy(&ss_anim->current_bf, ss_anim->model->animations[ss_anim->current_animation].frames + ss_anim->current_frame);
         ss_anim->frame_changing_state = 0x01;
         return 0x01;
     }
@@ -936,6 +946,8 @@ int  Anim_IncTime(struct ss_animation_s *ss_anim, float time)
         ss_anim->prev_frame = 0;
         ss_anim->current_frame = 0;
         ss_anim->lerp = 0.0f;
+        BoneFrame_Copy(&ss_anim->current_bf, ss_anim->model->animations[ss_anim->current_animation].frames + ss_anim->current_frame);
+        BoneFrame_Copy(&ss_anim->prev_bf, ss_anim->model->animations[ss_anim->current_animation].frames + ss_anim->current_frame);
         ss_anim->frame_changing_state = 0x02;
         return 2;
     }
@@ -944,17 +956,23 @@ int  Anim_IncTime(struct ss_animation_s *ss_anim, float time)
     int16_t prev_frame = ss_anim->prev_frame;
     ss_anim->prev_frame = ss_anim->frame_time / ss_anim->period;
     ss_anim->current_frame = ss_anim->prev_frame + 1;
+
     if(ss_anim->current_frame >= curr_anim->max_frame)
     {
         ss_anim->frame_time = ss_anim->period * (float)(curr_anim->max_frame - 1);
         ss_anim->frame_time = (ss_anim->frame_time < 0.0f) ? (0.0f) : (ss_anim->frame_time);
         ss_anim->prev_frame = curr_anim->max_frame - 1;
         ss_anim->current_frame = curr_anim->max_frame - 1;
+        BoneFrame_Copy(&ss_anim->current_bf, ss_anim->model->animations[ss_anim->current_animation].frames + ss_anim->current_frame);
+        BoneFrame_Copy(&ss_anim->prev_bf, ss_anim->model->animations[ss_anim->current_animation].frames + ss_anim->prev_frame);
         ss_anim->lerp = 1.0f;
         ss_anim->frame_changing_state = 0x2;
         return 1;
     }
 
+    BoneFrame_Copy(&ss_anim->current_bf, ss_anim->model->animations[ss_anim->current_animation].frames + ss_anim->current_frame);
+    BoneFrame_Copy(&ss_anim->prev_bf, ss_anim->model->animations[ss_anim->current_animation].frames + ss_anim->prev_frame);
+    
     float dt = ss_anim->frame_time - (float)ss_anim->prev_frame * ss_anim->period;
     ss_anim->lerp = dt / ss_anim->period;
     ss_anim->frame_changing_state = (prev_frame == ss_anim->prev_frame) ? (0x00) : (0x01);

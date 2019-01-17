@@ -200,14 +200,10 @@ void ShowModelView(float time)
         cam_pos[2] = -engine_camera.transform.M4x4[8 + 2] * test_model_dist + test_model_z_offset;
         Cam_Apply(&engine_camera);
 
-        g_test_model.animations.frame_time += time;
-        g_test_model.animations.prev_frame = g_test_model.animations.frame_time / g_test_model.animations.period;
-        if(g_test_model.animations.prev_frame >= af->frames_count)
+        if(Anim_IncTime(&g_test_model.animations, time))
         {
-            g_test_model.animations.frame_time = 0.0f;
-            g_test_model.animations.prev_frame = 0;
+            Anim_SetAnimation(&g_test_model.animations, g_test_model.animations.current_animation, 0);
         }
-        g_test_model.animations.current_frame = g_test_model.animations.prev_frame;
         SSBoneFrame_Update(&g_test_model, 0.0f);
 
         Mat4_Mat4_mul(subModelView, engine_camera.gl_view_mat, tr.M4x4);
@@ -225,7 +221,7 @@ void ShowModelView(float time)
         for(int i = 0; i < g_test_model.bone_tag_count; ++i)
         {
             ss_bone_tag_p bf = g_test_model.bone_tags + i;
-            Mat4_vec3_mul_macro(tr.M4x4, bf->full_transform, bf->mesh_base->centre);
+            Mat4_vec3_mul_macro(tr.M4x4, bf->current_transform, bf->mesh_base->centre);
             renderer.OutTextXYZ(tr.M4x4[0], tr.M4x4[1], tr.M4x4[2], "%d", i);
         }
 
@@ -240,8 +236,16 @@ void ShowModelView(float time)
 
             for(animation_command_p cmd = af->commands; cmd; cmd = cmd->next)
             {
-                GLText_OutTextXY(30.0f, y += dy, "command[%d][frame = %d]: {%.1f,  %.1f,  %.1f}",
-                    (int)cmd->id, (int)cmd->frame, cmd->data[0], cmd->data[1], cmd->data[2]);
+                if(cmd->id != TR_ANIMCOMMAND_PLAYEFFECT)
+                {
+                    GLText_OutTextXY(30.0f, y += dy, "command[%d][frame = %d]: {%.1f,  %.1f,  %.1f}",
+                        (int)cmd->id, (int)cmd->frame, cmd->data[0], cmd->data[1], cmd->data[2]);
+                }
+                else
+                {
+                    GLText_OutTextXY(30.0f, y += dy, "effect[%d][frame = %d]: {d = %d,  e = %d}",
+                        (int)cmd->id, (int)cmd->frame, (int)(cmd->effect & 0x3FFF), (int)cmd->extra);
+                }
             }
 
             y = (float)screen_info.h + dy;
@@ -336,13 +340,13 @@ void ShowDebugInfo()
     {
         case debug_view_state_e::player_anim:
             {
-                GLText_OutTextXY(30.0f, y += dy, "VIEW: Lara anim");
+                GLText_OutTextXY(30.0f, y += dy, "VIEW: Player anim");
                 entity_p ent = World_GetPlayer();
                 if(ent && ent->character)
                 {
-                    animation_frame_p anim = ent->bf->animations.model->animations + ent->bf->animations.prev_animation;
-                    GLText_OutTextXY(30.0f, y += dy, "curr_st = %03d, next_st = %03d", anim->state_id, ent->bf->animations.next_state);
-                    GLText_OutTextXY(30.0f, y += dy, "curr_anim = %03d, curr_frame = %03d, next_anim = %03d, next_frame = %03d", ent->bf->animations.prev_animation, ent->bf->animations.prev_frame, ent->bf->animations.current_animation, ent->bf->animations.current_frame);
+                    animation_frame_p anim = ent->bf->animations.model->animations + ent->bf->animations.current_animation;
+                    GLText_OutTextXY(30.0f, y += dy, "curr_st = %03d, target_st = %03d", anim->state_id, ent->bf->animations.target_state);
+                    GLText_OutTextXY(30.0f, y += dy, "curr_anim = %03d, curr_frame = %03d, prev_anim = %03d, prev_frame = %03d", ent->bf->animations.current_animation, ent->bf->animations.current_frame, ent->bf->animations.prev_animation, ent->bf->animations.prev_frame);
                     GLText_OutTextXY(30.0f, y += dy, "anim_next_anim = %03d, anim_next_frame = %03d", anim->next_anim->id, anim->next_frame);
                     GLText_OutTextXY(30.0f, y += dy, "posX = %f, posY = %f, posZ = %f", ent->transform.M4x4[12], ent->transform.M4x4[13], ent->transform.M4x4[14]);
                 }

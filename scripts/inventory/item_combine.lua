@@ -1,5 +1,6 @@
 -- OPENTOMB ITEM COMBINE MAPPINGS
 -- by Lwmte, Oct 2014
+print("item_combine->loaded !");
 
 --------------------------------------------------------------------------------
 -- Since OpenTomb uses internal item enumeration which is not related to local
@@ -239,8 +240,7 @@ function combineItems(a, b, oneway)
     end;
     
     print("Combine: no items combined. Wrong combo or item name(s)?");
-    
-end
+end;
 
 function separateItems(a)
     
@@ -276,5 +276,4 @@ function separateItems(a)
     end;
     
     print("Separate: no items separated. Wrong item name(s)?");
-    
-end
+end;

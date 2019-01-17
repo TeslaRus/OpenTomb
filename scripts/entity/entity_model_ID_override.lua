@@ -6,8 +6,7 @@
 -- ones. This is needed for early TR versions, which had sprites instead of
 -- in-level items.
 --------------------------------------------------------------------------------
-
-print("model ID override script loaded");
+print("entity_model_id_override->loaded !");
 
 --------------------------------------------------------------------------------
 ----------------------------- TR_I, TR_I_DEMO, TR_I_UB -------------------------
@@ -111,25 +110,25 @@ function getOverridedID(ver, id)
             return -1;
         else
             return tr2_id_override[id];
-        end
+        end;
     elseif(ver < 6) then                -- TR_III
         if(tr3_id_override[id] == nil) then
             return -1;
         else
             return tr3_id_override[id];
-        end
+        end;
     elseif(ver < 8) then                -- TR_IV, TR_IV_DEMO
         if(tr4_id_override[id] == nil) then
             return -1;
         else
             return tr4_id_override[id];
-        end
+        end;
     elseif(ver < 9) then                -- TR_V
         if(tr5_id_override[id] == nil) then
             return -1;
         else
             return tr5_id_override[id];
-        end
+        end;
     else
         return -1;
     end;

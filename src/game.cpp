@@ -269,8 +269,8 @@ int Save_Entity(entity_p ent, void *data)
                 if(b_tag->is_targeted)
                 {
                     fprintf(*f, "\nentitySSAnimSetTarget(%d, %d, %.2f, %.2f, %.2f, %.6f, %.6f, %.6f);", ent->id, i,
-                        b_tag->mod.target[0], b_tag->mod.target[1], b_tag->mod.target[2],
-                        b_tag->mod.direction[0], b_tag->mod.direction[1], b_tag->mod.direction[2]);
+                        b_tag->mod.target_pos[0], b_tag->mod.target_pos[1], b_tag->mod.target_pos[2],
+                        b_tag->mod.bone_local_direction[0], b_tag->mod.bone_local_direction[1], b_tag->mod.bone_local_direction[2]);
                 }
                 if(b_tag->is_axis_modded)
                 {
@@ -280,7 +280,7 @@ int Save_Entity(entity_p ent, void *data)
                 fprintf(*f, "\nentitySSAnimSetTargetingLimit(%d, %d, %.6f, %.6f, %.6f, %.6f);", ent->id, i,
                     b_tag->mod.limit[0], b_tag->mod.limit[1], b_tag->mod.limit[2], b_tag->mod.limit[3]);
                 fprintf(*f, "\nentitySSAnimSetCurrentRotation(%d, %d, %.6f, %.6f, %.6f, %.6f);", ent->id, i,
-                    b_tag->mod.current[0], b_tag->mod.current[1], b_tag->mod.current[2], b_tag->mod.current[3]);
+                    b_tag->mod.current_q[0], b_tag->mod.current_q[1], b_tag->mod.current_q[2], b_tag->mod.current_q[3]);
             }
         }
 
@@ -309,8 +309,7 @@ int Save_Entity(entity_p ent, void *data)
             if(ss_anim->model)
             {
                 fprintf(*f, "\nsetEntityAnim(%d, %d, %d, %d, %d, %d);", ent->id, ss_anim->type, ss_anim->current_animation, ss_anim->current_frame, ss_anim->prev_animation, ss_anim->prev_frame);
-                fprintf(*f, "\nsetEntityAnimStateHeavy(%d, %d, %d);", ent->id, ss_anim->type, ss_anim->next_state_heavy);
-                fprintf(*f, "\nsetEntityAnimState(%d, %d, %d);", ent->id, ss_anim->type, ss_anim->next_state);
+                fprintf(*f, "\nsetEntityAnimState(%d, %d, %d, %s);", ent->id, ss_anim->type, ss_anim->target_state, (ss_anim->heavy_state) ? ("true") : ("false"));
                 fprintf(*f, "\nentitySSAnimSetExtFlags(%d, %d, %d, %d);", ent->id, ss_anim->type, ss_anim->enabled, ss_anim->anim_ext_flags);
                 fprintf(*f, "\nentitySSAnimSetEnable(%d, %d, %d);", ent->id, ss_anim->type, ss_anim->enabled);
             }
@@ -719,7 +718,7 @@ void Game_Frame(float time)
                     float pos[3];
                     if(target->character)
                     {
-                        Mat4_vec3_mul(pos, target->transform.M4x4, target->bf->bone_tags[target->character->bone_head].full_transform + 12);
+                        Mat4_vec3_mul(pos, target->transform.M4x4, target->bf->bone_tags[target->character->bone_head].current_transform + 12);
                     }
                     else
                     {

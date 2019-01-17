@@ -58,6 +58,7 @@ static SDL_GLContext            sdl_gl_context = 0;
 static stream_codec_t           engine_video;
 
 static char                     base_path[1024] = {0};
+static char                     config_name[1024] = "config.lua";
 static volatile int             engine_done   = 0;
 static int                      g_menu_mode = 0x00;
 static int                      engine_set_zero_time = 0;
@@ -94,7 +95,6 @@ void ShowDebugInfo();
 
 void Engine_Start(int argc, char **argv)
 {
-    char *config_name = NULL;
     char *autoexec_name = NULL;
 
     Engine_InitDefaultGlobals();
@@ -105,7 +105,7 @@ void Engine_Start(int argc, char **argv)
         {
             if((i + 1 < argc) && (Sys_FileFound(argv[i + 1], 0)))
             {
-                config_name = argv[i + 1];
+                strncpy(config_name, argv[i + 1], sizeof(config_name));
             }
             ++i;
         }
@@ -193,7 +193,7 @@ void Engine_Shutdown(int val)
     size_t path_base_len = sizeof(path) - 1;
     strncpy(path, Engine_GetBasePath(), path_base_len);
     path[path_base_len] = 0;
-    strncat(path, "config.lua", path_base_len - strlen(path));
+    strncat(path, config_name, path_base_len - strlen(path));
     Script_ExportConfig(path);
 
     stream_codec_stop(&engine_video, 0);
@@ -355,7 +355,7 @@ void Engine_InitSDLVideo()
 
     if(SDL_GL_LoadLibrary(NULL) < 0)
     {
-        Sys_Error("Could not init OpenGL driver");
+        Sys_Error("Could not init OpenGL driver: %s", SDL_GetError());
     }
 
     if(renderer.settings.antialias)
@@ -382,12 +382,12 @@ void Engine_InitSDLVideo()
     sdl_window = SDL_CreateWindow("OpenTomb", screen_info.x, screen_info.y, screen_info.w, screen_info.h, video_flags);
     if(!sdl_window)
     {
-        Sys_Error("Could not create SDL window");
+        Sys_Error("Could not create SDL window: %s", SDL_GetError());
     }
     sdl_gl_context = SDL_GL_CreateContext(sdl_window);
     if(!sdl_gl_context)
     {
-        Sys_Error("Could not create GL context");
+        Sys_Error("Could not create GL context: %s", SDL_GetError());
     }
 
     lglGetString = (PFNGLGETSTRINGPROC)SDL_GL_GetProcAddress("glGetString");

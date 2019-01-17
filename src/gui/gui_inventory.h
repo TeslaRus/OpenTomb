@@ -8,10 +8,10 @@
 
 struct inventory_node_s;
 
-
-#define GUI_MENU_ITEMTYPE_SYSTEM 0
-#define GUI_MENU_ITEMTYPE_SUPPLY 1
-#define GUI_MENU_ITEMTYPE_QUEST  2
+#define GUI_MENU_ITEMTYPE_SYSTEM    0
+#define GUI_MENU_ITEMTYPE_AMMO      1
+#define GUI_MENU_ITEMTYPE_INVENTORY 2
+#define GUI_MENU_ITEMTYPE_QUEST     3
 
 // Offscreen divider specifies how far item notifier will be placed from
 // the final slide position. Usually it's enough to be 1/8 of the screen
@@ -77,14 +77,17 @@ enum inventoryState
     INVENTORY_DISABLED = 0,
     INVENTORY_IDLE,
     INVENTORY_OPENING,
-    INVENTORY_CLOSING,
+    INVENTORY_EXIT,
     INVENTORY_R_LEFT,
     INVENTORY_R_RIGHT,
     INVENTORY_UP,
     INVENTORY_DOWN,
     INVENTORY_ACTIVATING,
     INVENTORY_DEACTIVATING,
-    INVENTORY_ACTIVATED
+    INVENTORY_ACTIVATED,
+    // enabled the animation when selected
+    INVENTORY_WEAPON_EXIT,
+    INVENTORY_MEDI_EXIT
 };
     
 public:   
@@ -126,7 +129,7 @@ private:
     int                         m_current_state;
     int                         m_command;
 
-    int                         m_current_items_type;
+    int                         m_current_items_type;     // INVENTORY TYPE (System, Ammo, Quest, Inventory)
     int                         m_next_items_type;
     int                         m_current_items_count;
     int                         m_selected_item;
@@ -144,6 +147,7 @@ private:
     float                       m_item_time;
     float                       m_item_angle_z;
     float                       m_item_angle_x;
+    float                       m_item_offset_y;
     float                       m_item_offset_z;
     float                       m_current_scale;
 
@@ -155,6 +159,7 @@ private:
     void handleCompass(struct base_item_s *bi, float time);
     void handleControls(struct base_item_s *bi, float time);
     void restoreItemAngle(float time);
+    void AnimateItem(struct base_item_s *bi, int itemMaxFrame, int endFrame, float time, bool isMedikit);
 };
 
 
